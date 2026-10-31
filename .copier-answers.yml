@@ -1,0 +1,11 @@
+# The project's answers to the template's questions (copier.yml in the template). Skills read
+# these values. Change one with: copier update --trust --defaults --data <question>=<value>
+_commit: v1.1.0
+_src_path: gh:siraj-samsudeen/intent-driven-with-human-control
+acceptance_stack: python
+adr_dir: adr
+desktop_first: true
+extra_labels: []
+repo: siraj-samsudeen/feather-connect
+screenshots_in_prs: false
+ui_verifier_width: 1280
