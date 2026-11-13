@@ -31,3 +31,60 @@ On Claude Code, `adversarial-authoring` uses the Codex CLI as the reviewer when 
 otherwise a different Claude model than the author, and runs only when the human agrees to it.
 
 ## Project
+
+Feather Connect is an open-source (MIT) integration hub: flows written in Python move data from
+one source to many destinations, and developers, operators and AI agents run, monitor and repair
+them from one dashboard.
+
+**Rebuilt from a pilot.** The pilot is
+[dev-sukkur/feather-connect-pilot](https://github.com/dev-sukkur/feather-connect-pilot). Its
+documents (`docs/01-discovery`, `docs/02-design` with 13 ADRs, `docs/04-plan`) are where the
+requirements come from; its code is a reference to read, never to copy in. Each requirement
+enters here as a GitHub issue and is built through an OpenSpec change. A pilot ADR is not in
+force here until a change's adr step records it in `adr/`.
+
+**Stack.** Lines marked *(proposed)* are the pilot's choices, to be confirmed by the first change:
+
+- Python, managed with uv. Develop on Python 3.14 *(proposed)*: on 13-Nov-2026 PyYAML had no
+  Windows build for 3.15, so installing it there needs a C++ compiler.
+- Pages are rendered on the server as HTML. FastAPI, Jinja2 templates and HTMX *(proposed)*.
+- The product has no Node toolchain. Node is on a developer's machine only for the OpenSpec CLI.
+
+**Front end** (owner, 13-Nov-2026):
+
+- Pages are server-rendered first. A part of a page is refreshed through HTMX attributes.
+  Hand-written JavaScript is kept to what a browser test pins down; the rules are in the
+  `test-driven-development` skill, `references/python.md` § JavaScript in a server-rendered page.
+- React comes in only when a screen needs interaction that a browser test cannot pin down
+  cheaply: branching logic in the browser, state kept across interactions, data reshaped there.
+  Then React is added for that screen alone, mounted inside a server-rendered page; the
+  dashboard is not converted.
+- Adding it is an OpenSpec change with an ADR, because it brings a Node toolchain into the
+  product. From then on the client's code follows the JavaScript column of the
+  `outside-in-tdd` skill's § Reconcile and the server's the Python column; the acceptance suite
+  stays `stack: python` and gets a second service in `support/stack.py`; and the promise that
+  pages work with JavaScript off is withdrawn for that screen by a MODIFIED requirement.
+- To keep that step cheap: what a page shows is computed in Python functions the template only
+  prints; the services behind the pages are separate from the HTML routes, so a JSON route can
+  call the same service; and everything the acceptance suite knows about the UI stays inside
+  page objects.
+- Postgres as the only required database, run in Docker for development *(proposed)*.
+
+**Tooling defaults, never asked**, added to those of the `change-modes` skill (§ Defaults): ruff to lint and
+format, pyright for types, pytest for inner tests, behave with Playwright for the acceptance
+suite (`stack: python`), `uv run` for every command. The end-of-change checks are the Python
+column of the table in the `outside-in-tdd` skill, § Reconcile.
+
+**Worktrees.** Each worktree that runs the acceptance suite at the same time as another sets its
+own `ACCEPTANCE_PORT`. The app's own port and database per worktree are added here by the change
+that first boots the app.
+
+**Windows.** Three things differ on a Windows machine:
+
+- The skills under `.claude/skills/` are symbolic links. They work only with Developer Mode on
+  and `git config core.symlinks true` set before the checkout; without both, each link is a
+  one-line text file and its skill is missing from the session. If a skill this file or
+  `AGENTS.md` names is not in your skill list, read `.agents/skills/<name>/SKILL.md` and follow it.
+- Tools installed with npm are called with `.cmd` in PowerShell (`openspec.cmd`) unless the
+  user's execution policy allows scripts.
+- mutmut does not run on Windows itself: run it in CI, WSL or a Linux container.

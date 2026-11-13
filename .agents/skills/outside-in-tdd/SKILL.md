@@ -202,10 +202,15 @@ list has no group for them, so they are this skill's last step, not tasks. Every
 one of three fates — **ratify** (a `specs:` commit adds the scenario, then a test pins it),
 **delete** (`refactor:`), or **ask** (the human decides):
 
-- Coverage — 100% of lines and functions (Bun: `bun test --coverage`).
-- Unused files, exports and dependencies (`knip`).
-- Types (`tsc --noEmit`).
-- Mutation testing (Stryker) — every surviving mutant is a missing test or code nobody needs.
+| Check | JavaScript / TypeScript | Python |
+|---|---|---|
+| Coverage — 100% of lines and functions | `bun test --coverage` | `pytest --cov=<package> --cov-fail-under=100` |
+| Unused files, exports and dependencies | `knip` | `vulture <src> <tests>` for code, `deptry <src>` for dependencies |
+| Types | `tsc --noEmit` | `pyright` |
+| Mutation testing — every surviving mutant is a missing test or code nobody needs | Stryker | `mutmut run` |
+
+The project's stack is `stack:` in `openspec/config.yaml`; the tools it really uses, when they
+differ from this table, are a project fact (`CLAUDE.md` § Project).
 
 Then `openspec verify`, record the review videos for the owner, and archive on the change's
 branch once the owner has watched them; the owner merges (the `change-modes` skill).
@@ -229,3 +234,21 @@ branch once the owner has watched them; the owner merges (the `change-modes` ski
   page load explicitly.
 - Give each test its own database (`:memory:` or a temp file). A shared file under parallel
   Stryker workers produces false kills.
+
+## Tooling gotchas when the project uses Python (verified 13-Nov-2026 on Windows 11: pytest-cov 7.1, coverage 7.17, vulture 2.16, deptry 0.25, mutmut 3.8)
+
+- `--cov-fail-under` fails the run with one line under the passing tests ("FAIL Required test
+  coverage of 100% not reached"); read the last lines, not only the pass count.
+- Coverage and mutation testing see Python only. Logic in an HTML template (a condition, a
+  filter chain, a computed value) is invisible to both. Keep templates to printing and looping:
+  compute what a page shows in a Python function the template is handed, and test that function.
+- Inner tests of a page call the app in the same process (FastAPI's `TestClient`, Django's test
+  client), so the server code counts towards coverage and mutation testing. The acceptance suite
+  starts the app as another process, invisible to both: it proves the scenario, not the coverage.
+- vulture reads only the paths it is given: pass the tests too (`vulture src tests`), or it
+  reports every function only the tests call. Its findings at 60% confidence are leads, not
+  proof: a route handler or a fixture found by a decorator looks unused to it.
+- mutmut refuses to run on Windows itself ("please use the WSL"). Run it in CI on Linux, or
+  locally in WSL or a Linux container.
+- Give each test its own database: a temp file or `:memory:` for SQLite; for Postgres, a scratch
+  database per test session, emptied before each test.
