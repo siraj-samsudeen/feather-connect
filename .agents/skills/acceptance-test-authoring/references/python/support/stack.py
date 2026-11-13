@@ -67,6 +67,12 @@ def _start(service):
     LOGS.mkdir(parents=True, exist_ok=True)
     log_path = LOGS / ("%s.log" % service["name"])
     env = dict(os.environ)
+    # The suite's own import path (run_acceptance.py) is not the app's: with
+    # it, the suite's `support` or `pages` could hide a module of the app.
+    kept = [p for p in env.get("PYTHONPATH", "").split(os.pathsep) if p and Path(p).resolve() != ACCEPTANCE]
+    env.pop("PYTHONPATH", None)
+    if kept:
+        env["PYTHONPATH"] = os.pathsep.join(kept)
     env.update({k: v for k, v in service["env"].items() if v is not None})
     command = list(service["command"])
     # Finds .cmd and .exe launchers on Windows (npm is npm.cmd there).
@@ -145,7 +151,10 @@ def stop_all():
                 os.killpg(process.pid, signal.SIGTERM)
             process.wait(timeout=15)
         except subprocess.TimeoutExpired:
-            process.kill()
+            if sys.platform == "win32":
+                process.kill()
+            else:
+                os.killpg(process.pid, signal.SIGKILL)  # the group, as above: not only its leader
         except (ProcessLookupError, PermissionError):
             pass  # already gone
 

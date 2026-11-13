@@ -87,7 +87,7 @@ Locations must show only `.extracted/` entries and nothing under `changes/archiv
 
 A server-rendered app (FastAPI or Django with templates, with or without HTMX) differs from a single-page app in four ways the support files already allow for:
 
-- **Signing in is a form post, not a JSON call.** `support/auth.py` loads the sign-in page, copies the form's hidden fields (the CSRF token) and posts the form. A refused sign-in often answers 200 with the form again, so it checks that the answer left the sign-in page, not the status. Setup that posts one of the app's own forms needs that form's hidden fields too: `auth.form_fields(session, path)`.
+- **Signing in is a form post, not a JSON call.** `support/auth.py` loads the sign-in page, copies the form's hidden fields (the CSRF token) and posts the form. A refused sign-in often answers 200 with the form again, so it checks that the answer left the sign-in page, not the status. Setup that posts one of the app's own forms needs that form's hidden fields too: `auth.form_fields(session, path)`. A person's sign-in is made once per run and shared; a scenario that ends it (signing out, changing a password) asks for its own with `world.signed_in(who, fresh=True)`.
 - **Almost every step loads a new document.** Playwright waits for the navigation a click starts; wait for what the next page shows (`expect(...)`, a locator), never for a fixed time. An HTMX swap is not a navigation: wait for the swapped content the same way.
 - **Pages can promise to work with JavaScript off.** `world.without_javascript()` in a Given makes the scenario's pages run without it, so the promise is one scenario in the product-wide spec, not a separate suite.
 - **One process serves everything.** `support/stack.py` has one service and one port. If a separate client (a React dev server) is added later, add a second service and point `BASE_URL` at it; specs, steps and page-object method names stay, and only the page objects' insides change.
@@ -104,7 +104,7 @@ For a person at their own screen; agents and CI set none of these, and browser c
 | `PWDEBUG=1` | Playwright's Inspector (headed), pausing before each action; no action timeout. |
 | `VIDEO=1` | A slowed-down, headless video of every scenario, one per person's browser: `reports/videos/<NN>-<scenario>[-<who>].webm`, numbered in run order. Only a `VIDEO=1` run replaces the videos, so a later plain run leaves the ones to review. A change's scenarios run in its proposal's capability order (COMPOSITION.md), so the videos play the way a person meets the feature. |
 | `VIDEO_SLOWMO=<ms>` | How slow a `VIDEO=1` run is, per browser action (default 400). |
-| `TRACE=1` | Traces every browser; a failed scenario keeps `reports/traces/<scenario>[-<who>].zip`. On in CI by default. Open one with `uv run --project acceptance-tests playwright show-trace <zip>`. |
+| `TRACE=1` | Traces every browser; a failed scenario keeps `reports/traces/<NN>-<scenario>[-<who>].zip`. On in CI by default. Open one with `uv run --project acceptance-tests playwright show-trace <zip>`. |
 | `ACCEPTANCE_PORT=<port>` | The port the run's own app listens on (default 8030); each worktree that runs at the same time needs its own. |
 
 A failed scenario leaves a full-page screenshot in `reports/screenshots/`, also shown under its last step in the HTML report, and the app's own output is in `reports/logs/`.

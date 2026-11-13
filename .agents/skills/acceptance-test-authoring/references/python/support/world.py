@@ -126,16 +126,25 @@ class World:
         self.contexts.append((who, label, browser_context, page))
         return page
 
-    def signed_in(self, who, user=None, password=None):
-        """That person's page, already signed in without the form (support/auth.py)."""
+    def signed_in(self, who, user=None, password=None, fresh=False):
+        """That person's page, already signed in without the form (support/auth.py).
+
+        A person's sign-in is made once and shared by the run's scenarios. A
+        scenario that ends it (signing out, changing a password) asks for
+        `fresh=True`, a sign-in of its own, so that the scenarios after it
+        don't start signed out."""
         if who in self.pages:
             return self.pages[who]
         user = user or auth.ADMIN["user"]
         password = password or auth.ADMIN["password"]
         states = self.run.signed_in_states
-        if user not in states:
-            states[user] = auth.signed_in_state(self.run.playwright, user, password)
-        self.pages[who] = self._new_page(slug(who), who, states[user])
+        if fresh:
+            state = auth.signed_in_state(self.run.playwright, user, password)
+        else:
+            if user not in states:
+                states[user] = auth.signed_in_state(self.run.playwright, user, password)
+            state = states[user]
+        self.pages[who] = self._new_page(slug(who), who, state)
         return self.pages[who]
 
     def signed_out(self, who="visitor"):
@@ -158,6 +167,11 @@ class World:
         """Every page this scenario opens from now on has JavaScript off: for the
         promise that a server-rendered page works without it. Call it before
         signed_in() or signed_out(); a browser context can't be switched after."""
+        if self.pages:
+            raise RuntimeError(
+                "without_javascript() came after a page was opened (%s): make it the scenario's first Given."
+                % ", ".join(self.pages)
+            )
         self.javascript = False
 
     def api(self):
@@ -185,7 +199,7 @@ class World:
                     pass
             if TRACE and failed:
                 TRACES.mkdir(parents=True, exist_ok=True)
-                browser_context.tracing.stop(path=str(TRACES / ("%s.zip" % name)))
+                browser_context.tracing.stop(path=str(TRACES / ("%s-%s.zip" % (self.order, name))))
             elif TRACE:
                 browser_context.tracing.stop()
             video = page.video if VIDEO else None

@@ -47,7 +47,15 @@ def main(argv):
     env["PYTHONPATH"] = os.pathsep.join(p for p in (str(HERE), env.get("PYTHONPATH")) if p)
     # A child process, not os.execv: on Windows execv returns to the shell at
     # once, so the caller would read a pass before the suite had run.
-    return subprocess.call([sys.executable, "-m", "behave"] + passthrough + locations, cwd=str(HERE), env=env)
+    suite = subprocess.Popen([sys.executable, "-m", "behave"] + passthrough + locations, cwd=str(HERE), env=env)
+    while True:
+        try:
+            return suite.wait()
+        except KeyboardInterrupt:
+            # Ctrl+C reached behave too. Keep waiting while its hooks stop the
+            # app and close the browser: ending here would leave the app
+            # running and holding the port.
+            continue
 
 
 if __name__ == "__main__":

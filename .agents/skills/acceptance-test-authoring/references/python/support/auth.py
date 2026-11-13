@@ -6,6 +6,7 @@ Lines marked PROJECT: are the ones each project fills in.
 """
 
 import os
+from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 
@@ -23,11 +24,19 @@ USER_FIELD = "username"
 PASSWORD_FIELD = "password"
 
 
-def _hidden_fields(html, form_action):
-    """The hidden fields of the page's form that posts to `form_action`: the
-    CSRF token a server-rendered form carries, whatever the app names it."""
-    soup = BeautifulSoup(html, "html.parser")
-    form = soup.find("form", attrs={"action": form_action}) or soup.find("form")
+def _hidden_fields(html, action=None, field=None):
+    """The hidden fields of one form of the page: the CSRF token a
+    server-rendered form carries, whatever the app names it. The form is the
+    one holding an input named `field`, else the one posting to `action`, else
+    the page's first (a form with no action posts to its own page)."""
+    forms = BeautifulSoup(html, "html.parser").find_all("form")
+    form = None
+    if field:
+        form = next((f for f in forms if f.find("input", attrs={"name": field})), None)
+    if form is None and action:
+        form = next((f for f in forms if f.get("action") == action), None)
+    if form is None and forms:
+        form = forms[0]
     if form is None:
         return {}
     return {
@@ -46,15 +55,16 @@ def signed_in_state(playwright, user, password):
         page = session.get(SIGN_IN_PATH)
         if not page.ok:
             raise RuntimeError("the sign-in page answered %d" % page.status)
-        form = _hidden_fields(page.text(), SIGN_IN_PATH)
+        form = _hidden_fields(page.text(), action=SIGN_IN_PATH, field=PASSWORD_FIELD)
         form.update({USER_FIELD: user, PASSWORD_FIELD: password})
         answer = session.post(SIGN_IN_PATH, form=form)
         # A server-rendered form that refuses a sign-in often answers 200 with
-        # the form again, so the status alone proves nothing: a sign-in that
-        # worked has left the sign-in page.
+        # the form again, or sends the person back to it (/login?error=1), so
+        # the status alone proves nothing: a sign-in that worked has left the
+        # sign-in page.
         # PROJECT: if the app shows the sign-in form somewhere else on a
         # failure, check for that instead.
-        if not answer.ok or answer.url.rstrip("/").endswith(SIGN_IN_PATH):
+        if not answer.ok or urlparse(answer.url).path.rstrip("/") == SIGN_IN_PATH.rstrip("/"):
             raise RuntimeError("sign-in as %s failed: %d at %s" % (user, answer.status, answer.url))
         return session.storage_state()
     finally:
@@ -81,7 +91,7 @@ def api(playwright):
 def form_fields(session, path, form_action=None):
     """The hidden fields of the form on `path`, to post with a setup request:
     a server-rendered app refuses a post without its CSRF token."""
-    return _hidden_fields(session.get(path).text(), form_action or path)
+    return _hidden_fields(session.get(path).text(), action=form_action or path)
 
 
 def dispose_api():
