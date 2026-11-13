@@ -2,6 +2,7 @@
 """Acceptance suite entry point for the Python stack."""
 
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -40,8 +41,13 @@ def main(argv):
         sys.stderr.write("[effective-spec] no specs to run\n")
         return 1
 
-    os.environ["OPENSPEC_ACCEPTANCE"] = "1"
-    os.execv(sys.executable, [sys.executable, "-m", "behave"] + passthrough + locations)
+    env = dict(os.environ)
+    env["OPENSPEC_ACCEPTANCE"] = "1"
+    # steps/, pages/ and support/ import each other from this directory.
+    env["PYTHONPATH"] = os.pathsep.join(p for p in (str(HERE), env.get("PYTHONPATH")) if p)
+    # A child process, not os.execv: on Windows execv returns to the shell at
+    # once, so the caller would read a pass before the suite had run.
+    return subprocess.call([sys.executable, "-m", "behave"] + passthrough + locations, cwd=str(HERE), env=env)
 
 
 if __name__ == "__main__":

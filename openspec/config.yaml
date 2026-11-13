@@ -22,7 +22,13 @@ context: |
   Project-specific values (repo, labels, UI verifier width, ADR folder) are in
   .copier-answers.yml.
 
-  Project: <replace with what is being built, for whom, and the tech stack>.
+  Project: Feather Connect, an open-source (MIT) integration hub. Flows written
+  in Python move data from one source to many destinations; developers,
+  operators and AI agents run, monitor and repair them from one dashboard. It
+  is rebuilt here from scratch from the requirements of a pilot. Tech stack:
+  Python, managed with uv; pages rendered on the server as HTML, with a React
+  client possibly added later; acceptance tests in behave driving a real
+  browser with Playwright. Project facts are in CLAUDE.md § Project.
 
 # Per-artifact rules. They apply to every change. A line that applies to one mode only says so
 # first ("Autopilot only - ...") and applies while the session is in that mode.

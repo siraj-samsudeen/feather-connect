@@ -1,0 +1,16 @@
+# acceptance-tests/ is a project of its own: it drives the running app from
+# outside, through a browser, and never imports the app's code. It has its own
+# environment, so the app's dependencies and the suite's never mix.
+[project]
+name = "acceptance-tests"
+version = "0"
+requires-python = ">=3.12"
+dependencies = [
+    "behave>=1.2.7",
+    "behave-html-formatter",
+    "playwright",
+    "beautifulsoup4",
+]
+
+[tool.uv]
+package = false
