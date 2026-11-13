@@ -38,3 +38,7 @@ Read [patterns and anti-patterns](references/best-practices.md) when choosing a 
 ## Collaborators
 
 Read [collaborators](references/collaborators.md) before substituting a dependency. Mock system boundaries, not code owned by the application.
+
+## Python and server-rendered pages
+
+The examples in the two references above are TypeScript. In a Python project, also read [Python and server-rendered pages](references/python.md): the same shapes in pytest, how to test a page the server renders, and where the boundaries are in a web app.
