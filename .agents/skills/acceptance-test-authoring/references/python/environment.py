@@ -19,9 +19,11 @@ def before_all(context):
 
 def after_all(context):
     suite = getattr(context, "suite", None)
-    if suite is not None:
-        suite.close()
-    stack.stop_all()
+    try:
+        if suite is not None:
+            suite.close()
+    finally:
+        stack.stop_all()  # whatever closing the browser did, the app does not outlive the run
 
 
 def before_scenario(context, scenario):

@@ -20,12 +20,13 @@ HOLD_AFTER_OUTCOME_MS = 1500  # a Then (or its And) stays visible
 INIT_SCRIPT = """
 (() => {
   const ID = 'acceptance-step-caption';
+  let label = null; // where the caption's text goes, in this document
   const render = (text) => {
     if (!text || !document.documentElement) return;
-    let banner = document.getElementById(ID);
-    if (!banner) {
-      banner = document.createElement('div');
+    if (!label || !label.isConnected) {
+      const banner = document.createElement('div');
       banner.id = ID;
+      banner.setAttribute('aria-hidden', 'true');
       // Over everything, clicks pass through it, and it sits at the top.
       banner.style.cssText = [
         'position:fixed', 'top:0', 'left:0', 'right:0', 'z-index:2147483647', 'pointer-events:none',
@@ -33,6 +34,12 @@ INIT_SCRIPT = """
         'font:600 16px/1.35 system-ui,-apple-system,sans-serif', 'text-align:center',
         'box-shadow:0 2px 6px rgba(0,0,0,0.25)',
       ].join(';');
+      // The text lives in a closed shadow root, which the test's locators and
+      // text checks cannot see. A step usually quotes the text it checks
+      // ('Then the list shows "Buy bread"'): in the page itself the caption
+      // would be a second match, and a recorded run would fail where a plain
+      // run passes.
+      const hidden = banner.attachShadow({ mode: 'closed' });
       // A dot that keeps pulsing: Playwright's video only gains frames when
       // the page repaints, so without it a pause on a still page would be cut
       // from the video, and so would the end of the scenario.
@@ -40,11 +47,12 @@ INIT_SCRIPT = """
       dot.style.cssText = 'display:inline-block;width:8px;height:8px;margin-right:10px;' +
         'border-radius:50%;background:#60a5fa;vertical-align:middle';
       dot.animate([{ opacity: 0.25 }, { opacity: 1 }, { opacity: 0.25 }], { duration: 1000, iterations: Infinity });
-      banner.append(dot, document.createElement('span'));
+      label = document.createElement('span');
+      hidden.append(dot, label);
       // On <html>, not <body>: a body swapped by HTMX's hx-boost keeps it.
       document.documentElement.appendChild(banner);
     }
-    banner.querySelector('span').textContent = text;
+    label.textContent = text;
   };
   const remembered = () => {
     try { return sessionStorage.getItem(ID); } catch { return null; }

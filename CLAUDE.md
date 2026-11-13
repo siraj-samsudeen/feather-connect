@@ -70,7 +70,7 @@ force here until a change's adr step records it in `adr/`.
   page objects.
 - Postgres as the only required database, run in Docker for development *(proposed)*.
 
-**Tooling defaults, never asked** (the `change-modes` skill, § Defaults): ruff to lint and
+**Tooling defaults, never asked**, added to those of the `change-modes` skill (§ Defaults): ruff to lint and
 format, pyright for types, pytest for inner tests, behave with Playwright for the acceptance
 suite (`stack: python`), `uv run` for every command. The end-of-change checks are the Python
 column of the table in the `outside-in-tdd` skill, § Reconcile.
