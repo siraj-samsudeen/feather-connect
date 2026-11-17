@@ -4,7 +4,7 @@ What the product must do, for whom, and in which milestone. It is the source tha
 filed from (issue #2). It holds no specs and no design: the spec of a capability is written by the
 OpenSpec change that builds it, and a technology choice is made by the change that needs it (§11).
 
-- **Status:** draft for the owner's review, 17-Nov-2026 (second pass: 36 requirements, a quality target and two decisions added; third pass: 4 requirements; fourth pass, from a full inventory of what was built: 21 requirements and 12 widened).
+- **Status:** draft for the owner's review, 17-Nov-2026 (second pass: 36 requirements, a quality target and two decisions added; third pass: 4 requirements; fourth pass, from a full inventory of what was built: 21 requirements and 12 widened; fifth pass: 1 requirement and 1 widened).
 - **Milestones:** **M1** is the first release. **M2** is everything after it. Each requirement names one.
 - **Numbers:** `G` goals, `P` people, `UC` use cases, `R` requirements (`R3.2` is the second of area 3),
   `HC` hard cases, `Q` quality targets, `D` decisions to make. A number is never reused.
@@ -239,7 +239,7 @@ In the order a person meets them. **M** is the milestone.
 | R7.1 | An overview shows failures, stale datasets, budget use, workers, waiting holds and alerts. | M1 |
 | R7.2 | A list of flows and a page per flow: a picture from sources through routes to destinations, the settings in force and where each came from, and the code version. | M1 |
 | R7.3 | A grid shows every dataset, partition and route over time, and opens into detail. | M1 |
-| R7.4 | Runs and their tasks: timeline, inputs, logs, attempts, and the records each task read or wrote. | M1 |
+| R7.4 | Runs and their tasks: timeline, inputs, logs, attempts, and the records each task read or wrote. A planning task that succeeded at its first try is shown as one line; one that failed or was retried keeps its row, with why. | M1 |
 | R7.5 | The delivery ledger, and failures grouped by error. | M1 |
 | R7.6 | One record followed by its business key across versions and routes; two versions compared; sample values masked. | M1 |
 | R7.7 | Pages for records set aside, holds, budgets, readiness, connections, secrets (never shown once set), packages and registries, users, and search. | M1 |
@@ -256,6 +256,7 @@ In the order a person meets them. **M** is the milestone.
 | R7.18 | Every page shows which environment it is, who is signed in with which role, and whether the server, the database and the workers are well, with the product's version. | M1 |
 | R7.19 | A delivery shows each attempt, and what the destination answered for each record, with secrets removed. | M1 |
 | R7.20 | A flow found running on two versions of the code at once is flagged. | M1 |
+| R7.21 | A run's whole log on one page: every task's lines in the order they were written, each naming its task, partition and route and linking to that task's own log. It can be narrowed to warnings and errors, and is paged. | M1 |
 
 ### Area 8 — Dashboard: acting
 
