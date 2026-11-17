@@ -45,7 +45,7 @@ database and delivers them to a warehouse and an accounts service. Order 1001, S
 | 14 | [durable-execution](../openspec/specs/durable-execution/spec.md) | Nothing lost, nothing done twice | 6 | 9 | R6.1, R6.2, R6.4, R6.9, R6.11 |
 | 15 | [call-budgets](../openspec/specs/call-budgets/spec.md) | Sharing out a system's call limits | 6 | 6 | R6.5, R6.12 |
 | 16 | [business-operations](../openspec/specs/business-operations/spec.md) | Postings that happen once, can be reversed, and may need approval | 4 | 7 | R6.6, R6.7, R8.3 |
-| 17 | [monitoring-dashboard](../openspec/specs/monitoring-dashboard/spec.md) | Seeing health, and going down to one delivery | 13 | 14 | R7.1–R7.5, R7.7, R7.9, R7.14, R7.16–R7.20 |
+| 17 | [monitoring-dashboard](../openspec/specs/monitoring-dashboard/spec.md) | Seeing health, and going down to one delivery | 14 | 18 | R7.1–R7.5, R7.7, R7.9, R7.14, R7.16–R7.21 |
 | 18 | [record-trace](../openspec/specs/record-trace/spec.md) | Following one record; comparing two versions | 2 | 2 | R7.6 |
 | 19 | [recovery-actions](../openspec/specs/recovery-actions/spec.md) | Running, retrying, skipping, with a preview | 7 | 13 | R8.1, R8.2, R8.8, R8.10–R8.13 |
 | 20 | [api-and-command-line](../openspec/specs/api-and-command-line/spec.md) | The same actions for scripts and terminals | 4 | 5 | R8.6, R8.9 |
@@ -102,7 +102,7 @@ Milestone 2 has no specs here; its requirements stay in the catalogue.
 ## How it was checked
 
 - The acceptance extractor reads all 37 files with no error, and the runner parses the result:
-  212 requirements, 291 scenarios (311 once example tables are expanded), 1,030 steps. No step is implemented, so none runs.
+  213 requirements, 295 scenarios (315 once example tables are expanded), 1,047 steps. No step is implemented, so none runs.
 - `openspec validate --specs` passes. With `--strict` it warns on every scenario, because the
   OpenSpec CLI looks for its own bullet form and this project puts steps in fenced Gherkin.
 - No requirement name is used twice across specs.

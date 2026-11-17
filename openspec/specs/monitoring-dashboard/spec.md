@@ -52,7 +52,7 @@ Then the slice of Shop 12 on 18 October is named by its shop and its date
 ```
 
 ### Requirement: Runs and their steps
-The system SHALL show each run with its steps over time, what it was asked to do, its log, its tries, and the records each step read or wrote.
+The system SHALL show each run with its steps over time, what it was asked to do, its log, its tries, and the records each step read or wrote. A planning step that succeeded at its first try SHALL be shown as one line; one that failed or was tried again SHALL keep its row, with why.
 
 #### Scenario: A run shows what it read
 
@@ -61,6 +61,50 @@ Given a run of the orders flow read order 1001
 When the user opens that run
 Then its reading step lists order 1001
 And the step's log can be read on the same page
+```
+
+#### Scenario: A planning step that went well is one line
+
+```gherkin
+Given a run of the orders flow whose planning step succeeded at its first try
+When the user opens that run
+Then the planning step is shown as one line with a link to its log
+And the reading and delivering steps are shown as rows
+```
+
+#### Scenario: A planning step that failed keeps its row
+
+```gherkin
+Given a run of the orders flow whose planning step failed because the window is closed
+When the user opens that run
+Then the planning step is shown as a row
+And the row says the window is closed
+```
+
+### Requirement: A run's whole log
+The system SHALL show a run's whole log on one page: every step's lines in the order they were written, each naming its step, slice and destination and linking to that step's own log. The page SHALL be narrowed to warnings and errors on request, and paged.
+
+#### Scenario: Every step's lines in the order written
+
+```gherkin
+Given a run of the orders flow wrote these lines:
+  | step       | level   | message                       |
+  | planning   | info    | planned 1 slice               |
+  | reading    | warning | slow page                     |
+  | delivering | error   | the accounts service said 500 |
+When the user opens the run's log
+Then the three lines are shown in that order
+And the error names the slice of Shop 12 on 18 October and the accounts service
+And the error links to the delivering step's own log
+```
+
+#### Scenario: Only warnings and errors
+
+```gherkin
+Given a run of the orders flow wrote an info line, a warning and an error
+When the user asks for the run's warnings and errors only
+Then the warning and the error are shown
+And the info line is not
 ```
 
 ### Requirement: Deliveries and failures
