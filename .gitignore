@@ -11,6 +11,24 @@ out/
 .svelte-kit/
 coverage/
 
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+mutants/
+
+# Acceptance suite output (the acceptance-test-authoring skill)
+acceptance-tests/.extracted/
+acceptance-tests/reports/
+
 # Runtime and package-manager caches
 .cache/
 .parcel-cache/
