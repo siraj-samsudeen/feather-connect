@@ -78,3 +78,15 @@ Given a task from the set and a correct flow written for it
 When the hidden tests of that task are run
 Then they pass
 ```
+
+### Requirement: Local tools that change nothing
+The system SHALL give an agent tools on the developer's machine that check a project and describe connectors, without a server and without changing anything.
+
+#### Scenario: An agent checks a project locally
+
+```gherkin
+Given an agent has written a flow on the developer's machine
+When it checks the project with the local tools
+Then it receives the result of the check in a form it can read
+And nothing outside the developer's machine was called
+```

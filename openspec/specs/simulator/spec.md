@@ -46,3 +46,18 @@ Given the stand-in source is told to give order 1001 twice
 When the orders flow runs
 Then order 1001 is delivered once
 ```
+
+#### Scenario Outline: Each fault is survived
+
+```gherkin
+Given the stand-in accounts service is told to <fault> on the next call
+When order 1001 is delivered
+Then order 1001 is delivered once in the end
+
+Examples:
+  | fault |
+  | fail |
+  | answer slowly |
+  | drop the line |
+  | say its limit is reached |
+```

@@ -62,6 +62,14 @@ When an event larger than that arrives
 Then it is refused, saying it is too large
 ```
 
+#### Scenario: A sender that sends too many is slowed
+
+```gherkin
+Given a sender may send at most a set number of events a minute
+When it sends more than that in a minute
+Then the extra events are refused, asking the sender to try again later
+```
+
 ### Requirement: A burst loses nothing
 The system SHALL lose no event when events arrive at ten times the usual rate, and return to its usual delay within five minutes.
 
@@ -71,4 +79,23 @@ The system SHALL lose no event when events arrive at ten times the usual rate, a
 Given events usually arrive at a steady rate
 When ten times as many arrive for a minute
 Then every one of them is delivered once
+```
+
+### Requirement: Webhooks come with the package
+The system SHALL open the webhook addresses a package declares when its flow is switched on, and close them when it is switched off.
+
+#### Scenario: A declared webhook opens with its flow
+
+```gherkin
+Given the orders package declares an order webhook
+When its orders flow is switched on
+Then the address of the order webhook accepts events
+```
+
+#### Scenario: It closes when the flow is switched off
+
+```gherkin
+Given the order webhook of the orders flow accepts events
+When the orders flow is switched off
+Then events sent to that address are refused
 ```

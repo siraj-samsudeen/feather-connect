@@ -40,6 +40,15 @@ Then the sale of 200 is posted
 And the sale of 8,000 waits for approval
 ```
 
+#### Scenario: Approval only in production
+
+```gherkin
+Given the ledger route needs approval in production only
+When a sale is due in the test environment and in production
+Then it is posted in the test environment
+And it waits for approval in production
+```
+
 ### Requirement: Decide a hold
 The system SHALL let a user who may decide holds approve or reject one, with a reason.
 

@@ -32,6 +32,23 @@ When a worker starts again
 Then that alert clears
 ```
 
+#### Scenario Outline: Each rule raises its alert
+
+```gherkin
+Given the rule for <problem> is on
+When there is <problem>
+Then an alert is raised about <problem>
+
+Examples:
+  | problem |
+  | a failed run |
+  | a budget nearly used up |
+  | a hold waiting too long |
+  | scheduled starts skipped again and again |
+  | a dataset out of date |
+  | a dataset gone quiet |
+```
+
 ### Requirement: Rules per environment
 The system SHALL let each environment switch rules on and off and set their limits.
 
@@ -46,12 +63,18 @@ Then an alert is raised in production only
 ### Requirement: Send alerts where the team reads
 The system SHALL send an alert to the channels chosen for it: a web address, a team chat, or email.
 
-#### Scenario: An alert reaches the team chat
+#### Scenario Outline: An alert reaches each kind of channel
 
 ```gherkin
-Given alerts go to the team chat
+Given alerts go to <channel>
 When an alert is raised
-Then a message about it arrives in the team chat
+Then a message about it arrives at <channel>
+
+Examples:
+  | channel |
+  | a web address |
+  | the team chat |
+  | an email address |
 ```
 
 ### Requirement: Test a channel

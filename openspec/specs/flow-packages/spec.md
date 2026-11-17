@@ -194,3 +194,27 @@ Given version 1.4 of the orders package is switched off and has past runs
 When the user uninstalls it
 Then its past runs can still be looked at
 ```
+
+### Requirement: A team's own package index
+The system SHALL let an administrator add a team's own package index beside the built-in registry, test that it can be reached, and remove it.
+
+#### Scenario: A team's index is added and used
+
+```gherkin
+Given the team keeps its packages in its own index
+When an administrator adds that index and tests it
+Then the test passes
+And the team's packages can be installed from it
+```
+
+### Requirement: Withdraw a version
+The system SHALL let a published version be withdrawn, so it is no longer offered for install, without disturbing an environment that runs it.
+
+#### Scenario: A withdrawn version keeps running where it is
+
+```gherkin
+Given version 1.4 of the orders package is published and switched on in the test environment
+When the user withdraws version 1.4
+Then version 1.4 is no longer offered for install
+And the test environment keeps running it
+```

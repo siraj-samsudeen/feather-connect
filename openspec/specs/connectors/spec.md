@@ -22,9 +22,27 @@ The system SHALL ship connectors for a relational database, file storage, web se
 #### Scenario: A table is read with no extra code
 
 ```gherkin
-Given the shop database holds an orders table
-When a flow names that table as its source
+Given the shop database holds orders
+When a flow names the shop database's orders as its source
 Then its orders are read
+```
+
+#### Scenario Outline: Each kind ships with the product
+
+```gherkin
+When the user lists the connectors that ship with the product
+Then a connector for <kind> is among them
+
+Examples:
+  | kind |
+  | a relational database |
+  | file storage |
+  | a web service |
+  | a query-language web service |
+  | plain web calls |
+  | incoming events |
+  | an analytics database |
+  | an in-memory store |
 ```
 
 ### Requirement: Say what a call costs

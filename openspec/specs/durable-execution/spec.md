@@ -46,6 +46,14 @@ When the tries for order 1001 are used up
 Then the delivery is marked as failed with the last error
 ```
 
+#### Scenario: A call that hangs is given up and tried again
+
+```gherkin
+Given the accounts service stops answering in the middle of a call
+When the call has gone on longer than its time limit
+Then the call is given up and tried again
+```
+
 ### Requirement: Nothing fails silently
 The system SHALL record every delivery and its outcome, with the reason when it did not succeed.
 

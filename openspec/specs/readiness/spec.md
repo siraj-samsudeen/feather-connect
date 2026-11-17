@@ -17,6 +17,15 @@ Then it is read through 18 October
 And delivered to the warehouse through 17 October
 ```
 
+#### Scenario: A source says a day is closed
+
+```gherkin
+Given the orders of 18 October have been read
+And the shop reports that its day of 18 October is closed
+When the user looks at the readiness of the orders dataset
+Then it is read through 18 October
+```
+
 ### Requirement: Start a flow when its data is ready
 The system SHALL start a waiting flow once for each period when every dataset it needs is ready.
 
@@ -53,6 +62,15 @@ When new orders arrive
 Then the orders are delivered to the warehouse as usual
 ```
 
+#### Scenario: Lines are not held up by their headers
+
+```gherkin
+Given order lines and order headers arrive as two datasets
+And the header of order 1001 has not arrived
+When the lines of order 1001 arrive
+Then the lines are delivered
+```
+
 ### Requirement: Data that arrives late
 The system SHALL run the flow again, warn, or do nothing, as the flow says, when data arrives after its period has already run.
 
@@ -87,6 +105,14 @@ When the user marks the payments of 18 October as complete
 Then the daily summary flow runs for 18 October
 ```
 
+#### Scenario: A waiting flow is started now
+
+```gherkin
+Given the daily summary waits for the payments of 18 October
+When the user starts it now
+Then the daily summary runs for 18 October with the data there is
+```
+
 ### Requirement: See what a flow is waiting for
 The system SHALL say what a waiting flow is waiting for.
 
@@ -96,4 +122,15 @@ The system SHALL say what a waiting flow is waiting for.
 Given the daily summary flow waits for the payments of Shop 13 on 18 October
 When the user looks at the daily summary flow
 Then it says it is waiting for the payments of Shop 13 through 18 October
+```
+
+### Requirement: Started exactly once
+The system SHALL start a waiting flow exactly once for a period, even when the process starting it stops part-way.
+
+#### Scenario: A stop while starting does not start it twice
+
+```gherkin
+Given the payments of 18 October have just made the daily summary ready
+When the process starting it stops part-way and the product carries on
+Then the daily summary runs once for 18 October
 ```

@@ -41,6 +41,14 @@ When the second change is ready
 Then it waits until the first has been applied or skipped
 ```
 
+#### Scenario: Events about one order keep their order
+
+```gherkin
+Given the shop sends two events for order 1001, a change of address and then a cancellation
+When both are delivered to the accounts service
+Then the accounts service receives the change of address before the cancellation
+```
+
 ### Requirement: Each version takes effect once
 The system SHALL make each version take effect at each destination exactly once, even when a process stops in the middle.
 
@@ -69,6 +77,15 @@ Then the warehouse holds one row for order 1001 with the latest values
 Given the warehouse route adds every change as history
 When order 1001 is delivered, changed and delivered again
 Then the warehouse holds two rows for order 1001
+```
+
+#### Scenario: Replacing a slice leaves exactly what was read
+
+```gherkin
+Given the warehouse route replaces whole slices
+And the warehouse holds orders 1001 and 1002 for Shop 12 on 18 October
+When that slice is read again holding only order 1001
+Then the warehouse holds only order 1001 for that slice
 ```
 
 ### Requirement: A newer whole document can replace a failed older one

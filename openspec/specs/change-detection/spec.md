@@ -47,6 +47,15 @@ Then the warehouse holds order 2001
 And it no longer holds order 1001
 ```
 
+#### Scenario: A changed record is found
+
+```gherkin
+Given the orders of Shop 12 on 18 October were read with order 1001 at a total of 200
+And the source changes the total of order 1001 to 250 without marking when
+When that slice is read again
+Then order 1001 is delivered with a total of 250
+```
+
 ### Requirement: Reload a slice
 The system SHALL let a dataset be reloaded a whole slice at a time, where reloading is simpler than comparing.
 

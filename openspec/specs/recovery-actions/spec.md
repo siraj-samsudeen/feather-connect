@@ -75,3 +75,37 @@ Given the user has retried a delivery
 When the result is shown
 Then the user can go from it to the entry recording that retry
 ```
+
+### Requirement: Check a slice against its source
+The system SHALL read a slice again on request and say whether it differs from the last read, changing nothing.
+
+#### Scenario: A check finds a change and delivers nothing
+
+```gherkin
+Given the orders of Shop 12 on 18 October were read yesterday
+And one of them has since changed at the source
+When the user checks that slice
+Then it reports one changed order
+And nothing is delivered
+```
+
+### Requirement: Send again or dismiss a record set aside
+The system SHALL let the user send a record that was set aside again once its cause is fixed, or dismiss it with a reason.
+
+#### Scenario: A fixed record is sent again
+
+```gherkin
+Given order 1002 was set aside because the accounts service turned it down
+And the cause has been fixed at the accounts service
+When the user sends order 1002 again
+Then order 1002 is delivered
+```
+
+#### Scenario: A record is dismissed with a reason
+
+```gherkin
+Given order 1002 was set aside and is only a test order
+When the user dismisses it with a reason
+Then it is no longer listed as set aside
+And the dismissal and its reason are in the audit log
+```

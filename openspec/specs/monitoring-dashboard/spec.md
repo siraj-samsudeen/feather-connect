@@ -106,3 +106,25 @@ Given two workers are connected
 When one of them stops
 Then the workers shown fall to one
 ```
+
+### Requirement: A run says why it delivered nothing
+The system SHALL say, for a run that delivered nothing, why: nothing had changed, the flow was paused, or it was waiting.
+
+#### Scenario: Nothing had changed
+
+```gherkin
+Given the orders flow ran and found nothing changed at the source
+When the user opens that run
+Then it says nothing was delivered because nothing had changed
+```
+
+### Requirement: Where you are and who you are
+The system SHALL show on every page which environment it is and who is signed in, with which role.
+
+#### Scenario: The environment and the user are always shown
+
+```gherkin
+Given an operator is signed in to the test environment
+When the operator opens the list of flows
+Then the page shows the test environment and the operator's name and role
+```

@@ -44,6 +44,22 @@ When that user retries a failed delivery
 Then the delivery is retried
 ```
 
+#### Scenario: A developer can change a connection
+
+```gherkin
+Given a user with the developer role, in an environment that is not protected
+When that user changes the address of the accounts service connection
+Then the change is made
+```
+
+#### Scenario: An operator cannot change a connection
+
+```gherkin
+Given a user with the operator role
+When that user changes the address of the accounts service connection
+Then the request is refused
+```
+
 ### Requirement: Two extra rights
 The system SHALL give the right to decide holds, and the right to see personal data, only to users granted them.
 
