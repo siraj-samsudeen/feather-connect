@@ -57,6 +57,14 @@ When an agent with a read-only token reads order 1001
 Then the email is masked
 ```
 
+#### Scenario: An agent sees no personal data even when its user may
+
+```gherkin
+Given a user who may see personal data has given an agent a read-only token
+When the agent reads order 1001
+Then the customer's email is masked
+```
+
 ### Requirement: A ready-made way to investigate
 The system SHALL provide a written procedure an agent can follow to investigate a failed delivery.
 

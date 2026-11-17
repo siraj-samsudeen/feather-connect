@@ -99,3 +99,24 @@ Given the order webhook of the orders flow accepts events
 When the orders flow is switched off
 Then events sent to that address are refused
 ```
+
+### Requirement: An event that cannot be read is set aside
+The system SHALL set aside an event that cannot be read, deliver the others, and let the user read it again after a fix or let it go.
+
+#### Scenario: A broken event does not stop the others
+
+```gherkin
+Given the shop sends three events and the second cannot be read
+When they are delivered
+Then the first and third are delivered
+And the second is set aside with the reason
+```
+
+#### Scenario: A set-aside event is read again after a fix
+
+```gherkin
+Given an event was set aside because the flow could not read it
+And the flow has been fixed
+When the user reads the event again
+Then it is delivered
+```

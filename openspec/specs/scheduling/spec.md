@@ -91,6 +91,14 @@ When the user resumes the route
 Then order 1001 is delivered to the accounts service
 ```
 
+#### Scenario: A pause with an end lifts by itself
+
+```gherkin
+Given the user has paused the accounts service route until six this evening
+When it is six this evening
+Then the route resumes without anyone acting
+```
+
 ### Requirement: Connection hours
 The system SHALL keep to the hours a connection may be read or written, and make work that falls outside them wait in plain sight.
 
@@ -132,4 +140,16 @@ The system SHALL start each due run exactly once, however many copies of the ser
 Given two copies of the server are running
 When the orders flow comes due
 Then the orders flow runs once
+```
+
+### Requirement: One failing flow does not stop the others
+The system SHALL keep starting every other flow when one flow fails to start.
+
+#### Scenario: The prices flow runs while the orders flow cannot start
+
+```gherkin
+Given the orders flow cannot start because of an error in its settings
+When the prices flow comes due
+Then the prices flow runs
+And the orders flow's failed start is recorded with its reason
 ```

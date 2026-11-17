@@ -77,6 +77,14 @@ Examples:
   | an email address |
 ```
 
+#### Scenario: A notice that fails to send is tried again
+
+```gherkin
+Given the team chat cannot be reached for a minute
+When an alert is raised during that minute
+Then the message arrives once the team chat is back
+```
+
 ### Requirement: Test a channel
 The system SHALL send a test alert to a channel on request.
 

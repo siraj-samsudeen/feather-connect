@@ -164,6 +164,15 @@ When the user installs an unsigned orders package there
 Then the install is refused
 ```
 
+#### Scenario: A version installed before signing was required is checked again
+
+```gherkin
+Given version 1.4 of the orders package was installed unsigned
+And production then started to accept only signed packages
+When the user switches on version 1.4 there
+Then the request is refused, saying the version is not signed
+```
+
 ### Requirement: Change a schedule without a new version
 The system SHALL let the user change a flow's schedule, or switch the flow off, in one environment without publishing a new version.
 
@@ -217,4 +226,90 @@ Given version 1.4 of the orders package is published and switched on in the test
 When the user withdraws version 1.4
 Then version 1.4 is no longer offered for install
 And the test environment keeps running it
+```
+
+### Requirement: Checks when installing
+The system SHALL check a package's size, checksum, description, compatibility with the product and pinned dependencies when installing it, name the check that failed, and install the newest version not withdrawn when no version is given.
+
+#### Scenario: A package for another product version is refused
+
+```gherkin
+Given a published package made for a later version of the product
+When the user installs it
+Then the install fails, naming the compatibility check
+```
+
+#### Scenario: The newest usable version is chosen
+
+```gherkin
+Given versions 1.4 and 1.5 of the orders package are published and 1.5 is withdrawn
+When the user installs the orders package without naming a version
+Then version 1.4 is installed
+```
+
+### Requirement: A package is kept apart
+The system SHALL run a package's code with no access to the server's secrets, users, tokens or audit log, or to another package's secrets, and stop a package that hangs while it is being checked.
+
+#### Scenario: A package cannot use another package's secret
+
+```gherkin
+Given the prices package holds a secret of its own
+When the orders package names that secret in a connection
+Then the orders package is refused, saying the secret is not its own
+```
+
+#### Scenario: A package that hangs while being checked is stopped
+
+```gherkin
+Given a package whose code never finishes loading
+When the user installs it
+Then the check is stopped after its time limit
+And the install fails, saying the package did not finish loading
+```
+
+### Requirement: A failing package is shown, the earlier version serves
+The system SHALL show a package version that keeps failing to start as failing, restart it after a pause, and keep the version before it serving meanwhile.
+
+#### Scenario: The earlier version keeps running
+
+```gherkin
+Given the orders flow runs version 1.4
+When the user switches on version 1.5, which fails every time it starts
+Then version 1.5 is shown as failing to start
+And the orders flow keeps running on version 1.4
+```
+
+### Requirement: A run keeps its code
+The system SHALL let a run finish on the code it started on, whatever version is switched on meanwhile.
+
+#### Scenario: A run in progress is not switched
+
+```gherkin
+Given a run of the orders flow started on version 1.4
+When the user switches on version 1.5 before the run ends
+Then that run finishes on version 1.4
+And the next run uses version 1.5
+```
+
+### Requirement: Waiting on another package's data
+The system SHALL switch on a flow that waits for another package's data only once the flow producing that data is switched on, and name that flow when it refuses.
+
+#### Scenario: The producing flow must be on first
+
+```gherkin
+Given the summary package's flow waits for orders delivered by the orders package
+And the orders flow is switched off
+When the user switches on the summary flow
+Then the request is refused, naming the orders flow as the one to switch on first
+```
+
+### Requirement: Going back only to a version that served
+The system SHALL let a flow go back only to a version that has served before.
+
+#### Scenario: A version that never served is not a way back
+
+```gherkin
+Given the orders flow runs version 1.5, and version 1.3 is installed but never served
+When the user asks to go back to version 1.3
+Then the request is refused, saying 1.3 has never served
 ```

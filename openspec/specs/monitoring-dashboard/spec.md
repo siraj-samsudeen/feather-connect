@@ -128,3 +128,33 @@ Given an operator is signed in to the test environment
 When the operator opens the list of flows
 Then the page shows the test environment and the operator's name and role
 ```
+
+#### Scenario: A problem with the database is shown on every page
+
+```gherkin
+Given the operator has the list of flows open
+When the database cannot be reached
+Then the page shows that the database is not well
+```
+
+### Requirement: What the destination answered
+The system SHALL show, for each delivery, every attempt and what the destination answered for each record, with secrets removed.
+
+#### Scenario: The destination's answer is shown
+
+```gherkin
+Given the accounts service answered order 1001 with its own reference A-77
+When the user opens that delivery
+Then the answer for order 1001 shows A-77
+```
+
+### Requirement: Two versions of the code at once
+The system SHALL flag a flow that is running on two versions of the code at once.
+
+#### Scenario: A flow on two versions is flagged
+
+```gherkin
+Given one worker runs the orders flow on version 1.4 and another on version 1.5
+When the user opens the orders flow
+Then it is flagged as running on two versions
+```

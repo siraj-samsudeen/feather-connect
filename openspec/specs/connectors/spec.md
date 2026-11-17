@@ -89,3 +89,22 @@ And its connection has a budget
 When it makes a call
 Then the call is counted against that budget
 ```
+
+### Requirement: Sign-in tokens are shared
+The system SHALL get, refresh and share the sign-in token of a connection that signs in with OAuth2 across workers, so the system is not asked for a new token by each.
+
+#### Scenario: Two workers use one token
+
+```gherkin
+Given two workers deliver to the accounts service, which signs in with OAuth2
+When both start delivering
+Then the accounts service is asked for a token once
+```
+
+#### Scenario: An expired token is renewed
+
+```gherkin
+Given the accounts service's token has expired
+When the next delivery starts
+Then a new token is fetched and the delivery goes through
+```

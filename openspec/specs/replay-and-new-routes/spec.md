@@ -24,6 +24,14 @@ When the user asks to replay it
 Then the request is refused, saying the version is no longer kept
 ```
 
+#### Scenario: An older version cannot overwrite a newer one
+
+```gherkin
+Given the warehouse holds the latest version of Shop 12 on 18 October
+When the user asks to replay an earlier version of that slice
+Then the request is refused, naming the latest version
+```
+
 ### Requirement: A new destination catches up
 The system SHALL first send a destination added to a running flow the latest state of every slice, and then keep it up to date.
 

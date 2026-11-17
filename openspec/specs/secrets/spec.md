@@ -38,3 +38,26 @@ Given the accounts service answers a failed sign-in with a message that repeats 
 When that failure is shown to the user
 Then the password is replaced in the message
 ```
+
+### Requirement: Change the encryption key
+The system SHALL let the key that encrypts stored secrets be changed, sealing every secret again under the new key.
+
+#### Scenario: Secrets work after the key changes
+
+```gherkin
+Given secrets are stored under the current key
+When an administrator changes to a new key
+Then every connection still signs in
+And the old key is no longer needed
+```
+
+### Requirement: A secret written out is warned about
+The system SHALL warn, when a package is built, about a secret written out in plain instead of being named.
+
+#### Scenario: A password in the settings is flagged
+
+```gherkin
+Given the orders flow's settings hold a password written out in plain
+When the user builds the package
+Then the build warns about it, naming the setting
+```

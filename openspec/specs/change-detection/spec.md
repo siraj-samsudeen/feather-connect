@@ -56,6 +56,14 @@ When that slice is read again
 Then order 1001 is delivered with a total of 250
 ```
 
+#### Scenario: The last of two copies in one read counts
+
+```gherkin
+Given one read of the orders holds order 1001 twice, first with a total of 200, then 250
+When the read is delivered
+Then the warehouse holds order 1001 once, with a total of 250
+```
+
 ### Requirement: Reload a slice
 The system SHALL let a dataset be reloaded a whole slice at a time, where reloading is simpler than comparing.
 

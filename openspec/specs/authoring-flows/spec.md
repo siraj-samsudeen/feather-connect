@@ -79,6 +79,23 @@ When the user checks the project
 Then the check fails and names both flows
 ```
 
+#### Scenario: Two flows waiting on each other are refused
+
+```gherkin
+Given the daily summary flow waits for the monthly flow, and the monthly flow waits for the daily summary
+When the user checks the project
+Then the check fails, naming both flows
+```
+
+#### Scenario: A warning does not fail the check
+
+```gherkin
+Given the orders flow is sound but has something worth a warning
+When the user checks the project
+Then the check passes
+And the warning is shown
+```
+
 ### Requirement: Test a flow
 The system SHALL give tests a way to load source records, run a flow, and check what each destination received.
 

@@ -24,6 +24,14 @@ When the user tests it
 Then the test fails, saying the address could not be reached
 ```
 
+#### Scenario: A stand-in connection says it is a stand-in
+
+```gherkin
+Given the test environment uses a stand-in for the accounts service
+When the user tests that connection
+Then the test passes and says the connection is simulated
+```
+
 ### Requirement: Change a connection's settings
 The system SHALL show a connection's settings that are not secret, let a user with the right change them, and record each change with the old and the new value.
 

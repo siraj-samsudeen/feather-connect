@@ -65,6 +65,15 @@ When the user confirms it now
 Then the action is refused and a new preview is offered
 ```
 
+#### Scenario: A confirmation covers only what was previewed
+
+```gherkin
+Given the user was shown a preview of retrying twenty deliveries
+And a twenty-first delivery has failed since
+When the user confirms
+Then the twenty are retried and the twenty-first is not
+```
+
 ### Requirement: An action points to its record
 The system SHALL show, with the result of every action, where it was written in the audit log.
 
@@ -108,4 +117,23 @@ Given order 1002 was set aside and is only a test order
 When the user dismisses it with a reason
 Then it is no longer listed as set aside
 And the dismissal and its reason are in the audit log
+```
+
+### Requirement: Act on several flows or runs at once
+The system SHALL let the user run, pause or resume several flows, or cancel several runs, at once, up to a hundred.
+
+#### Scenario: Three flows are paused together
+
+```gherkin
+Given the orders, prices and stock flows are running
+When the user pauses the three together
+Then all three are paused
+```
+
+#### Scenario: Too many at once are refused
+
+```gherkin
+Given a selection of 150 flows
+When the user runs them together
+Then the request is refused, saying at most a hundred can be acted on at once
 ```

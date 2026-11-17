@@ -17,6 +17,14 @@ Then the accounts service receives order 1001 with the renamed total
 And the warehouse receives both orders unchanged
 ```
 
+#### Scenario: One order is split into its lines
+
+```gherkin
+Given the warehouse route splits each order into one record per line
+When order 1001 with three lines is delivered
+Then the warehouse receives three records for order 1001
+```
+
 ### Requirement: Transform with a query
 The system SHALL let a batch be transformed by a query written in SQL.
 
@@ -26,6 +34,14 @@ The system SHALL let a batch be transformed by a query written in SQL.
 Given the warehouse route runs a query that adds the tax amount to each order
 When order 1001 is delivered
 Then the warehouse receives order 1001 with its tax amount
+```
+
+#### Scenario: A query cannot reach outside
+
+```gherkin
+Given a query on the warehouse route tries to read a file from the server's disk
+When order 1001 is delivered
+Then the delivery fails, saying the query may read only the batch and named datasets
 ```
 
 ### Requirement: Look up another dataset

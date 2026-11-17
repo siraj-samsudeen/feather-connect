@@ -24,6 +24,14 @@ When the user opens the audit log
 Then an entry shows that the product did it
 ```
 
+#### Scenario: A refused action is recorded too
+
+```gherkin
+Given a viewer tries to retry a failed delivery
+When the request is refused
+Then the audit log shows the attempt, refused, with the viewer's name
+```
+
 ### Requirement: The record cannot be changed
 The system SHALL offer no way to change or remove an entry of the audit log.
 

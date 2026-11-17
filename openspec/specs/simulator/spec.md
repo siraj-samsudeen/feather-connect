@@ -61,3 +61,18 @@ Examples:
   | drop the line |
   | say its limit is reached |
 ```
+
+#### Scenario Outline: Each source fault is handled
+
+```gherkin
+Given the stand-in shop database is told to <fault>
+When the orders flow runs
+Then the warehouse ends up matching the shop database
+
+Examples:
+  | fault |
+  | delete a row for good |
+  | rewrite an order's number |
+  | add a field and drop another |
+  | hold some rows back for a later read |
+```

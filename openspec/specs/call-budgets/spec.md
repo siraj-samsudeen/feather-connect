@@ -63,3 +63,14 @@ Given three deliveries wait for the accounts service budget
 When the user looks at that budget
 Then its use today and the three waiting deliveries are shown
 ```
+
+### Requirement: A read that can never fit fails at once
+The system SHALL fail a read that could never fit within its budget, naming the budget, instead of waiting for ever.
+
+#### Scenario: A read bigger than a whole day's budget
+
+```gherkin
+Given the accounts service allows 1,000 calls a day
+When a read needs 5,000 calls before it can finish
+Then the read fails, naming the accounts service budget
+```

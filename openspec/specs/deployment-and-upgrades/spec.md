@@ -61,3 +61,30 @@ When the environment is restored from it
 Then flows run again
 And work accepted up to five minutes before the failure is still there
 ```
+
+#### Scenario: A restore undoes a mistake
+
+```gherkin
+Given an operator skipped two hundred deliveries by mistake at ten o'clock
+When the environment is restored to a minute before ten
+Then the two hundred deliveries are waiting again
+```
+
+### Requirement: Safe by default
+The system SHALL listen only on its own machine unless told otherwise, warn when told otherwise, and refuse to start without its secret key.
+
+#### Scenario: Listening beyond the machine is warned about
+
+```gherkin
+Given the server is told to listen on every network
+When it starts
+Then it warns that it can be reached from other machines
+```
+
+#### Scenario: No secret key, no start
+
+```gherkin
+Given the standard setup has no secret key set
+When it is started
+Then it refuses, saying the secret key is missing
+```

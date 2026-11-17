@@ -37,3 +37,22 @@ Given the user's machine lacks something the local setup needs
 When the user runs the start command
 Then it stops, naming what is missing and how to get it
 ```
+
+### Requirement: Clear errors, not stack traces
+The system SHALL say what is wrong and what to do when the database is missing, out of date or unreachable, or a port is taken.
+
+#### Scenario: A database that is out of date
+
+```gherkin
+Given the database has not been brought up to date
+When the user starts the server
+Then it stops, saying the database must be brought up to date and how
+```
+
+#### Scenario: A port that is taken
+
+```gherkin
+Given another program uses the dashboard's port
+When the user runs the start command
+Then it stops, naming the port and how to choose another
+```

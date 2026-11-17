@@ -123,3 +123,44 @@ Given a token whose end date was yesterday
 When it is used
 Then the request is refused
 ```
+
+### Requirement: Guessing is slowed
+The system SHALL slow repeated failed sign-ins, for each user and for each address they come from.
+
+#### Scenario: Repeated failures are slowed
+
+```gherkin
+Given someone has failed to sign in as a user several times in a row
+When they try again at once
+Then the attempt is refused until a short wait has passed
+```
+
+### Requirement: Ending sessions
+The system SHALL end every session of a user who signs out or whose password is changed.
+
+#### Scenario: A new password signs out the other browsers
+
+```gherkin
+Given the user is signed in on two computers
+When the user changes their password on one of them
+Then the other computer is signed out
+```
+
+### Requirement: Always an administrator; tokens follow their user
+The system SHALL refuse to take the administrator role from the last administrator, and SHALL limit a token to its user's current role and standing.
+
+#### Scenario: The last administrator keeps the role
+
+```gherkin
+Given there is one administrator
+When that administrator tries to make themselves an operator
+Then the request is refused
+```
+
+#### Scenario: A demoted user's token is demoted too
+
+```gherkin
+Given an administrator's token can manage users
+When the administrator is made an operator
+Then that token can no longer manage users
+```
