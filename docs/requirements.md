@@ -4,7 +4,7 @@ What the product must do, for whom, and in which milestone. It is the source tha
 filed from (issue #2). It holds no specs and no design: the spec of a capability is written by the
 OpenSpec change that builds it, and a technology choice is made by the change that needs it (§11).
 
-- **Status:** draft for the owner's review, 17-Nov-2026.
+- **Status:** draft for the owner's review, 17-Nov-2026 (second pass: 36 requirements, a quality target and two decisions added).
 - **Milestones:** **M1** is the first release. **M2** is everything after it. Each requirement names one.
 - **Numbers:** `G` goals, `P` people, `UC` use cases, `R` requirements (`R3.2` is the second of area 3),
   `HC` hard cases, `Q` quality targets, `D` decisions to make. A number is never reused.
@@ -129,6 +129,8 @@ In the order a person meets them. **M** is the milestone.
 | R1.6 | A test kit lets a flow's tests load source records, run the flow, and check what each destination received, the ledger and the holds. | M1 |
 | R1.7 | Templates for common flows can be copied into a project and then edited freely: table to warehouse, API to warehouse, files to database, webhook to API, and a fan-out demo. | M1 |
 | R1.8 | A template for comparing a warehouse query and pushing the differences. | M2 |
+| R1.9 | Settings are layered: defaults in code, then the project, then the environment. The dashboard shows each value in force and which layer set it. | M1 |
+| R1.10 | A validation error says what is wrong and how to fix it. | M1 |
 
 ### Area 2 — Packaging and deploying
 
@@ -144,6 +146,11 @@ In the order a person meets them. **M** is the milestone.
 | R2.8 | A package can be signed, and an environment can refuse unsigned ones. | M1 |
 | R2.9 | A flow's schedule can be changed, and the flow switched off, per environment without a new package version. | M1 |
 | R2.10 | A command shows how flows and settings differ between two environments before promoting. | M2 |
+| R2.11 | A package records the exact versions of everything it depends on, so an install runs what was tested. Each package runs in an environment of its own, so two packages can need different versions of a library. | M1 |
+| R2.12 | A token can be limited to publishing: it can add a new version and nothing else. A published version is never replaced; it can be withdrawn. | M1 |
+| R2.13 | A version is checked by loading it in isolation before it can be switched on; one that fails the check can't be. | M1 |
+| R2.14 | A package can be installed from a file, behind the same checks, where the registry can't be reached. | M1 |
+| R2.15 | A version can be uninstalled only when none of its flows is switched on. Its history stays. | M1 |
 
 ### Area 3 — Moving data
 
@@ -166,6 +173,10 @@ In the order a person meets them. **M** is the milestone.
 | R3.15 | Changes committed to a database are followed as events. | M2 |
 | R3.16 | Very large reads and long archives can be spooled to object storage instead of the database. | M2 |
 | R3.17 | A sink that accepts work and confirms each record later is supported; records it turns down then are set aside like any other. | M2 |
+| R3.18 | Partitions can be by day or month in a time zone, by fields, by a combination, or by a hash that spreads keys while keeping each key's order. A custom scheme can be written in code. | M1 |
+| R3.19 | Readiness distinguishes *read* through a point from *delivered to a named route* through it. It can be split by a field, so each value (each shop) is ready and starts its flow on its own. A source can say a period is closed. A flow can ask not to be started more often than a set interval. | M1 |
+| R3.20 | A long read that is interrupted resumes from where it had got to. | M1 |
+| R3.21 | When a run reads several slices in full, deletes are decided only after all of them are read. | M1 |
 
 ### Area 4 — Transforming
 
@@ -189,6 +200,10 @@ In the order a person meets them. **M** is the milestone.
 | R5.5 | A flow or a single route can be paused and resumed. | M1 |
 | R5.6 | A connection can declare the hours it may be read or written. Work outside them waits, visibly, and runs when the hours open. | M1 |
 | R5.7 | A flow starts on database change events (R3.15). | M2 |
+| R5.8 | When a flow is due while its last run is still going, it queues, skips or cancels the earlier run, as the flow says. | M1 |
+| R5.9 | After downtime, the missed starts are caught up as one run or one by one, as the flow says. | M1 |
+| R5.10 | A flow that polls every few seconds shows as one run a day, with each poll inside it, so the list of runs stays readable. | M1 |
+| R5.11 | With several servers running, exactly one schedules. | M1 |
 
 ### Area 6 — Reliability
 
@@ -203,6 +218,8 @@ In the order a person meets them. **M** is the milestone.
 | R6.7 | A route can require approval always, per environment, or per record. Records that need it wait; the rest go on. | M1 |
 | R6.8 | By default one writer works on a route's partition at a time; parallel work is configurable. | M1 |
 | R6.9 | After a database restore, versions whose stored data is gone are marked lost, not silently skipped. | M1 |
+| R6.10 | A problem with one record sets that record aside. A problem with a whole version (a refused sign-in, a missing destination) fails or holds that delivery, which stops only its own partition on its own route. | M1 |
+| R6.11 | A business operation interrupted part-way resumes without repeating the part already done. | M1 |
 
 ### Area 7 — Dashboard: watching
 
@@ -221,6 +238,9 @@ In the order a person meets them. **M** is the milestone.
 | R7.11 | Light and dark themes, a keyboard command menu, and pages that work on a narrow screen. | M1 |
 | R7.12 | Views of freshness against a target and of unusual volumes. | M2 |
 | R7.13 | One page summarising several environments, each opening its own dashboard. | M2 |
+| R7.14 | The workers connected, the code version each runs, and when each was last heard from. | M1 |
+| R7.15 | A task's log and the dashboard's charts come from the product's own stored data; no separate logging or metrics system is needed. | M1 |
+| R7.16 | A partition is shown in business words ("Shop 12 · 18 Oct"), not as a key string. | M1 |
 
 ### Area 8 — Dashboard: acting
 
@@ -233,6 +253,9 @@ In the order a person meets them. **M** is the milestone.
 | R8.5 | Test a connection. View and edit a connection's settings; replace or remove a secret. Every change is audited with the old and new value, secrets excepted. | M1 |
 | R8.6 | Everything the dashboard can do, the API and the command line can do, under the same rights and the same audit. | M1 |
 | R8.7 | Budgets, parallel work and connection hours can be changed while running, each with a reason and an optional end time; the difference from the deployed settings is shown. | M2 |
+| R8.8 | A mass action is two steps: a preview that says what it will touch and what budget it is expected to use, then a confirmation that is valid for a short time. | M1 |
+| R8.9 | The API is described in a standard, machine-readable form. A repeated call with the same key takes effect once. Errors come in one standard shape, and long lists are paged. | M1 |
+| R8.10 | Every result of an action links to its audit record. | M1 |
 
 ### Area 9 — Environments
 
@@ -257,6 +280,8 @@ In the order a person meets them. **M** is the milestone.
 | R10.7 | The dashboard uses a secure session, a token on every form against forged requests, and a policy that refuses inline scripts. | M1 |
 | R10.8 | Sign-in through an organisation's identity provider. | M2 |
 | R10.9 | Secrets can be read from secret-management services. | M2 |
+| R10.10 | Error text from other systems is cleaned of secrets before it is stored or shown. | M1 |
+| R10.11 | Tokens can expire, and each is limited to a role. | M1 |
 
 ### Area 11 — Alerts and visibility
 
@@ -267,6 +292,7 @@ In the order a person meets them. **M** is the milestone.
 | R11.3 | Alerts go to a webhook, team chat or email. Each channel can be sent a test alert. Alerts are not repeated, and can be acknowledged and snoozed. | M1 |
 | R11.4 | Health and readiness addresses that an outside monitor can check. | M1 |
 | R11.5 | Metrics and traces can be exported in standard formats. The dashboard works without them. | M2 |
+| R11.6 | Alert rules for a partition that was expected by a time and hasn't arrived, and for volumes far from what is usual. | M2 |
 
 ### Area 12 — Working with AI
 
@@ -279,6 +305,8 @@ In the order a person meets them. **M** is the milestone.
 | R12.5 | Agent tools that act, under the same rights and audit as a person. | M2 |
 | R12.6 | In a protected environment an agent may only ask; what it asks for waits for a person. | M2 |
 | R12.7 | An assistant inside the dashboard. | M2 |
+| R12.8 | Data handed to an agent is masked like any other and marked as untrusted content. Secrets are never handed over. Each token has its own rate limit. | M1 |
+| R12.9 | Agent tools that start a flow or a connector from a template and run it locally, and ready-made procedures for writing a new flow and a new connector. | M2 |
 
 ### Area 13 — Connectors
 
@@ -292,6 +320,9 @@ In the order a person meets them. **M** is the milestone.
 | R13.6 | Connectors install as separate packages. Someone else's connector works without changing the product. | M1 |
 | R13.7 | A program installed inside a private network connects out to the server and reads or writes there on its behalf. | M2 |
 | R13.8 | More connectors, as contributors need them: business applications, cloud warehouses, message queues, file transfer, spreadsheets. | M2 |
+| R13.9 | The simulator reads from fixture files or generates data from a description with a fixed seed, so runs repeat. Its sinks keep what they received, for tests to check. | M1 |
+| R13.10 | Connectors share one way of calling web APIs, with retries, budget metering and secrets kept out of logs built in. | M1 |
+| R13.11 | Every template ships with code, per-environment settings, simulated data, tests and a description. | M1 |
 
 ### Area 14 — Tenants
 
@@ -314,6 +345,11 @@ In the order a person meets them. **M** is the milestone.
 | R15.7 | Releases are versioned by meaning, published as packages and as signed container images with a list of what they contain. | M1 |
 | R15.8 | A contribution guide, a code of conduct, a way to report a security problem privately, and named owners for security-sensitive code. | M1 |
 | R15.9 | A deployment chart for a cluster manager. | M2 |
+| R15.10 | Each kind of stored data has its own default keeping time, which can be changed: read data until every route has taken it and some days more, delivery history for months, the audit log for years. | M1 |
+| R15.11 | Capacity grows by adding worker processes. A worker asked to stop finishes what it is doing first. | M1 |
+| R15.12 | Written procedures for the common troubles: failed deliveries, a budget used up, database growth, a restore, an upgrade, changing a secret. | M1 |
+| R15.13 | A sizing guide: what volume each deployment size carries. | M1 |
+| R15.14 | The one-command local stack runs without a container runtime. | M2 |
 
 ## 8. Hard cases
 
@@ -365,6 +401,7 @@ Each must pass before the milestone it belongs to is released.
 | Q-15 | The smallest production deployment runs on one machine, with no paid licence | Design review | M1 |
 | Q-16 | A 100-million-row extract completes using the object-storage spool | Performance tests | M2 |
 | Q-17 | With several tenants, a request with another tenant's ids is refused on every address and tool | Cross-tenant tests | M2 |
+| Q-18 | A webhook is acknowledged within 200 ms, whatever its destinations are doing | Performance tests | M1 |
 
 ## 10. Limits the product keeps
 
@@ -393,6 +430,8 @@ ADR step, and recorded in `adr/`. `CLAUDE.md` lists what is proposed so far.
 | D-10 | The public home: package name, image registry, documentation address | R15.7 |
 | D-11 | Who maintains it, and how reviews and releases are run | R15.8 |
 | D-12 | The lowest supported language version | The first change |
+| D-13 | Whether a transform runs when a route delivers, or its result is stored as a version of its own | Area 4 |
+| D-14 | Whether one service layer sits under the dashboard, the API and the agent tools, so rights, previews and audit are the same for all three | R8.6 |
 
 ## 12. Not planned
 
