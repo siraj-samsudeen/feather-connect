@@ -4,7 +4,7 @@ What the product must do, for whom, and in which milestone. It is the source tha
 filed from (issue #2). It holds no specs and no design: the spec of a capability is written by the
 OpenSpec change that builds it, and a technology choice is made by the change that needs it (§11).
 
-- **Status:** draft for the owner's review, 17-Nov-2026 (second pass: 36 requirements, a quality target and two decisions added; third pass: 4 requirements).
+- **Status:** draft for the owner's review, 17-Nov-2026 (second pass: 36 requirements, a quality target and two decisions added; third pass: 4 requirements; fourth pass, from a full inventory of what was built: 21 requirements and 12 widened).
 - **Milestones:** **M1** is the first release. **M2** is everything after it. Each requirement names one.
 - **Numbers:** `G` goals, `P` people, `UC` use cases, `R` requirements (`R3.2` is the second of area 3),
   `HC` hard cases, `Q` quality targets, `D` decisions to make. A number is never reused.
@@ -125,7 +125,7 @@ In the order a person meets them. **M** is the milestone.
 | R1.2 | A dataset is declared by its source, its key, how it is partitioned, how change is found, and optionally its shape. Behaviour beyond the defaults is added in code, not through a growing list of switches. | M1 |
 | R1.3 | A command starts a new flow or a new connector with code, settings and tests, optionally from a template. | M1 |
 | R1.4 | A flow runs once on the developer's machine, in one process, against in-memory or simulated systems. | M1 |
-| R1.5 | A command checks a project without running it (references, budgets, partitions, shapes, settings, names shared by two flows) and answers in a form a program can read. | M1 |
+| R1.5 | A command checks a project without running it (references, budgets, partitions, shapes, settings, names shared by two flows, cycles among derived datasets or waiting flows) and answers in a form a program can read. Warnings do not fail it. | M1 |
 | R1.6 | A test kit lets a flow's tests load source records, run the flow, and check what each destination received, the ledger and the holds. | M1 |
 | R1.7 | Templates for common flows can be copied into a project and then edited freely: table to warehouse, API to warehouse, files to database, webhook to API, and a fan-out demo. | M1 |
 | R1.8 | A template for comparing a warehouse query and pushing the differences. | M2 |
@@ -143,7 +143,7 @@ In the order a person meets them. **M** is the milestone.
 | R2.5 | Installing, upgrading, going back and switching off need no restart, and other packages keep running with no run lost or doubled. | M1 |
 | R2.6 | Every name a package brings carries the package's name, so two packages can't clash. | M1 |
 | R2.7 | A package is promoted from one environment to the next by its checksum, so what was tested is what runs. Each environment shows which version of the code every flow runs. | M1 |
-| R2.8 | A package can be signed, and an environment can refuse unsigned ones. | M1 |
+| R2.8 | A package can be signed, and an environment can refuse unsigned ones. A version installed before signing was required is checked again when it is switched on. | M1 |
 | R2.9 | A flow's schedule can be changed, and the flow switched off, per environment without a new package version. | M1 |
 | R2.10 | A command shows how flows and settings differ between two environments before promoting. | M2 |
 | R2.11 | A package records the exact versions of everything it depends on, so an install runs what was tested. Each package runs in an environment of its own, so two packages can need different versions of a library. | M1 |
@@ -151,6 +151,12 @@ In the order a person meets them. **M** is the milestone.
 | R2.13 | A version is checked by loading it in isolation before it can be switched on; one that fails the check can't be. | M1 |
 | R2.14 | A package can be installed from a file, behind the same checks, where the registry can't be reached. | M1 |
 | R2.15 | A version can be uninstalled only when none of its flows is switched on. Its history stays. | M1 |
+| R2.16 | Installing checks a package's size, checksum, description, product compatibility and pinned dependencies, and names the check that failed. Without a version, the newest one not withdrawn is installed; trial versions only when asked for. | M1 |
+| R2.17 | A package's code runs with no access to the server's secrets, users, tokens or audit log, nor to another package's secrets. A package that hangs or floods its output while being checked is stopped. | M1 |
+| R2.18 | A package that keeps failing to start is shown as failing and restarted after a pause; the version before it keeps serving meanwhile. | M1 |
+| R2.19 | A run finishes on the code it started on, whatever version is switched on meanwhile. | M1 |
+| R2.20 | A flow that waits on another package's data can be switched on only once the flow producing that data is on; the refusal names it. | M1 |
+| R2.21 | Going back is possible only to a version that has served before. | M1 |
 
 ### Area 3 — Moving data
 
@@ -166,7 +172,7 @@ In the order a person meets them. **M** is the milestone.
 | R3.8 | A record that hasn't changed since it was last seen is not delivered again. | M1 |
 | R3.9 | A complete read that returns nothing fails unless the dataset allows an empty slice, so an empty answer can't wipe a destination. | M1 |
 | R3.10 | A record that moves from one slice to another is an update. It leaves no stale copy and is not deleted and re-created. | M1 |
-| R3.11 | Any version still kept can be replayed to a route. A route added to a live flow first receives the latest state of each slice, then follows live. | M1 |
+| R3.11 | Any version still kept can be replayed to a route. Replaying an older version while a newer one exists is refused, naming the newer one. A route added to a live flow first receives the latest state of each slice, then follows live. | M1 |
 | R3.12 | A route writes by updating by key, by appending with history, by replacing a whole slice at once, or as a business operation (R6.6). | M1 |
 | R3.13 | Readiness is tracked per dataset and per group of datasets. It can start a flow or make it wait, once per period, and never holds up routes that didn't ask. Data arriving after a period closed is run again, warned about or ignored, as the flow says. | M1 |
 | R3.14 | When a dataset's shape changes, added fields pass; dropped fields and changed types wait for a person. The rule can be stricter or looser per dataset or route. | M1 |
@@ -177,17 +183,19 @@ In the order a person meets them. **M** is the milestone.
 | R3.19 | Readiness distinguishes *read* through a point from *delivered to a named route* through it. It can be split by a field, so each value (each shop) is ready and starts its flow on its own. A source can say a period is closed. A flow can ask not to be started more often than a set interval. | M1 |
 | R3.20 | A long read that is interrupted resumes from where it had got to. | M1 |
 | R3.21 | When a run reads several slices in full, deletes are decided only after all of them are read. | M1 |
+| R3.22 | When one read holds two copies of a record, the last one counts. | M1 |
 
 ### Area 4 — Transforming
 
 | ID | Requirement | M |
 |---|---|---|
-| R4.1 | Each route can change or filter records one at a time, or a batch at a time as a table. | M1 |
+| R4.1 | Each route can change, leave out or split records one at a time, or change a batch at a time as a table. | M1 |
 | R4.2 | A batch can be transformed with a SQL query. | M1 |
 | R4.3 | A transform can look up another dataset's latest state. One delivery uses one state of it throughout, and records which. | M1 |
 | R4.4 | A dataset can be a query over other datasets, recomputed on a schedule, so a change that takes effect on a date is delivered on that date. | M1 |
 | R4.5 | Records are checked against a declared shape. Invalid ones are set aside with the reason while the rest go on; a flow can ask for the whole version to fail instead. | M1 |
 | R4.6 | A dataset that is a query over others can itself be partitioned. | M2 |
+| R4.7 | A query can read only the batch and the datasets it names, never files or web addresses. | M1 |
 
 ### Area 5 — Starting and scheduling
 
@@ -204,6 +212,7 @@ In the order a person meets them. **M** is the milestone.
 | R5.9 | After downtime, the missed starts are caught up as one run or one by one, as the flow says. | M1 |
 | R5.10 | A flow that polls every few seconds shows as one run a day, with each poll inside it, so the list of runs stays readable. | M1 |
 | R5.11 | With several servers running, exactly one schedules. | M1 |
+| R5.12 | A pause can be given an end, after which it lifts by itself. | M1 |
 
 ### Area 6 — Reliability
 
@@ -220,6 +229,8 @@ In the order a person meets them. **M** is the milestone.
 | R6.9 | After a database restore, versions whose stored data is gone are marked lost, not silently skipped. | M1 |
 | R6.10 | A problem with one record sets that record aside. A problem with a whole version (a refused sign-in, a missing destination) fails or holds that delivery, which stops only its own partition on its own route. | M1 |
 | R6.11 | A business operation interrupted part-way resumes without repeating the part already done. | M1 |
+| R6.12 | A read that could never fit within its budget fails at once, naming the budget, instead of waiting for ever. | M1 |
+| R6.13 | One flow failing never stops other flows from starting. | M1 |
 
 ### Area 7 — Dashboard: watching
 
@@ -242,7 +253,9 @@ In the order a person meets them. **M** is the milestone.
 | R7.15 | A task's log and the dashboard's charts come from the product's own stored data; no separate logging or metrics system is needed. | M1 |
 | R7.16 | A partition is shown in business words ("Shop 12 · 18 Oct"), not as a key string. | M1 |
 | R7.17 | A run that delivered nothing says why: nothing had changed, or the flow was paused, or it was waiting. | M1 |
-| R7.18 | Every page shows which environment it is and who is signed in, with which role. | M1 |
+| R7.18 | Every page shows which environment it is, who is signed in with which role, and whether the server, the database and the workers are well, with the product's version. | M1 |
+| R7.19 | A delivery shows each attempt, and what the destination answered for each record, with secrets removed. | M1 |
+| R7.20 | A flow found running on two versions of the code at once is flagged. | M1 |
 
 ### Area 8 — Dashboard: acting
 
@@ -255,11 +268,12 @@ In the order a person meets them. **M** is the milestone.
 | R8.5 | Test a connection. View and edit a connection's settings; replace or remove a secret. Every change is audited with the old and new value, secrets excepted. | M1 |
 | R8.6 | Everything the dashboard can do, the API and the command line can do, under the same rights and the same audit. | M1 |
 | R8.7 | Budgets, parallel work and connection hours can be changed while running, each with a reason and an optional end time; the difference from the deployed settings is shown. | M2 |
-| R8.8 | A mass action is two steps: a preview that says what it will touch and what budget it is expected to use, then a confirmation that is valid for a short time. | M1 |
+| R8.8 | A mass action is two steps: a preview that says what it will touch and what budget it is expected to use, then a confirmation that is valid for a short time and only for exactly what was previewed. A selection must be small enough to review. | M1 |
 | R8.9 | The API is described in a standard, machine-readable form. A repeated call with the same key takes effect once. Errors come in one standard shape, and long lists are paged. | M1 |
 | R8.10 | Every result of an action links to its audit record. | M1 |
 | R8.11 | A slice can be checked against its source: read again and compared with the last read, changing nothing. | M1 |
-| R8.12 | A record set aside can be sent again once its cause is fixed, or dismissed with a reason. | M1 |
+| R8.12 | A record or an incoming event set aside can be sent again once its cause is fixed, or dismissed with a reason. | M1 |
+| R8.13 | Flows can be run, paused and resumed, and runs cancelled, several at a time, up to a hundred. | M1 |
 
 ### Area 9 — Environments
 
@@ -278,7 +292,7 @@ In the order a person meets them. **M** is the milestone.
 | R10.1 | Local users and API tokens. An administrator adds users, resets passwords, disables leavers, and makes, lists and revokes tokens. A password set by an administrator works for one sign-in; each user then chooses their own. | M1 |
 | R10.2 | Roles: viewer, operator, developer and administrator, plus two grants: deciding holds, and seeing personal data unmasked. | M1 |
 | R10.3 | Secrets are referenced, never shown. They come from environment variables, files, or the database, encrypted with a key kept outside it. They are never logged or sent to a browser. | M1 |
-| R10.4 | Every action by a person, an agent or the system leaves a record that can't be changed. | M1 |
+| R10.4 | Every action by a person, an agent or the system leaves a record that can't be changed, and so does every action that was refused. | M1 |
 | R10.5 | Fields marked as personal data are masked on the dashboard, the API and the command line. Unmasking needs the grant and is recorded. | M1 |
 | R10.6 | Webhooks are checked by signature, with protection against replays, a size limit and a rate limit per source. A package declares its webhooks; it does not bring its own receiver. | M1 |
 | R10.7 | The dashboard uses a secure session, a token on every form against forged requests, and a policy that refuses inline scripts. | M1 |
@@ -286,6 +300,10 @@ In the order a person meets them. **M** is the milestone.
 | R10.9 | Secrets can be read from secret-management services. | M2 |
 | R10.10 | Error text from other systems is cleaned of secrets before it is stored or shown. | M1 |
 | R10.11 | Tokens can expire, and each is limited to a role. | M1 |
+| R10.12 | Repeated failed sign-ins are slowed, by user and by address. Signing out, or a new password, ends every session of that user. | M1 |
+| R10.13 | There is always an administrator: the last one cannot lose the role. A token never acts above its user: when a user is demoted, disabled or removed, their tokens follow at once. | M1 |
+| R10.14 | The key that encrypts stored secrets can be changed; every secret is then sealed again under the new key. | M1 |
+| R10.15 | Building a package warns when a secret is written out in plain instead of being named. | M1 |
 
 ### Area 11 — Alerts and visibility
 
@@ -293,7 +311,7 @@ In the order a person meets them. **M** is the milestone.
 |---|---|---|
 | R11.1 | Logs are structured and carry the ids of the flow, run, task, dataset, partition, version and route. | M1 |
 | R11.2 | Alert rules: a run failed, a delivery failed, a budget is nearly used up, a hold is waiting, a scheduled start was skipped, a dataset is stale, a dataset has gone quiet, no worker is alive. Rules are set per environment. | M1 |
-| R11.3 | Alerts go to a webhook, team chat or email. Each channel can be sent a test alert. Alerts are not repeated, and can be acknowledged and snoozed. | M1 |
+| R11.3 | Alerts go to a webhook, team chat or email. Each channel can be sent a test alert. Alerts are not repeated, a notice that fails to send is tried again, and alerts can be acknowledged and snoozed. | M1 |
 | R11.4 | Health and readiness addresses that an outside monitor can check. | M1 |
 | R11.5 | Metrics and traces can be exported in standard formats. The dashboard works without them. | M2 |
 | R11.6 | Alert rules for a partition that was expected by a time and hasn't arrived, and for volumes far from what is usual. | M2 |
@@ -309,7 +327,7 @@ In the order a person meets them. **M** is the milestone.
 | R12.5 | Agent tools that act, under the same rights and audit as a person. | M2 |
 | R12.6 | In a protected environment an agent may only ask; what it asks for waits for a person. | M2 |
 | R12.7 | An assistant inside the dashboard. | M2 |
-| R12.8 | Data handed to an agent is masked like any other and marked as untrusted content. Secrets are never handed over. Each token has its own rate limit. | M1 |
+| R12.8 | Data handed to an agent is masked like any other, even when the agent's user may see it unmasked, and marked as untrusted content. Secrets are never handed over. Lists are capped, and each token has its own rate limit. | M1 |
 | R12.9 | Agent tools that start a flow or a connector from a template and run it locally, and ready-made procedures for writing a new flow and a new connector. | M2 |
 
 ### Area 13 — Connectors
@@ -319,7 +337,7 @@ In the order a person meets them. **M** is the milestone.
 | R13.1 | A connector kit: how to read, how to write, what the connector can do, its settings, a self-check and a way to list what it offers. | M1 |
 | R13.2 | A connector says what a call and a record cost against a budget, so previews estimate budget use. | M1 |
 | R13.3 | General-purpose connectors: in-memory, a simulator, a relational database, object storage, web APIs (REST and GraphQL), webhooks, plain HTTP calls, and an embedded analytics database. | M1 |
-| R13.4 | The simulator can misbehave on purpose: duplicates, late rows, refused, failed, slow and dropped calls, and a limit reached. | M1 |
+| R13.4 | The simulator can misbehave on purpose: duplicates, late rows, rows deleted for good, keys rewritten, fields added and removed, bursts of events, and refused, failed, slow and dropped calls and a limit reached. | M1 |
 | R13.5 | A conformance check that every connector must pass to be called beta or stable. | M1 |
 | R13.6 | Connectors install as separate packages. Someone else's connector works without changing the product. | M1 |
 | R13.7 | A program installed inside a private network connects out to the server and reads or writes there on its behalf. | M2 |
@@ -327,6 +345,7 @@ In the order a person meets them. **M** is the milestone.
 | R13.9 | The simulator reads from fixture files or generates data from a description with a fixed seed, so runs repeat. Its sinks keep what they received, for tests to check. | M1 |
 | R13.10 | Connectors share one way of calling web APIs, with retries, budget metering and secrets kept out of logs built in. | M1 |
 | R13.11 | Every template ships with code, per-environment settings, simulated data, tests and a description. | M1 |
+| R13.12 | Connections that sign in with OAuth2 get, refresh and share their tokens across workers, so a system is not asked for a new token by each. | M1 |
 
 ### Area 14 — Tenants
 
@@ -344,7 +363,7 @@ In the order a person meets them. **M** is the milestone.
 | R15.2 | Production runs from a container setup of at most four containers, with no cluster manager required. | M1 |
 | R15.3 | Upgrades change the database forwards only and need no downtime. | M1 |
 | R15.4 | Stored data is cleaned up to a retention policy, and its growth is managed. | M1 |
-| R15.5 | Backup, and a restore that is rehearsed and timed. | M1 |
+| R15.5 | Backup, and a restore to a point in time — before a mistake, for instance — that is rehearsed and timed. | M1 |
 | R15.6 | A documentation site: getting started, concepts, an operating guide, and a reference for every connector, template, command and API, with examples that are tested. | M1 |
 | R15.7 | Releases are versioned by meaning, published as packages and as signed container images with a list of what they contain. | M1 |
 | R15.8 | A contribution guide, a code of conduct, a way to report a security problem privately, and named owners for security-sensitive code. | M1 |
@@ -353,6 +372,8 @@ In the order a person meets them. **M** is the milestone.
 | R15.11 | Capacity grows by adding worker processes. A worker asked to stop finishes what it is doing first. | M1 |
 | R15.12 | Written procedures for the common troubles: failed deliveries, a budget used up, database growth, a restore, an upgrade, changing a secret. | M1 |
 | R15.13 | A sizing guide: what volume each deployment size carries. | M1 |
+| R15.15 | The server listens only on its own machine unless told otherwise, and warns when it is. It is reached through a proxy that encrypts traffic. Images hold no secret, and the setup refuses to start without its secret key. | M1 |
+| R15.16 | When the database is missing, out of date or unreachable, or a port is taken, every command says what is wrong and what to do, never a stack trace. | M1 |
 | R15.14 | The one-command local stack runs without a container runtime. | M2 |
 
 ## 8. Hard cases
