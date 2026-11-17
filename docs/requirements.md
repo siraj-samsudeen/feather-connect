@@ -4,7 +4,7 @@ What the product must do, for whom, and in which milestone. It is the source tha
 filed from (issue #2). It holds no specs and no design: the spec of a capability is written by the
 OpenSpec change that builds it, and a technology choice is made by the change that needs it (§11).
 
-- **Status:** draft for the owner's review, 17-Nov-2026 (second pass: 36 requirements, a quality target and two decisions added).
+- **Status:** draft for the owner's review, 17-Nov-2026 (second pass: 36 requirements, a quality target and two decisions added; third pass: 4 requirements).
 - **Milestones:** **M1** is the first release. **M2** is everything after it. Each requirement names one.
 - **Numbers:** `G` goals, `P` people, `UC` use cases, `R` requirements (`R3.2` is the second of area 3),
   `HC` hard cases, `Q` quality targets, `D` decisions to make. A number is never reused.
@@ -241,6 +241,8 @@ In the order a person meets them. **M** is the milestone.
 | R7.14 | The workers connected, the code version each runs, and when each was last heard from. | M1 |
 | R7.15 | A task's log and the dashboard's charts come from the product's own stored data; no separate logging or metrics system is needed. | M1 |
 | R7.16 | A partition is shown in business words ("Shop 12 · 18 Oct"), not as a key string. | M1 |
+| R7.17 | A run that delivered nothing says why: nothing had changed, or the flow was paused, or it was waiting. | M1 |
+| R7.18 | Every page shows which environment it is and who is signed in, with which role. | M1 |
 
 ### Area 8 — Dashboard: acting
 
@@ -256,6 +258,8 @@ In the order a person meets them. **M** is the milestone.
 | R8.8 | A mass action is two steps: a preview that says what it will touch and what budget it is expected to use, then a confirmation that is valid for a short time. | M1 |
 | R8.9 | The API is described in a standard, machine-readable form. A repeated call with the same key takes effect once. Errors come in one standard shape, and long lists are paged. | M1 |
 | R8.10 | Every result of an action links to its audit record. | M1 |
+| R8.11 | A slice can be checked against its source: read again and compared with the last read, changing nothing. | M1 |
+| R8.12 | A record set aside can be sent again once its cause is fixed, or dismissed with a reason. | M1 |
 
 ### Area 9 — Environments
 
