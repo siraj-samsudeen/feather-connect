@@ -59,13 +59,20 @@ Then the warehouse receives order 1001 with the customer's name
 ### Requirement: A dataset made from other datasets
 The system SHALL let a dataset be a query over other datasets, worked out again on a schedule and delivered like any other.
 
-#### Scenario: A price takes effect on its date
+#### Scenario: A price is not delivered before its date
 
 ```gherkin
-Given a price for an item is recorded today to take effect on 1 November
+Given a price for an item is recorded to take effect on 1 November
 And today's prices is a dataset worked out daily from the price list
 When it is worked out on 31 October
 Then the new price is not delivered
+```
+
+#### Scenario: A price is delivered once on its date
+
+```gherkin
+Given a price for an item is recorded to take effect on 1 November
+And today's prices is a dataset worked out daily from the price list
 When it is worked out on 1 November
 Then the new price is delivered once
 ```

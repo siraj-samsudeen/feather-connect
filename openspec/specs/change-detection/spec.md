@@ -37,6 +37,16 @@ When that slice is read again
 Then order 1001 is removed at the warehouse
 ```
 
+#### Scenario: A record whose identity is rewritten leaves one copy
+
+```gherkin
+Given the orders of Shop 12 on 18 October were read with order 1001 among them
+And the source renumbers order 1001 as order 2001
+When that slice is read again
+Then the warehouse holds order 2001
+And it no longer holds order 1001
+```
+
 ### Requirement: Reload a slice
 The system SHALL let a dataset be reloaded a whole slice at a time, where reloading is simpler than comparing.
 
