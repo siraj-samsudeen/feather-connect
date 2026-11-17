@@ -176,7 +176,7 @@ In the order a person meets them. **M** is the milestone.
 | R3.12 | A route writes by updating by key, by appending with history, by replacing a whole slice at once, or as a business operation (R6.6). | M1 |
 | R3.13 | Readiness is tracked per dataset and per group of datasets. It can start a flow or make it wait, once per period, and never holds up routes that didn't ask. Data arriving after a period closed is run again, warned about or ignored, as the flow says. | M1 |
 | R3.14 | When a dataset's shape changes, added fields pass; dropped fields and changed types wait for a person. The rule can be stricter or looser per dataset or route. | M1 |
-| R3.15 | Changes committed to a database are followed as events. | M2 |
+| R3.15 | Changes committed to a database are followed as events. M1's event model is designed to take them (D-04). | M2 |
 | R3.16 | Very large reads and long archives can be spooled to object storage instead of the database. | M2 |
 | R3.17 | A sink that accepts work and confirms each record later is supported; records it turns down then are set aside like any other. | M2 |
 | R3.18 | Partitions can be by day or month in a time zone, by fields, by a combination, or by a hash that spreads keys while keeping each key's order. A custom scheme can be written in code. | M1 |
@@ -447,7 +447,7 @@ ADR step, and recorded in `adr/`. `CLAUDE.md` lists what is proposed so far.
 | D-01 | Server framework and how pages are rendered and refreshed | The first change |
 | D-02 | The required database, and whether it also holds the spool | The first change that stores data |
 | D-03 | How durable execution is provided: an existing engine behind a small interface of our own, or our own | R6.1 |
-| D-04 | The data model: dataset, record, partition, version, route and ledger for both batches and events | Area 3 |
+| D-04 | The data model: dataset, record, partition, version, route and ledger for both batches and events. Events are not tied to webhooks: database change events (R3.15, M2) must fit in as one more source of events, resumed from where they stopped, with no redesign | Area 3 |
 | D-05 | Environment as deployment, tenant as namespace; how light tenancy is in M1 | R9.1, R14.1 |
 | D-06 | How flows are packaged, installed and switched without a restart | Area 2 |
 | D-07 | How agents reach the product: the protocol, and one service layer under the dashboard, the API and the agent tools | R12.2 |
