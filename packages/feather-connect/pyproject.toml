@@ -12,4 +12,6 @@ requires = ["uv_build>=0.13,<0.14"]
 build-backend = "uv_build"
 
 [tool.deptry]
+# Run from this directory: uv run --directory packages/feather-connect deptry .
+known_first_party = ["feather_connect"]
 extend_exclude = ["tests"]

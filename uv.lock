@@ -204,12 +204,14 @@ source = { editable = "packages/feather-server" }
 dependencies = [
     { name = "fastapi" },
     { name = "psycopg", extra = ["binary"] },
+    { name = "starlette" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi" },
     { name = "psycopg", extras = ["binary"] },
+    { name = "starlette" },
 ]
 
 [[package]]

@@ -37,7 +37,7 @@ def bind(host: str, port: int) -> socket.socket:
     return sock
 
 
-def _stop(signum: int, frame: FrameType | None) -> NoReturn:
+def _stop(_signum: int, _frame: FrameType | None) -> NoReturn:
     raise SystemExit(0)
 
 
