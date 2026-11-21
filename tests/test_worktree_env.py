@@ -130,7 +130,9 @@ def test_the_command_with_drop_removes_the_database(
 def test_the_command_says_how_to_start_an_unreachable_database(
     tmp_path: Path, free_port: int, capsys: pytest.CaptureFixture[str]
 ):
-    unreachable = conninfo.make_conninfo(f"postgresql://feather:feather@127.0.0.1:{free_port}/feather", connect_timeout=2)
+    unreachable = conninfo.make_conninfo(
+        f"postgresql://feather:feather@127.0.0.1:{free_port}/feather", connect_timeout=2
+    )
 
     code = worktree_env.main(["4"], root=tmp_path, server_url=unreachable)
 
@@ -144,3 +146,11 @@ def test_the_command_refuses_a_bad_number(tmp_path: Path, capsys: pytest.Capture
     assert code == 2
     assert "between 1 and 46535" in capsys.readouterr().err
     assert not (tmp_path / ".env").exists()
+
+
+def test_an_existing_env_file_missing_the_keys_says_it_added_them(tmp_path: Path):
+    (tmp_path / ".env").write_text("OTHER=1\n", encoding="utf-8")
+
+    message = worktree_env.write_env(tmp_path, {"FEATHER_PORT": "18004"})
+
+    assert message == f"updated {tmp_path / '.env'} (added missing keys; other lines kept)"
