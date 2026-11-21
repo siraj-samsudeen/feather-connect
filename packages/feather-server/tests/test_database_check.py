@@ -82,3 +82,14 @@ def test_closing_the_checks_connection_sends_no_commit(database_url: str):
 def test_the_checks_connection_gives_up_on_a_peer_that_stops_acknowledging(database_url: str):
     with open_connection(database_url) as connection:
         assert connection.info.get_parameters()["tcp_user_timeout"] == "2000"
+
+
+def test_any_other_driver_error_is_unreachable_with_its_first_line(monkeypatch: pytest.MonkeyPatch):
+    def connect(*_args: object, **_kwargs: object) -> psycopg.Connection[tuple[object, ...]]:
+        raise psycopg.InterfaceError("the driver broke\nmore detail")
+
+    monkeypatch.setattr(psycopg, "connect", connect)
+
+    check = check_database("postgresql://feather:feather@127.0.0.1:5442/feather")
+
+    assert (check.problem, check.reason) == (Problem.UNREACHABLE, "the driver broke")
