@@ -6,7 +6,7 @@ from collections.abc import Iterator
 import pytest
 from psycopg import conninfo
 
-from feather_server.database import DatabaseAddress, Problem, check_database
+from feather_server.database import DatabaseAddress, Problem, check_database, port_refuses
 
 
 @pytest.mark.database
@@ -53,3 +53,11 @@ def test_the_check_names_the_database_by_host_port_name_and_user(free_port: int)
     check = check_database("postgresql://alex:secret@127.0.0.1:%d/flows" % free_port)
 
     assert check.address == DatabaseAddress(host="127.0.0.1", port=str(free_port), dbname="flows", user="alex")
+
+
+def test_the_port_probe_finds_a_port_nothing_listens_on_refuses(free_port: int):
+    assert port_refuses("127.0.0.1", free_port)
+
+
+def test_the_port_probe_finds_a_listening_port_does_not_refuse(silent_port: int):
+    assert not port_refuses("127.0.0.1", silent_port)
