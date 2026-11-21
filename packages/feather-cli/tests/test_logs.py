@@ -8,7 +8,8 @@ from collections.abc import Iterator
 
 import pytest
 
-from feather_cli.logs import configure_logging
+from feather_cli.logs import configure_logging, log_problem
+from feather_cli.problems import Level, Problem
 
 
 class Terminal(io.StringIO):
@@ -23,6 +24,9 @@ def restore_root_logger() -> Iterator[None]:
     yield
     root.handlers[:] = handlers
     root.setLevel(level)
+
+
+PROBLEM = Problem(Level.WARNING, "something is wrong.", ("Do this.", "Or that."))
 
 
 def access_line(path: str, status: int) -> None:
@@ -105,3 +109,32 @@ def test_a_failed_readiness_check_is_logged():
     access_line("/readyz", 503)
 
     assert '"GET /readyz HTTP/1.1" 503' in json.loads(stream.getvalue())["message"]
+
+
+def test_away_from_a_terminal_a_problem_is_one_json_object():
+    stream = io.StringIO()
+    configure_logging("", stream)
+
+    log_problem(logging.getLogger("feather"), PROBLEM)
+
+    line = json.loads(stream.getvalue())
+    assert (line["level"], line["message"]) == ("warning", PROBLEM.text())
+
+
+def test_an_error_is_logged_at_the_error_level():
+    stream = io.StringIO()
+    configure_logging("", stream)
+
+    log_problem(logging.getLogger("feather"), Problem(Level.ERROR, "broken."))
+
+    assert json.loads(stream.getvalue())["level"] == "error"
+
+
+def test_on_a_terminal_a_problem_reads_as_its_own_text_after_the_time():
+    stream = Terminal()
+    configure_logging("", stream)
+
+    log_problem(logging.getLogger("feather"), PROBLEM)
+
+    first, *rest = stream.getvalue().splitlines()
+    assert (first.split(" ", 2)[2], rest) == ("warning: something is wrong.", ["  Do this.", "  Or that."])
