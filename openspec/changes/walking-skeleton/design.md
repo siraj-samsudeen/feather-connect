@@ -69,7 +69,8 @@ the checklist left to the build. No ADR is in force yet: `adr/` is created by th
    - Light and dark follow the computer's setting; no switch yet (R7.11).
    - Our own small stylesheet with colour tokens: no build step, no CSS framework. The computer's own fonts; no icons yet.
    - Every page sends safety headers from the start: a content policy that refuses inline scripts and styles (R10.7), no framing by other sites, no caching of the sign-in page, `nosniff`, a strict referrer policy.
-   - Real labels; `autocomplete="username"` and `current-password`; a clearly visible keyboard focus; AA contrast in both themes; usable from 320 px wide and with JavaScript off (R7.10). The automated WCAG 2.1 AA check passes in both themes (Q-13).
+   - Real labels; `autocomplete="username"` and `current-password`; a clearly visible keyboard focus; AA contrast in both themes; usable with JavaScript off (R7.10). The automated WCAG 2.1 AA check passes in both themes (Q-13).
+   - Phone widths moved to M2 as R7.22 (owner, during the change, 21-Nov-2026): this change promises nothing about narrow screens.
    - HTMX is not loaded yet; the first page that refreshes part of itself adds it.
 7. The front door and missing addresses (owner, 21-Nov-2026):
    - `/` sends a visitor to `/sign-in` with a temporary 303 redirect, so `/` can later become the overview for signed-in people.
@@ -88,13 +89,13 @@ the checklist left to the build. No ADR is in force yet: `adr/` is created by th
      5. A sign-in is refused with the same words: "The user name or password is wrong.", page title starting "Sign-in failed".
      6. Signing in with JavaScript off: scenario 5 with JavaScript off.
      7. Accessible in light and dark: axe finds no WCAG 2.1 AA problem on the sign-in, refused and not-found pages, in both themes.
-     8. Usable on a phone-width screen: at 320 px nothing scrolls sideways and the button can be reached.
+     8. *(Moved to M2 as R7.22 during the change: usable on a phone-width screen.)*
      9. A missing page: `/runs/42` shows "Page not found" with a link to sign-in.
      10. Starting without a database address: `feather server` stops with exit code 2 and the two-part message.
      11. Starting on a port that is taken: it stops, naming the port and how to pick another.
    - The appearance follows the computer's setting in this change; the later change that adds a switch modifies that requirement (the draft spec's "remembered as the user chose").
    - Accessibility: axe-core through `axe-playwright-python`, put in through Playwright's own channel, so the content policy is never loosened for tests. Any error in the browser's console fails a scenario, which catches a script or style the policy blocks.
-   - Chromium at 1280 px, plus the one 320 px check of scenario 8. From the pack: the HTML report, screenshots of failed steps, recordings of failed scenarios (on by default in CI), `VIDEO=1`, `HEADED=1`.
+   - Chromium at 1280 px only. From the pack: the HTML report, screenshots of failed steps, recordings of failed scenarios (on by default in CI), `VIDEO=1`, `HEADED=1`.
 9. CI on GitHub Actions (owner, 21-Nov-2026):
    - Runs on every push to a PR branch and every push to `main`; a newer push cancels the older run on the same branch.
    - Jobs, side by side:
@@ -140,6 +141,7 @@ the checklist left to the build. No ADR is in force yet: `adr/` is created by th
    - The questioning of each decision happened in points 1 to 10 of this issue, so the owner approves the seven drafts together, and any can be changed on request. Each ADR names this issue as where it was decided. No adversarial review: these record choices already argued through, and the one about security makes the product stricter.
 
 Not in this issue: signing in, users and tokens (R10.1), including how the first administrator is made, which the catalogue does not say yet and that issue adds, the secret key and the refusal to start without it (R15.15), the one-command local stack with a demo (R15.1), container images (R15.2, Q-12), and every area 1–14 feature. Each gets its own issue.
+
 
 ## How it is built
 
