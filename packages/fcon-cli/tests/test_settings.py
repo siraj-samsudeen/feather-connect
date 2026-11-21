@@ -1,12 +1,13 @@
-"""Where `fcon server` gets its settings: FCON_* variables, .env in the
-current directory for what they leave unset, and --host/--port for one run."""
+"""Where the commands get their settings: FCON_* variables, .env in the
+current directory for what they leave unset, and --host/--port for one run
+of `fcon server`."""
 
 from pathlib import Path
 
 import pytest
 
 from fcon_cli import problems
-from fcon_cli.settings import Settings, SettingsError, load_settings
+from fcon_cli.settings import DatabaseSettings, Settings, SettingsError, load_database_settings, load_settings
 
 URL = "postgresql://feather:feather@127.0.0.1:5442/feather"
 
@@ -116,3 +117,40 @@ def test_an_unknown_log_format_is_a_settings_mistake(tmp_path: Path):
     problem = mistake({"FCON_DATABASE_URL": URL, "FCON_LOG_FORMAT": "yaml"}, tmp_path)
 
     assert problem == problems.log_format_unknown("yaml")
+
+
+OWNER_URL = "postgresql://owner:secret@127.0.0.1:5442/feather"
+
+
+def test_the_database_commands_use_the_app_address_for_upgrades_when_no_owner_address_is_set(tmp_path: Path):
+    settings = load_database_settings({"FCON_DATABASE_URL": URL}, tmp_path)
+
+    assert settings == DatabaseSettings(database_url=URL, migration_database_url=URL)
+
+
+def test_the_owner_address_is_used_for_upgrades_when_it_is_set(tmp_path: Path):
+    settings = load_database_settings({"FCON_DATABASE_URL": URL, "FCON_MIGRATION_DATABASE_URL": OWNER_URL}, tmp_path)
+
+    assert settings == DatabaseSettings(database_url=URL, migration_database_url=OWNER_URL)
+
+
+def test_the_database_commands_read_env_file_for_what_the_environment_leaves_unset(tmp_path: Path):
+    (tmp_path / ".env").write_text(
+        f"FCON_DATABASE_URL={URL}\nFCON_MIGRATION_DATABASE_URL={OWNER_URL}\n", encoding="utf-8"
+    )
+
+    assert load_database_settings({}, tmp_path).migration_database_url == OWNER_URL
+
+
+def test_the_database_commands_need_the_app_address(tmp_path: Path):
+    with pytest.raises(SettingsError) as raised:
+        load_database_settings({"FCON_MIGRATION_DATABASE_URL": OWNER_URL}, tmp_path)
+
+    assert raised.value.problem == problems.database_url_missing()
+
+
+def test_an_owner_address_that_is_not_postgres_is_a_settings_mistake(tmp_path: Path):
+    with pytest.raises(SettingsError) as raised:
+        load_database_settings({"FCON_DATABASE_URL": URL, "FCON_MIGRATION_DATABASE_URL": "feather"}, tmp_path)
+
+    assert raised.value.problem == problems.database_url_not_postgres("FCON_MIGRATION_DATABASE_URL")

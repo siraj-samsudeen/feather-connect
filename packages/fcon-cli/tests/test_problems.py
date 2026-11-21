@@ -164,3 +164,60 @@ def test_a_command_line_mistake_shows_the_usage():
 
 def test_a_bug_says_it_is_one():
     assert problems.bug().text() == "error: this is a bug in Feather Connect; please report it with the lines below."
+
+
+# -- fcon db -------------------------------------------------------------
+
+
+def test_a_command_stops_with_an_error_for_an_unreachable_database():
+    check = DatabaseCheck(address=LOCAL, problem=Kind.UNREACHABLE, reason="connection refused")
+
+    assert problems.database_unusable(check, "FCON_DATABASE_URL").text() == (
+        "error: cannot reach the database at 127.0.0.1:5442 (connection refused).\n  Start it: docker compose up -d"
+    )
+
+
+def test_a_command_names_the_setting_it_read_the_address_from():
+    check = DatabaseCheck(address=REMOTE, problem=Kind.LOGIN_REFUSED)
+
+    assert problems.database_unusable(check, "FCON_MIGRATION_DATABASE_URL").text() == (
+        "error: the database at db.internal:5432 refused the login of user feather.\n"
+        "  Check the user and password in FCON_MIGRATION_DATABASE_URL."
+    )
+
+
+def test_a_command_says_a_missing_database_elsewhere_is_named_in_its_setting():
+    check = DatabaseCheck(address=REMOTE, problem=Kind.DATABASE_MISSING)
+
+    assert problems.database_unusable(check, "FCON_MIGRATION_DATABASE_URL").text() == (
+        "error: the database feather does not exist on db.internal:5432.\n"
+        "  Create it on that server, or correct its name in FCON_MIGRATION_DATABASE_URL."
+    )
+
+
+def test_a_command_says_an_unreachable_database_elsewhere_is_named_in_its_setting():
+    check = DatabaseCheck(address=REMOTE, problem=Kind.UNREACHABLE, reason="timed out")
+
+    assert problems.database_unusable(check, "FCON_MIGRATION_DATABASE_URL").text() == (
+        "error: cannot reach the database at db.internal:5432 (timed out).\n"
+        "  Check the host and port in FCON_MIGRATION_DATABASE_URL, and that the database server is running."
+    )
+
+
+def test_a_command_stops_for_a_postgres_older_than_18():
+    check = DatabaseCheck(address=REMOTE, problem=Kind.TOO_OLD, version="16.4")
+
+    assert problems.database_unusable(check, "FCON_DATABASE_URL").text() == (
+        "error: Postgres 16.4 found at db.internal:5432; Feather Connect needs 18 or later."
+    )
+
+
+def test_a_changed_upgrade_names_the_file_and_says_to_restore_it():
+    assert problems.upgrade_changed("20261121T1530Z_first_tables.sql").text() == (
+        "error: upgrade 20261121T1530Z_first_tables.sql has changed since it ran.\n"
+        "  Restore it; never edit a migration that ran."
+    )
+
+
+def test_an_upgrade_that_waits_for_another_says_so():
+    assert problems.waiting_for_upgrade() == "waiting for another upgrade of the database to finish..."

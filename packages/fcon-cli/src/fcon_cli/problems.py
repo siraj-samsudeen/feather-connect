@@ -52,9 +52,9 @@ def database_url_missing() -> Problem:
     )
 
 
-def database_url_not_postgres() -> Problem:
+def database_url_not_postgres(name: str = "FCON_DATABASE_URL") -> Problem:
     """Never repeats the address: it may hold a password."""
-    return Problem(Level.ERROR, "FCON_DATABASE_URL is not a Postgres address.", (SET_THE_ADDRESS,))
+    return Problem(Level.ERROR, f"{name} is not a Postgres address.", (SET_THE_ADDRESS,))
 
 
 def port_not_a_number(name: str, text: str) -> Problem:
@@ -129,34 +129,55 @@ def _where(address: DatabaseAddress) -> str:
     return f"{address.host}:{address.port}"
 
 
-def database_problem(check: DatabaseCheck) -> Problem:
-    """The warning for a database that is not usable (check.problem is set)."""
+def _unusable(check: DatabaseCheck, setting: str) -> tuple[str, tuple[str, ...]]:
+    """What is wrong with a database that is not usable, and what to do."""
     address = check.address
     local = address.host in THIS_MACHINE
     match check.problem:
         case database.Problem.DATABASE_MISSING:
-            what = f"the database {address.dbname} does not exist on {_where(address)}. Not ready."
             todo = (
                 f"Create it: docker compose exec db createdb -U {address.user} {address.dbname}"
                 if local
-                else "Create it on that server, or correct its name in FCON_DATABASE_URL."
+                else f"Create it on that server, or correct its name in {setting}."
             )
-            return Problem(Level.WARNING, what, (todo,))
+            return f"the database {address.dbname} does not exist on {_where(address)}.", (todo,)
         case database.Problem.LOGIN_REFUSED:
-            what = f"the database at {_where(address)} refused the login of user {address.user}. Not ready."
-            return Problem(Level.WARNING, what, ("Check the user and password in FCON_DATABASE_URL.",))
+            what = f"the database at {_where(address)} refused the login of user {address.user}."
+            return what, (f"Check the user and password in {setting}.",)
         case database.Problem.TOO_OLD:
-            what = f"Postgres {check.version} found at {_where(address)}; Feather Connect needs 18 or later. Not ready."
-            return Problem(Level.WARNING, what)
+            return f"Postgres {check.version} found at {_where(address)}; Feather Connect needs 18 or later.", ()
         case _:
             reason = f" ({check.reason})" if check.reason else ""
-            what = f"cannot reach the database at {_where(address)}{reason}. Not ready."
             todo = (
                 "Start it: docker compose up -d"
                 if local
-                else "Check the host and port in FCON_DATABASE_URL, and that the database server is running."
+                else f"Check the host and port in {setting}, and that the database server is running."
             )
-            return Problem(Level.WARNING, what, (todo,))
+            return f"cannot reach the database at {_where(address)}{reason}.", (todo,)
+
+
+def database_problem(check: DatabaseCheck) -> Problem:
+    """The server's warning for a database that is not usable (check.problem is set)."""
+    what, todo = _unusable(check, "FCON_DATABASE_URL")
+    return Problem(Level.WARNING, f"{what} Not ready.", todo)
+
+
+def database_unusable(check: DatabaseCheck, setting: str) -> Problem:
+    """A command's error for a database that is not usable, whose address it
+    read from `setting`."""
+    what, todo = _unusable(check, setting)
+    return Problem(Level.ERROR, what, todo)
+
+
+def upgrade_changed(name: str) -> Problem:
+    return Problem(
+        Level.ERROR, f"upgrade {name} has changed since it ran.", ("Restore it; never edit a migration that ran.",)
+    )
+
+
+def waiting_for_upgrade() -> str:
+    """Not a problem: another upgrade holds the database for a moment."""
+    return "waiting for another upgrade of the database to finish..."
 
 
 def database_usable(check: DatabaseCheck, again: bool = False) -> str:

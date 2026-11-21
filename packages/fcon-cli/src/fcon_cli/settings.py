@@ -1,7 +1,8 @@
-"""The settings of `fcon server`: FCON_* environment variables only, and
+"""The settings of the commands: FCON_* environment variables only, and
 in development a git-ignored .env file in the current directory, which fills
-in only what the environment leaves unset. --host and --port win for one run.
-A mistake raises SettingsError, with the error helper's words for it."""
+in only what the environment leaves unset. --host and --port win for one run
+of `fcon server`. A mistake raises SettingsError, with the error helper's
+words for it."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -31,6 +32,15 @@ class Settings:
     log_format: str = ""
 
 
+@dataclass(frozen=True)
+class DatabaseSettings:
+    """`fcon db`: the app's address, and the owner's for upgrades
+    (FCON_MIGRATION_DATABASE_URL, else the app's)."""
+
+    database_url: str
+    migration_database_url: str
+
+
 def read_env_file(path: Path) -> dict[str, str]:
     """NAME=value lines; blank lines and # comments are skipped."""
     if not path.is_file():
@@ -57,19 +67,23 @@ def _port(variables: Mapping[str, str], option: int | None) -> int:
     return _checked_port(name, variables.get(name, str(DEFAULT_PORT)))
 
 
-def _database_url(variables: Mapping[str, str]) -> str:
+def _checked_database_url(name: str, url: str) -> str:
     """An address psycopg reads, as it takes it: a postgresql:// or postgres://
     URL, or libpq's key=value form. Never repeated: it may hold a password."""
-    url = variables.get("FCON_DATABASE_URL", "")
-    if not url:
-        raise SettingsError(problems.database_url_missing())
     try:
         port = str(conninfo.conninfo_to_dict(url).get("port") or "5432")
     except psycopg.ProgrammingError:
         port = ""
     if not port.isdigit():
-        raise SettingsError(problems.database_url_not_postgres())
+        raise SettingsError(problems.database_url_not_postgres(name))
     return url
+
+
+def _database_url(variables: Mapping[str, str]) -> str:
+    url = variables.get("FCON_DATABASE_URL", "")
+    if not url:
+        raise SettingsError(problems.database_url_missing())
+    return _checked_database_url("FCON_DATABASE_URL", url)
 
 
 def _log_format(variables: Mapping[str, str]) -> str:
@@ -88,4 +102,16 @@ def load_settings(
         host=host or variables.get("FCON_HOST", DEFAULT_HOST),
         port=_port(variables, port),
         log_format=_log_format(variables),
+    )
+
+
+def load_database_settings(environ: Mapping[str, str], directory: Path) -> DatabaseSettings:
+    variables = {**read_env_file(directory / ENV_FILE), **environ}
+    database_url = _database_url(variables)
+    owner_url = variables.get("FCON_MIGRATION_DATABASE_URL", "")
+    return DatabaseSettings(
+        database_url=database_url,
+        migration_database_url=_checked_database_url("FCON_MIGRATION_DATABASE_URL", owner_url)
+        if owner_url
+        else database_url,
     )
