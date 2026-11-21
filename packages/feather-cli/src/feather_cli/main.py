@@ -7,7 +7,7 @@ import sys
 import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import NoReturn
+from typing import Any, NoReturn
 
 from feather_cli import problems
 from feather_cli.logs import configure_logging
@@ -19,8 +19,23 @@ PROBLEM_EXIT = 2  # a mistake only a person can fix
 BUG_EXIT = 1
 
 
+TEXT_WIDTH = 100  # usage and help wrap here, whatever the terminal's width
+
+
+class Formatter(argparse.HelpFormatter):
+    def __init__(self, prog: str) -> None:
+        super().__init__(prog, width=TEXT_WIDTH)
+
+
 class Parser(argparse.ArgumentParser):
-    """argparse, with its usage errors said through the error helper."""
+    """argparse, with its usage errors said through the error helper. Its text
+    is the same on a terminal, in CI and in a log: no colour (Python 3.14
+    colours it when FORCE_COLOR is set) and a fixed width."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs["color"] = False
+        kwargs.setdefault("formatter_class", Formatter)
+        super().__init__(**kwargs)
 
     def error(self, message: str) -> NoReturn:
         raise ProblemError(problems.usage(message, self.format_usage()))
