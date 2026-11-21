@@ -66,5 +66,5 @@
 
 ## 4. Completion
 
-- [ ] 4.1 Run the full suite: every scenario passes, zero pending/undefined steps, HTML report generated
-- [ ] 4.2 Run `openspec validate walking-skeleton --type change` before archive
+- [x] 4.1 Run the full suite: every scenario passes, zero pending/undefined steps, HTML report generated
+- [x] 4.2 Run `openspec validate walking-skeleton --type change` before archive
