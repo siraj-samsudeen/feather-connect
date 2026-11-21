@@ -19,3 +19,9 @@ def test_head_is_answered_like_get_without_the_body(client: TestClient):
     head = client.head("/healthz")
 
     assert (head.status_code, head.headers["content-length"], head.content) == (200, get.headers["content-length"], b"")
+
+
+def test_an_address_with_a_trailing_slash_is_not_redirected(client: TestClient):
+    response = client.get("/healthz/", follow_redirects=False)
+
+    assert response.status_code == 404
