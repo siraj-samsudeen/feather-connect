@@ -54,9 +54,6 @@ def running(tmp_path: Path, free_port: int) -> Iterator[Running]:
         "FEATHER_DATABASE_URL": "postgresql://feather:feather@127.0.0.1:9/feather",
         "FEATHER_LOG_FORMAT": "json",
     }
-    own_group = (
-        {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if sys.platform == "win32" else {"start_new_session": True}
-    )
     with log.open("wb") as output:
         process = subprocess.Popen(
             [sys.executable, "-m", "feather_cli", "server", "--host", "127.0.0.1", "--port", str(free_port)],
@@ -65,7 +62,9 @@ def running(tmp_path: Path, free_port: int) -> Iterator[Running]:
             stdin=subprocess.DEVNULL,
             stdout=output,
             stderr=subprocess.STDOUT,
-            **own_group,
+            # Its own process group, so the stop signal reaches it alone.
+            creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
+            start_new_session=sys.platform != "win32",
         )
     server = Running(process, f"http://127.0.0.1:{free_port}", log)
     deadline = time.monotonic() + START_TIMEOUT_S
@@ -73,7 +72,7 @@ def running(tmp_path: Path, free_port: int) -> Iterator[Running]:
         try:
             _get(server.base_url + "/healthz")
             break
-        except (urllib.error.URLError, OSError):
+        except urllib.error.URLError, OSError:
             time.sleep(0.2)
     yield server
     if process.poll() is None:

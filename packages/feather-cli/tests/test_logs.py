@@ -27,9 +27,7 @@ def restore_root_logger() -> Iterator[None]:
 
 def access_line(path: str, status: int) -> None:
     """A request line as Uvicorn's access logger writes it."""
-    logging.getLogger("uvicorn.access").info(
-        '%s - "%s %s HTTP/%s" %d', "127.0.0.1:50000", "GET", path, "1.1", status
-    )
+    logging.getLogger("uvicorn.access").info('%s - "%s %s HTTP/%s" %d', "127.0.0.1:50000", "GET", path, "1.1", status)
 
 
 def test_away_from_a_terminal_each_line_is_one_json_object():
