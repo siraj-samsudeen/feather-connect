@@ -59,7 +59,7 @@
 ## 3. What no scenario drives — each still arrives with the test or check that needs it
 
 - [x] 3.1 The import rule: a test that the flow library imports neither the server nor the command line
-- [ ] 3.2 `scripts/worktree_env.py <n>` writes the worktree's `.env` and creates `feather_issue_<n>`; `--drop` removes it; same on Windows and Linux
+- [x] 3.2 `scripts/worktree_env.py <n>` writes the worktree's `.env` and creates `feather_issue_<n>`; `--drop` removes it; same on Windows and Linux
 - [ ] 3.3 CI on GitHub Actions: the checks, tests, acceptance, other-systems and specs jobs of issue 4 point 9; actions pinned by commit id; read-only token; caches
 - [ ] 3.4 The relaxed checks until M1 (#5): weekly mutmut report on `main`, Windows and macOS not blocking, Dependabot monthly and grouped
 - [ ] 3.5 `AGENTS.md` § Project: the stack lines confirmed, the worktree ports and database, and the Conventions list of issue 4 point 10
