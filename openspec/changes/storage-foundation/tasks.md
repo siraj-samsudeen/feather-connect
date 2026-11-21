@@ -35,8 +35,8 @@
 
 ## 3. What no scenario drives — each arrives with the inner test that needs it
 
-- [ ] 3.1 The first migration: schema `fcon`; `fcon.migration`, `fcon.tenant` (with `default`, kind, `made_from`, `row_version`, the tenant id check) and `fcon.audit` partitioned by month, key `(tenant_id, id, created_at)`, with the trigger that refuses `UPDATE` and `DELETE`; `pg_c_utf8` on text keys
-- [ ] 3.2 The runner's rules: name order, late older files applied, checksum of `\n` text, a changed file refused, a newer-version record reported, the advisory lock, `-- fcon: no-transaction`, `fcon.now` from the clock; audit partitions through six months ahead
+- [x] 3.1 The first migration: schema `fcon`; `fcon.migration`, `fcon.tenant` (with `default`, kind, `made_from`, `row_version`, the tenant id check) and `fcon.audit` partitioned by month, key `(tenant_id, id, created_at)`, with the trigger that refuses `UPDATE` and `DELETE`; `pg_c_utf8` on text keys
+- [x] 3.2 The runner's rules: name order, late older files applied, checksum of `\n` text, a changed file refused, a newer-version record reported, the advisory lock, `-- fcon: no-transaction`, `fcon.now` from the clock; audit partitions through six months ahead
 - [ ] 3.3 Grants after each upgrade: an app user other than the owner gets read and write on every `fcon` table and only read and insert on `fcon.audit` (a test with a second role); `FCON_MIGRATION_DATABASE_URL`, else `FCON_DATABASE_URL`
 - [ ] 3.4 The store's helpers: `new_id()`, the clock (system and fixed), the `Context`, `Store.transaction`, `Store.run` with two retries, `tx.execute` / `fetch_one` / `fetch_all` binding the tenant and refusing an unscoped query, `tx.insert` / `tx.update` filling the who-and-when columns and `row_version` and writing the audit record (secret columns as `(secret changed)`, the reason, the request id), the table descriptions checked against the database
 - [ ] 3.5 The store's errors: "already exists", "changed by someone else", "busy, try again", and the store's own error for any other; slow statements (over 1 s) logged with their text only
