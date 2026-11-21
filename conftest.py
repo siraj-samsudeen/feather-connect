@@ -17,19 +17,16 @@ import psycopg
 import pytest
 from psycopg import conninfo, sql
 
+from feather_cli.settings import ENV_FILE, read_env_file
+
 REPO_ROOT = Path(__file__).resolve().parent
 START_IT = "start the database: docker compose up -d"
 
 
 def _server_url() -> str:
-    if url := os.environ.get("FEATHER_DATABASE_URL"):
+    variables = {**read_env_file(REPO_ROOT / ENV_FILE), **os.environ}
+    if url := variables.get("FEATHER_DATABASE_URL"):
         return url
-    env_file = REPO_ROOT / ".env"
-    if env_file.is_file():
-        for line in env_file.read_text(encoding="utf-8").splitlines():
-            name, _, value = line.partition("=")
-            if name.strip() == "FEATHER_DATABASE_URL":
-                return value.strip()
     pytest.fail("FEATHER_DATABASE_URL is not set (environment or .env); " + START_IT, pytrace=False)
 
 
