@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from feather_cli import problems
 from feather_cli.settings import Settings, SettingsError, load_settings
 
 URL = "postgresql://feather:feather@127.0.0.1:5442/feather"
@@ -53,11 +54,64 @@ def test_env_file_fills_in_only_what_the_environment_leaves_unset(tmp_path: Path
     assert (settings.port, settings.database_url) == (18004, URL)
 
 
+def mistake(environ: dict[str, str], directory: Path, port: int | None = None) -> problems.Problem:
+    with pytest.raises(SettingsError) as raised:
+        load_settings(environ, directory, port=port)
+    return raised.value.problem
+
+
 def test_a_missing_database_address_is_a_settings_mistake(tmp_path: Path):
-    with pytest.raises(SettingsError, match="FEATHER_DATABASE_URL"):
-        load_settings({}, tmp_path)
+    assert mistake({}, tmp_path) == problems.database_url_missing()
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "mysql://feather@db.internal/feather",
+        "host=db.internal dbname=feather",
+        "postgresql://feather:secret@[db.internal/feather",
+        "postgresql://feather:secret@db.internal:abc/feather",
+    ],
+)
+def test_an_address_that_is_not_postgres_is_a_settings_mistake(tmp_path: Path, url: str):
+    assert mistake({"FEATHER_DATABASE_URL": url}, tmp_path) == problems.database_url_not_postgres()
+
+
+def test_the_short_postgres_scheme_is_a_postgres_address(tmp_path: Path):
+    settings = load_settings({"FEATHER_DATABASE_URL": "postgres://feather@db.internal/feather"}, tmp_path)
+
+    assert settings.database_url == "postgres://feather@db.internal/feather"
 
 
 def test_a_port_that_is_not_a_number_is_a_settings_mistake(tmp_path: Path):
-    with pytest.raises(SettingsError, match="FEATHER_PORT"):
-        load_settings({"FEATHER_DATABASE_URL": URL, "FEATHER_PORT": "eighty"}, tmp_path)
+    problem = mistake({"FEATHER_DATABASE_URL": URL, "FEATHER_PORT": "eighty"}, tmp_path)
+
+    assert problem == problems.port_not_a_number("FEATHER_PORT", "eighty")
+
+
+def test_the_hosts_port_is_named_when_it_is_not_a_number(tmp_path: Path):
+    problem = mistake({"FEATHER_DATABASE_URL": URL, "PORT": "eighty"}, tmp_path)
+
+    assert problem == problems.port_not_a_number("PORT", "eighty")
+
+
+def test_a_port_beyond_65535_is_a_settings_mistake(tmp_path: Path):
+    problem = mistake({"FEATHER_DATABASE_URL": URL, "FEATHER_PORT": "70000"}, tmp_path)
+
+    assert problem == problems.port_not_a_number("FEATHER_PORT", "70000")
+
+
+def test_a_port_option_of_0_is_a_settings_mistake(tmp_path: Path):
+    assert mistake({"FEATHER_DATABASE_URL": URL}, tmp_path, port=0) == problems.port_not_a_number("--port", "0")
+
+
+def test_the_log_format_is_read_with_the_settings(tmp_path: Path):
+    settings = load_settings({"FEATHER_DATABASE_URL": URL, "FEATHER_LOG_FORMAT": "json"}, tmp_path)
+
+    assert settings.log_format == "json"
+
+
+def test_an_unknown_log_format_is_a_settings_mistake(tmp_path: Path):
+    problem = mistake({"FEATHER_DATABASE_URL": URL, "FEATHER_LOG_FORMAT": "yaml"}, tmp_path)
+
+    assert problem == problems.log_format_unknown("yaml")

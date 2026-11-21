@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from feather_cli import problems
 from feather_cli.main import main
 from feather_cli.server import bind
 
@@ -101,7 +102,19 @@ def test_a_settings_mistake_stops_it_with_exit_code_2(
 
     code = main(["server"])
 
-    assert (code, capsys.readouterr().err.startswith("error: FEATHER_DATABASE_URL")) == (2, True)
+    assert (code, capsys.readouterr().err) == (2, problems.database_url_missing().text() + "\n")
+
+
+def test_a_command_line_mistake_stops_it_with_exit_code_2(capsys: pytest.CaptureFixture[str]):
+    code = main(["server", "--port", "eighty"])
+
+    assert (code, capsys.readouterr().err.splitlines()[0]) == (2, "error: argument --port: invalid int value: 'eighty'.")
+
+
+def test_a_command_line_mistake_shows_the_commands_usage(capsys: pytest.CaptureFixture[str]):
+    main(["server", "--port", "eighty"])
+
+    assert capsys.readouterr().err.splitlines()[1].startswith("  usage: feather server")
 
 
 def test_a_port_another_program_listens_on_cannot_be_taken():
