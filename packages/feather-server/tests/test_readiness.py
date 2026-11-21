@@ -52,3 +52,7 @@ def test_every_database_problem_is_answered_as_unavailable(problem: Problem):
     check = DatabaseCheck(address=ADDRESS, problem=problem, reason="timed out", version="16.4", detail="FATAL: x")
 
     assert readiness(check) == (503, NOT_READY)
+
+
+def test_no_answer_from_the_check_in_time_is_answered_as_unavailable():
+    assert readiness(None) == (503, NOT_READY)
