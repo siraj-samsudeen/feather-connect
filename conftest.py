@@ -38,14 +38,14 @@ def _admin(url: str) -> psycopg.Connection[tuple[object, ...]]:
         return psycopg.connect(url, autocommit=True, connect_timeout=5)
     except psycopg.OperationalError as err:
         first_line = str(err).splitlines()[0] if str(err) else type(err).__name__
-        pytest.fail("cannot reach the test database server (%s).\n%s" % (first_line, START_IT), pytrace=False)
+        pytest.fail(f"cannot reach the test database server ({first_line}).\n{START_IT}", pytrace=False)
 
 
 @pytest.fixture(scope="session")
 def database_url() -> Iterator[str]:
     """The address of this session's own empty database."""
     server_url = _server_url()
-    name = "feather_test_%s" % uuid.uuid4().hex[:8]
+    name = f"feather_test_{uuid.uuid4().hex[:8]}"
     with _admin(server_url) as admin:
         admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
     try:

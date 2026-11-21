@@ -58,15 +58,19 @@ exclude_also = ["if TYPE_CHECKING:"]
 [tool.ruff]
 line-length = 120
 target-version = "py314"
-extend-exclude = ["acceptance-tests"]
+# The product's code and its tests; the acceptance suite and the process's
+# copied skill files have their own conventions.
+extend-exclude = ["acceptance-tests", ".agents", ".opencode", ".claude", "openspec", "docs", "adr"]
 
 [tool.ruff.lint]
 extend-select = ["S", "B", "I", "UP"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["feather_connect", "feather_server", "feather_cli"]
+
 [tool.ruff.lint.per-file-ignores]
-# Tests assert, and start the command they test.
-"**/tests/**" = ["S101", "S603"]
-"conftest.py" = ["S101"]
+# Tests assert, start the command they test, and use made-up passwords.
+"**/tests/**" = ["S101", "S105", "S106", "S603"]
 
 [tool.pyright]
 typeCheckingMode = "strict"

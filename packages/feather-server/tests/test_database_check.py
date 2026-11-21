@@ -4,8 +4,9 @@ import socket
 from collections.abc import Iterator
 
 import pytest
-from feather_server.database import DatabaseAddress, Problem, address_of, check_database, port_refuses
 from psycopg import conninfo
+
+from feather_server.database import DatabaseAddress, Problem, address_of, check_database, port_refuses
 
 
 @pytest.mark.database
@@ -28,7 +29,7 @@ def test_a_wrong_password_is_a_refused_login(database_url: str):
 
 
 def test_a_port_nothing_listens_on_is_unreachable_because_the_connection_is_refused(free_port: int):
-    check = check_database("postgresql://feather:feather@127.0.0.1:%d/feather" % free_port)
+    check = check_database(f"postgresql://feather:feather@127.0.0.1:{free_port}/feather")
 
     assert (check.problem, check.reason) == (Problem.UNREACHABLE, "connection refused")
 
@@ -43,7 +44,7 @@ def silent_port() -> Iterator[int]:
 
 
 def test_a_server_that_never_answers_is_unreachable_because_it_timed_out(silent_port: int):
-    check = check_database("postgresql://feather:feather@127.0.0.1:%d/feather" % silent_port)
+    check = check_database(f"postgresql://feather:feather@127.0.0.1:{silent_port}/feather")
 
     assert (check.problem, check.reason) == (Problem.UNREACHABLE, "timed out")
 

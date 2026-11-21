@@ -28,18 +28,30 @@ def test_the_version_found_is_shown_as_major_and_minor(server_version: int, show
 @pytest.mark.parametrize(
     ("text", "kind"),
     [
-        ('connection to server at "10.0.0.5", port 5432 failed: FATAL:  database "flows" does not exist',
-         (Problem.DATABASE_MISSING, "")),
-        ('connection to server at "10.0.0.5", port 5432 failed: FATAL:  password authentication failed for user "a"',
-         (Problem.LOGIN_REFUSED, "")),
-        ('connection to server at "10.0.0.5", port 5432 failed: FATAL:  no pg_hba.conf entry for host "10.0.0.9"',
-         (Problem.LOGIN_REFUSED, "")),
-        ('connection to server at "10.0.0.5", port 5432 failed: FATAL:  role "a" does not exist',
-         (Problem.LOGIN_REFUSED, "")),
-        ('connection to server at "10.0.0.5", port 5432 failed: Connection refused\n\tIs the server running?',
-         (Problem.UNREACHABLE, "connection refused")),
-        ('could not translate host name "db.internal" to address: Name or service not known',
-         (Problem.UNREACHABLE, "host not found")),
+        (
+            'connection to server at "10.0.0.5", port 5432 failed: FATAL:  database "flows" does not exist',
+            (Problem.DATABASE_MISSING, ""),
+        ),
+        (
+            'connection to server at "10.0.0.5", port 5432 failed: FATAL:  password authentication failed for user "a"',
+            (Problem.LOGIN_REFUSED, ""),
+        ),
+        (
+            'connection to server at "10.0.0.5", port 5432 failed: FATAL:  no pg_hba.conf entry for host "10.0.0.9"',
+            (Problem.LOGIN_REFUSED, ""),
+        ),
+        (
+            'connection to server at "10.0.0.5", port 5432 failed: FATAL:  role "a" does not exist',
+            (Problem.LOGIN_REFUSED, ""),
+        ),
+        (
+            'connection to server at "10.0.0.5", port 5432 failed: Connection refused\n\tIs the server running?',
+            (Problem.UNREACHABLE, "connection refused"),
+        ),
+        (
+            'could not translate host name "db.internal" to address: Name or service not known',
+            (Problem.UNREACHABLE, "host not found"),
+        ),
         ("connection timeout expired", (Problem.UNREACHABLE, "timed out")),
     ],
     ids=["database-missing", "wrong-password", "no-hba-entry", "no-such-role", "refused", "unknown-host", "timeout"],

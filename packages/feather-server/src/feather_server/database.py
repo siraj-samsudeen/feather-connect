@@ -94,7 +94,8 @@ def first_line(text: str) -> str:
 
 def version_text(server_version: int) -> str:
     """160004 -> "16.4"."""
-    return "%d.%d" % divmod(server_version, 10000)
+    major, minor = divmod(server_version, 10000)
+    return f"{major}.{minor}"
 
 
 def assess_version(address: DatabaseAddress, server_version: int) -> DatabaseCheck:
