@@ -2,6 +2,7 @@
 the same process, one process per container."""
 
 import errno
+import ipaddress
 import logging
 import signal
 import socket
@@ -11,6 +12,7 @@ from typing import NoReturn
 import uvicorn
 
 from feather_cli import problems
+from feather_cli.logs import log_problem
 from feather_cli.problems import Problem, ProblemError
 from feather_cli.settings import Settings
 from feather_server.app import create_app
@@ -73,6 +75,14 @@ def _stop(_signum: int, _frame: FrameType | None) -> NoReturn:
     raise SystemExit(0)
 
 
+def announce(host: str, port: int) -> None:
+    """Where it listens (the socket's own numeric address), and a warning
+    when other machines can reach it: it belongs behind the host's HTTPS proxy."""
+    log.info("listening on http://%s:%d", host, port)
+    if not ipaddress.ip_address(host).is_loopback:
+        log_problem(log, problems.listening_beyond_machine(host, port))
+
+
 def run_server(settings: Settings) -> None:
     sock = bind(settings.host, settings.port)
     host, port = sock.getsockname()[:2]
@@ -84,5 +94,5 @@ def run_server(settings: Settings) -> None:
         proxy_headers=False,  # trusting a proxy's headers comes with real sign-in
         server_header=False,  # no server name or version for visitors
     )
-    log.info("listening on http://%s:%d", host, port)
+    announce(host, port)
     uvicorn.Server(config).run(sockets=[sock])

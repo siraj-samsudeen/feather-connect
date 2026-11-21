@@ -8,10 +8,31 @@ import logging
 from datetime import UTC, datetime
 from typing import TextIO
 
+from feather_cli.problems import Level, Problem
 from feather_server.health import LIVENESS_PATH, READINESS_PATH
 
 HEALTH_PATHS = {LIVENESS_PATH, READINESS_PATH}
 TEXT_FORMAT = "%(asctime)s %(levelname)s %(message)s"
+_LEVELS = {Level.ERROR: logging.ERROR, Level.WARNING: logging.WARNING}
+_PROBLEM = "problem"  # the record's mark: its message is the error helper's text
+
+
+def log_problem(logger: logging.Logger, problem: Problem) -> None:
+    """The error helper's whole text, as one record at its level."""
+    logger.log(_LEVELS[problem.level], problem.text(), extra={_PROBLEM: True})
+
+
+class Text(logging.Formatter):
+    """A problem's text starts with its own level ("warning: ..."), so its
+    line leaves out the level name."""
+
+    def __init__(self) -> None:
+        super().__init__(TEXT_FORMAT)
+
+    def formatMessage(self, record: logging.LogRecord) -> str:
+        if getattr(record, _PROBLEM, False):
+            return f"{record.asctime} {record.message}"
+        return super().formatMessage(record)
 
 
 class JsonLines(logging.Formatter):
@@ -40,7 +61,7 @@ def configure_logging(log_format: str, stream: TextIO) -> None:
     """log_format: "text", "json", or "" for text on a terminal, json elsewhere."""
     as_json = log_format == "json" if log_format else not stream.isatty()
     handler = logging.StreamHandler(stream)
-    handler.setFormatter(JsonLines() if as_json else logging.Formatter(TEXT_FORMAT))
+    handler.setFormatter(JsonLines() if as_json else Text())
     handler.addFilter(lambda record: not is_successful_health_check(record))
     root = logging.getLogger()
     root.handlers[:] = [handler]
