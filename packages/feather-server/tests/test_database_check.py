@@ -3,10 +3,11 @@
 import socket
 from collections.abc import Iterator
 
+import psycopg
 import pytest
 from psycopg import conninfo
 
-from feather_server.database import DatabaseAddress, Problem, address_of, check_database, port_refuses
+from feather_server.database import DatabaseAddress, Problem, address_of, check_database, open_connection, port_refuses
 
 
 @pytest.mark.database
@@ -61,3 +62,21 @@ def test_the_port_probe_finds_a_port_nothing_listens_on_refuses(free_port: int):
 
 def test_the_port_probe_finds_a_listening_port_does_not_refuse(silent_port: int):
     assert not port_refuses("127.0.0.1", silent_port)
+
+
+@pytest.mark.database
+def test_a_query_on_the_checks_connection_is_cancelled_after_2_s(database_url: str):
+    with open_connection(database_url) as connection, pytest.raises(psycopg.errors.QueryCanceled):
+        connection.execute("SELECT pg_sleep(3)")
+
+
+@pytest.mark.database
+def test_closing_the_checks_connection_sends_no_commit(database_url: str):
+    with open_connection(database_url) as connection:
+        assert connection.autocommit
+
+
+@pytest.mark.database
+def test_the_checks_connection_gives_up_on_a_peer_that_stops_acknowledging(database_url: str):
+    with open_connection(database_url) as connection:
+        assert connection.info.get_parameters()["tcp_user_timeout"] == "2000"
