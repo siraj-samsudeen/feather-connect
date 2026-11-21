@@ -8,7 +8,7 @@ connection, runs one query and closes it, so a problem keeps its cause.
 
 import re
 import socket
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 
 import psycopg
@@ -16,7 +16,7 @@ from psycopg import conninfo
 
 TIMEOUT_S = 2
 # Windows reports a refused port on its own machine only after about 2 s of
-# retries, so the probe waits longer than the check.
+# retries, so the probe (diagnose_database) waits longer than the check.
 PROBE_TIMEOUT_S = 5
 OLDEST_SUPPORTED = 180000  # Postgres 18.0, as server_version_num counts it
 
@@ -141,7 +141,15 @@ def check_database(url: str) -> DatabaseCheck:
             server_version = connection.info.server_version
     except psycopg.OperationalError as err:
         problem, reason = classify(str(err))
-        if reason == TIMED_OUT:
-            reason = REFUSED if port_refuses(address.host, int(address.port)) else TIMED_OUT
         return DatabaseCheck(address=address, problem=problem, reason=reason, detail=first_line(str(err)))
     return assess_version(address, server_version)
+
+
+def diagnose_database(url: str) -> DatabaseCheck:
+    """The check, and when it timed out, a probe of the port to tell a refused
+    port from a silent one: for the log, which names the cause. It can take
+    PROBE_TIMEOUT_S more, so /readyz, which says one word, never does it."""
+    check = check_database(url)
+    if check.reason == TIMED_OUT and port_refuses(check.address.host, int(check.address.port)):
+        return replace(check, reason=REFUSED)
+    return check

@@ -1,5 +1,5 @@
 """The database watch (design decision 1): feather-server's check, every few
-seconds in a background thread. It logs through the error helper when a
+seconds in a background thread, with the port probe that names the cause. It logs through the error helper when a
 problem starts, once a minute while it lasts, and when it ends, so a person
 reading the log knows why the server is not ready, and when it is again."""
 
@@ -11,7 +11,7 @@ from collections.abc import Callable
 from feather_cli import problems
 from feather_cli.logs import log_problem
 from feather_cli.problems import Problem
-from feather_server.database import DatabaseCheck, check_database
+from feather_server.database import DatabaseCheck, diagnose_database
 
 log = logging.getLogger("feather.database")
 
@@ -24,7 +24,7 @@ class DatabaseWatch:
     def __init__(
         self,
         database_url: str,
-        check: Callable[[str], DatabaseCheck] = check_database,
+        check: Callable[[str], DatabaseCheck] = diagnose_database,
         interval_s: float = INTERVAL_S,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:

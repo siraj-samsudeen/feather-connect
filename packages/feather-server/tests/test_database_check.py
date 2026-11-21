@@ -4,7 +4,15 @@ import psycopg
 import pytest
 from psycopg import conninfo
 
-from feather_server.database import DatabaseAddress, Problem, address_of, check_database, diagnose_database, open_connection, port_refuses
+from feather_server.database import (
+    DatabaseAddress,
+    Problem,
+    address_of,
+    check_database,
+    diagnose_database,
+    open_connection,
+    port_refuses,
+)
 
 
 @pytest.mark.database
@@ -34,6 +42,12 @@ def test_diagnosing_a_port_nothing_listens_on_finds_the_connection_refused(free_
 
 def test_a_server_that_never_answers_is_unreachable_because_it_timed_out(silent_port: int):
     check = check_database(f"postgresql://feather:feather@127.0.0.1:{silent_port}/feather")
+
+    assert (check.problem, check.reason) == (Problem.UNREACHABLE, "timed out")
+
+
+def test_diagnosing_a_server_that_never_answers_finds_it_timed_out(silent_port: int):
+    check = diagnose_database(f"postgresql://feather:feather@127.0.0.1:{silent_port}/feather")
 
     assert (check.problem, check.reason) == (Problem.UNREACHABLE, "timed out")
 
