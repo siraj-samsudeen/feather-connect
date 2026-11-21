@@ -1,12 +1,15 @@
 """The error helper: every message a person reads says what is wrong and what
 to do. Issue 4, point 5 pins six texts exactly; the others keep their shape."""
 
+from datetime import UTC, datetime
+
 import pytest
 
 from fcon_cli import problems
 from fcon_cli.problems import Level, Problem
 from fcon_server.database import DatabaseAddress, DatabaseCheck
 from fcon_server.database import Problem as Kind
+from fcon_server.store.migrate import MigrationStatus, Ran
 
 LOCAL = DatabaseAddress(host="127.0.0.1", port="5442", dbname="feather_issue_4", user="feather")
 REMOTE = DatabaseAddress(host="db.internal", port="5432", dbname="feather", user="feather")
@@ -221,3 +224,105 @@ def test_a_changed_upgrade_names_the_file_and_says_to_restore_it():
 
 def test_an_upgrade_that_waits_for_another_says_so():
     assert problems.waiting_for_upgrade() == "waiting for another upgrade of the database to finish..."
+
+
+# -- readiness beyond the connection (storage-foundation, point 9) ---------
+
+APPLIED = Ran("20261121T1530Z_first_tables.sql", datetime(2026, 11, 21, tzinfo=UTC))
+
+
+def status(waiting: int = 0, newer: int = 0, changed: tuple[Ran, ...] = ()) -> MigrationStatus:
+    return MigrationStatus(
+        applied=(),
+        waiting=tuple(f"2026112{n}T0000Z_waiting.sql" for n in range(waiting)),
+        newer=tuple(f"2999010{n}T0000Z_newer.sql" for n in range(newer)),
+        changed=changed,
+    )
+
+
+def test_a_database_two_upgrades_behind():
+    check = DatabaseCheck(address=LOCAL, problem=Kind.BEHIND, migrations=status(waiting=2))
+
+    assert problems.database_problem(check).text() == (
+        "warning: the database is 2 upgrades behind this version. Not ready.\n  Run: fcon db upgrade"
+    )
+
+
+def test_a_database_one_upgrade_behind():
+    check = DatabaseCheck(address=LOCAL, problem=Kind.BEHIND, migrations=status(waiting=1))
+
+    assert problems.database_problem(check).text().startswith("warning: the database is 1 upgrade behind")
+
+
+def test_a_database_with_a_changed_upgrade():
+    check = DatabaseCheck(address=LOCAL, problem=Kind.CHANGED, migrations=status(changed=(APPLIED,)))
+
+    assert problems.database_problem(check).text() == (
+        "error: upgrade 20261121T1530Z_first_tables.sql has changed since it ran.\n"
+        "  Restore it; never edit a migration that ran."
+    )
+
+
+def test_a_database_not_in_utf8():
+    check = DatabaseCheck(address=LOCAL, problem=Kind.NOT_UTF8, encoding="SQL_ASCII")
+
+    assert problems.database_problem(check).text() == (
+        "warning: the database feather_issue_4 uses the encoding SQL_ASCII; Feather Connect needs UTF8. Not ready.\n"
+        "  Make a new database in UTF-8 (createdb -E UTF8 -T template0 <name>), point FCON_DATABASE_URL at it,"
+        " then run: fcon db upgrade"
+    )
+
+
+def test_a_database_with_no_audit_month_for_now():
+    check = DatabaseCheck(address=LOCAL, problem=Kind.AUDIT_MONTH_MISSING)
+
+    assert problems.database_problem(check).text() == (
+        "warning: the audit log has no partition for this month, so no change can be saved. Not ready.\n"
+        "  Run: fcon db upgrade"
+    )
+
+
+def test_a_usable_database_has_no_notes():
+    assert problems.database_notes(DatabaseCheck(address=LOCAL, migrations=status(), months_ahead=6)) == ()
+
+
+def test_a_database_with_an_upgrade_from_a_newer_version_is_noted():
+    check = DatabaseCheck(address=LOCAL, migrations=status(newer=1), months_ahead=6)
+
+    assert [note.text() for note in problems.database_notes(check)] == [
+        "info: the database has 1 upgrade newer than this version; expand-only upgrades keep it working."
+    ]
+
+
+def test_two_upgrades_from_a_newer_version_are_counted():
+    check = DatabaseCheck(address=LOCAL, migrations=status(newer=2), months_ahead=6)
+
+    assert problems.database_notes(check)[0].what.startswith("the database has 2 upgrades newer")
+
+
+def test_a_database_without_icu_is_warned_that_lists_sort_by_character_code():
+    check = DatabaseCheck(address=LOCAL, icu=False, migrations=status(), months_ahead=6)
+
+    assert [note.text() for note in problems.database_notes(check)] == [
+        "warning: the database has no ICU collation (und-x-icu), so lists sort by character code."
+    ]
+
+
+def test_fewer_than_two_audit_months_ahead_is_warned():
+    check = DatabaseCheck(address=LOCAL, migrations=status(), months_ahead=1)
+
+    assert [note.text() for note in problems.database_notes(check)] == [
+        "warning: the audit log has partitions for only 1 month after this one.\n  Run: fcon db upgrade"
+    ]
+
+
+def test_two_audit_months_ahead_are_enough():
+    check = DatabaseCheck(address=LOCAL, migrations=status(), months_ahead=2)
+
+    assert problems.database_notes(check) == ()
+
+
+def test_a_database_not_ready_has_no_notes():
+    check = DatabaseCheck(address=LOCAL, problem=Kind.BEHIND, icu=False, migrations=status(waiting=1, newer=1))
+
+    assert problems.database_notes(check) == ()

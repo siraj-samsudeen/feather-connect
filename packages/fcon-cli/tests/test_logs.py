@@ -134,3 +134,12 @@ def test_a_text_line_carries_the_same_time_as_its_json_line():
     record = logging.LogRecord("fcon", logging.INFO, __file__, 1, "listening", None, None)
 
     assert Text().format(record).split(" ")[0] == json.loads(JsonLines().format(record))["time"]
+
+
+def test_a_note_is_logged_at_the_info_level():
+    stream = io.StringIO()
+    configure_logging("", stream)
+
+    log_problem(logging.getLogger("fcon"), Problem(Level.INFO, "worth knowing."))
+
+    assert json.loads(stream.getvalue())["level"] == "info"

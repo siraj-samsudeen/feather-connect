@@ -13,7 +13,7 @@ from fcon_server.health import LIVENESS_PATH, READINESS_PATH
 
 HEALTH_PATHS = {LIVENESS_PATH, READINESS_PATH}
 TEXT_FORMAT = "%(asctime)s %(levelname)s %(message)s"
-_LEVELS = {Level.ERROR: logging.ERROR, Level.WARNING: logging.WARNING}
+_LEVELS = {Level.ERROR: logging.ERROR, Level.WARNING: logging.WARNING, Level.INFO: logging.INFO}
 _PROBLEM = "problem"  # the record's mark: its message is the error helper's text
 
 

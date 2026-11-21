@@ -7,16 +7,21 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from fcon_server import database
-from fcon_server.database import DatabaseAddress, DatabaseCheck
+from fcon_server.database import ICU_COLLATION, DatabaseAddress, DatabaseCheck
+from fcon_server.store.migrate import MigrationStatus
 
 THIS_MACHINE = {"127.0.0.1", "localhost", "::1"}
 SET_THE_ADDRESS = "Set it to your Postgres 18 address: postgresql://user:password@host:5432/feather"
 DEFAULT_PORT = 8080
+RUN_UPGRADE = "Run: fcon db upgrade"
+ENOUGH_MONTHS_AHEAD = 2  # fewer audit months after this one: a warning (design decision 4)
+_NO_STATUS = MigrationStatus(applied=(), waiting=(), newer=(), changed=())
 
 
 class Level(StrEnum):
     ERROR = "error"
     WARNING = "warning"
+    INFO = "info"  # worth knowing, nothing to do
 
 
 @dataclass(frozen=True)
@@ -156,10 +161,64 @@ def _unusable(check: DatabaseCheck, setting: str) -> tuple[str, tuple[str, ...]]
             return f"cannot reach the database at {_where(address)}{reason}.", (todo,)
 
 
+def _upgrades(count: int) -> str:
+    return f"{count} upgrade{'' if count == 1 else 's'}"
+
+
+def _not_ready(check: DatabaseCheck) -> tuple[str, tuple[str, ...]]:
+    """What is wrong with a database the server reaches but cannot use yet,
+    and what to do; `_unusable` words the ones it cannot reach."""
+    status = check.migrations or _NO_STATUS
+    match check.problem:
+        case database.Problem.NOT_UTF8:
+            what = (
+                f"the database {check.address.dbname} uses the encoding {check.encoding};"
+                f" Feather Connect needs {database.ENCODING}."
+            )
+            todo = (
+                "Make a new database in UTF-8 (createdb -E UTF8 -T template0 <name>),"
+                " point FCON_DATABASE_URL at it, then run: fcon db upgrade"
+            )
+            return what, (todo,)
+        case database.Problem.BEHIND:
+            return f"the database is {_upgrades(len(status.waiting))} behind this version.", (RUN_UPGRADE,)
+        case database.Problem.AUDIT_MONTH_MISSING:
+            return "the audit log has no partition for this month, so no change can be saved.", (RUN_UPGRADE,)
+        case _:
+            return _unusable(check, "FCON_DATABASE_URL")
+
+
 def database_problem(check: DatabaseCheck) -> Problem:
-    """The server's warning for a database that is not usable (check.problem is set)."""
-    what, todo = _unusable(check, "FCON_DATABASE_URL")
+    """The server's message for a database that is not usable (check.problem is set)."""
+    if check.problem is database.Problem.CHANGED:
+        return upgrade_changed((check.migrations or _NO_STATUS).changed[0].name)
+    what, todo = _not_ready(check)
     return Problem(Level.WARNING, f"{what} Not ready.", todo)
+
+
+def database_notes(check: DatabaseCheck) -> tuple[Problem, ...]:
+    """What is worth saying, once, about a database that is usable: none of
+    it stops the server being ready."""
+    if check.problem is not None:
+        return ()
+    notes: list[Problem] = []
+    if newer := (check.migrations or _NO_STATUS).newer:
+        what = (
+            f"the database has {_upgrades(len(newer))} newer than this version; expand-only upgrades keep it working."
+        )
+        notes.append(Problem(Level.INFO, what))
+    if not check.icu:
+        notes.append(
+            Problem(
+                Level.WARNING, f"the database has no ICU collation ({ICU_COLLATION}), so lists sort by character code."
+            )
+        )
+    if check.months_ahead < ENOUGH_MONTHS_AHEAD:
+        months = f"{check.months_ahead} month{'' if check.months_ahead == 1 else 's'}"
+        notes.append(
+            Problem(Level.WARNING, f"the audit log has partitions for only {months} after this one.", (RUN_UPGRADE,))
+        )
+    return tuple(notes)
 
 
 def database_unusable(check: DatabaseCheck, setting: str) -> Problem:

@@ -12,10 +12,14 @@ from fcon_cli import problems
 from fcon_cli.watch import DatabaseWatch
 from fcon_server.database import DatabaseAddress, DatabaseCheck
 from fcon_server.database import Problem as Kind
+from fcon_server.store.migrate import MigrationStatus
 
 URL = "postgresql://feather:secret@127.0.0.1:5442/feather_issue_4"
 ADDRESS = DatabaseAddress(host="127.0.0.1", port="5442", dbname="feather_issue_4", user="feather")
-USABLE = DatabaseCheck(address=ADDRESS)
+USABLE = DatabaseCheck(address=ADDRESS, months_ahead=6)
+NEWER = MigrationStatus(applied=(), waiting=(), newer=("29990101T0000Z_newer.sql",), changed=())
+USABLE_NEWER = DatabaseCheck(address=ADDRESS, migrations=NEWER, months_ahead=6)
+USABLE_NO_ICU = DatabaseCheck(address=ADDRESS, icu=False, months_ahead=6)
 REFUSED = DatabaseCheck(address=ADDRESS, problem=Kind.UNREACHABLE, reason="connection refused")
 MISSING = DatabaseCheck(address=ADDRESS, problem=Kind.DATABASE_MISSING)
 
@@ -162,3 +166,17 @@ def test_a_watch_never_started_stops_at_once():
     watch.stop()
 
     assert not watch.running()
+
+
+def test_a_note_on_a_usable_database_is_logged_when_first_seen(caplog: pytest.LogCaptureFixture):
+    look_at_every_answer(Database((0, USABLE_NEWER)))
+
+    (note,) = problems.database_notes(USABLE_NEWER)
+    assert logged(caplog)[1] == (logging.INFO, note.text())
+
+
+def test_a_note_is_said_once(caplog: pytest.LogCaptureFixture):
+    look_at_every_answer(Database((0, USABLE_NO_ICU), (65, USABLE_NO_ICU), (70, REFUSED), (75, USABLE_NO_ICU)))
+
+    warned = [message for _level, message in logged(caplog) if "ICU" in message]
+    assert len(warned) == 1
