@@ -1,0 +1,63 @@
+"""Fixtures every package's tests share.
+
+`database_url`: a throwaway database, made once per test session on the
+Postgres server FEATHER_DATABASE_URL names (from the environment, else from
+.env at the repo root) and dropped at the end. A test that needs it carries
+the `database` mark. With no database running it fails, and says how to start
+one: it never skips.
+"""
+
+import os
+import socket
+import uuid
+from collections.abc import Iterator
+from pathlib import Path
+
+import psycopg
+import pytest
+from psycopg import conninfo, sql
+
+REPO_ROOT = Path(__file__).resolve().parent
+START_IT = "start the database: docker compose up -d"
+
+
+def _server_url() -> str:
+    if url := os.environ.get("FEATHER_DATABASE_URL"):
+        return url
+    env_file = REPO_ROOT / ".env"
+    if env_file.is_file():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            name, _, value = line.partition("=")
+            if name.strip() == "FEATHER_DATABASE_URL":
+                return value.strip()
+    pytest.fail("FEATHER_DATABASE_URL is not set (environment or .env); " + START_IT, pytrace=False)
+
+
+def _admin(url: str) -> psycopg.Connection[tuple[object, ...]]:
+    try:
+        return psycopg.connect(url, autocommit=True, connect_timeout=5)
+    except psycopg.OperationalError as err:
+        first_line = str(err).splitlines()[0] if str(err) else type(err).__name__
+        pytest.fail("cannot reach the test database server (%s).\n%s" % (first_line, START_IT), pytrace=False)
+
+
+@pytest.fixture(scope="session")
+def database_url() -> Iterator[str]:
+    """The address of this session's own empty database."""
+    server_url = _server_url()
+    name = "feather_test_%s" % uuid.uuid4().hex[:8]
+    with _admin(server_url) as admin:
+        admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
+    try:
+        yield conninfo.make_conninfo(server_url, dbname=name)
+    finally:
+        with _admin(server_url) as admin:
+            admin.execute(sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(sql.Identifier(name)))
+
+
+@pytest.fixture
+def free_port() -> int:
+    """A port on 127.0.0.1 that nothing listens on right now."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(("127.0.0.1", 0))
+        return probe.getsockname()[1]
