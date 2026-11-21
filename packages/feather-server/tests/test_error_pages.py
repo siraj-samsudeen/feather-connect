@@ -51,6 +51,11 @@ def test_an_unknown_address_gets_the_not_found_page(client: TestClient, path: st
     assert (response.status_code, headings(response.text)) == (404, ["Page not found"])
 
 
+@pytest.mark.parametrize("path", ["/docs", "/redoc", "/openapi.json"])
+def test_no_api_description_is_served_until_there_is_an_api(client: TestClient, path: str):
+    assert client.get(path).status_code == 404
+
+
 def test_the_not_found_page_leads_on_to_sign_in(client: TestClient):
     page = BeautifulSoup(client.get(MISSING).text, "html.parser")
 
