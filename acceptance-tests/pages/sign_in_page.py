@@ -176,7 +176,8 @@ class SignInPage:
                 "the alert (#%s) is not linked to the form: neither the form nor both fields name it "
                 "in aria-describedby" % alert_id
             )
-        body = self.page.locator("body").inner_text().lower()
+        # The agreed words themselves end in "password is wrong": look for hints in the rest.
+        body = " ".join(self.page.locator("body").inner_text().split()).lower().replace(REFUSAL.lower(), "")
         problems.extend("the page hints which half was wrong: %r" % hint for hint in HINTS if hint in body)
         invalid = [
             self.page.get_by_label(label, exact=True).get_attribute("aria-invalid")
