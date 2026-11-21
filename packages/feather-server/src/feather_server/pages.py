@@ -6,6 +6,7 @@ wrong name and a wrong password (as the finished sign-in keeps them)."""
 
 import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Annotated, cast
 
 from fastapi import APIRouter, FastAPI, Form, Request
@@ -17,7 +18,9 @@ from starlette.exceptions import HTTPException
 PRODUCT = "Feather Connect"
 FRONT_DOOR_PATH = "/"
 SIGN_IN_PATH = "/sign-in"
-STYLESHEET_PATH = "/static/feather.css"
+STATIC_PATH = "/static"
+STATIC_DIRECTORY = Path(__file__).parent / "static"
+STYLESHEET_PATH = f"{STATIC_PATH}/feather.css"
 
 REFUSAL = "The user name or password is wrong."
 REFUSAL_ID = "sign-in-refused"

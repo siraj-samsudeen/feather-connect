@@ -34,20 +34,27 @@ SAFETY_HEADERS = [
     (b"x-frame-options", b"DENY"),
     (b"x-content-type-options", b"nosniff"),
     (b"referrer-policy", b"same-origin"),
-    (b"cache-control", b"no-store"),
 ]
+NEVER_KEPT = (b"cache-control", b"no-store")
+# Kept by the browser, but checked against its ETag before each use, so a new
+# release shows at once.
+KEPT_IF_CURRENT = (b"cache-control", b"no-cache")
 
 
 class SafetyHeaders:
-    """Adds the safety headers to every response, errors included."""
+    """Adds the safety headers to every response, errors included. Nothing is
+    kept by the browser but the answers at `cacheable_paths` (the stylesheet)."""
 
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(self, app: ASGIApp, cacheable_paths: frozenset[str] = frozenset()) -> None:
         self.app = app
+        self.cacheable_paths = cacheable_paths
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        caching = KEPT_IF_CURRENT if scope.get("path") in self.cacheable_paths else NEVER_KEPT
+
         async def send_with_headers(message: Message) -> None:
             if message["type"] == "http.response.start":
-                message = {**message, "headers": [*message.get("headers", []), *SAFETY_HEADERS]}
+                message = {**message, "headers": [*message.get("headers", []), *SAFETY_HEADERS, caching]}
             await send(message)
 
         await self.app(scope, receive, send_with_headers)
