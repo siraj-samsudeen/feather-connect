@@ -196,12 +196,14 @@ version = "0.0.0"
 source = { editable = "packages/feather-cli" }
 dependencies = [
     { name = "feather-server" },
+    { name = "psycopg" },
     { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "feather-server", editable = "packages/feather-server" },
+    { name = "psycopg", specifier = ">=3.3.9" },
     { name = "uvicorn" },
 ]
 

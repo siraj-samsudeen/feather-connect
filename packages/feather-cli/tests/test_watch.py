@@ -133,3 +133,11 @@ def test_it_looks_again_and_again_in_the_background_until_stopped():
     watch.stop()
 
     assert not watch.running()
+
+
+def test_a_watch_never_started_stops_at_once():
+    watch = DatabaseWatch(URL, check=Database().check)
+
+    watch.stop()
+
+    assert not watch.running()

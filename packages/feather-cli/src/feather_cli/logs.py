@@ -17,9 +17,10 @@ _LEVELS = {Level.ERROR: logging.ERROR, Level.WARNING: logging.WARNING}
 _PROBLEM = "problem"  # the record's mark: its message is the error helper's text
 
 
-def log_problem(logger: logging.Logger, problem: Problem) -> None:
-    """The error helper's whole text, as one record at its level."""
-    logger.log(_LEVELS[problem.level], problem.text(), extra={_PROBLEM: True})
+def log_problem(logger: logging.Logger, problem: Problem, exc_info: bool = False) -> None:
+    """The error helper's whole text, as one record at its level; with
+    exc_info, the exception being handled (a bug) goes with it."""
+    logger.log(_LEVELS[problem.level], problem.text(), exc_info=exc_info, extra={_PROBLEM: True})
 
 
 class Text(logging.Formatter):

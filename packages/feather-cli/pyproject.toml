@@ -5,7 +5,11 @@ description = "Feather Connect's command line: the feather command."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.14"
-dependencies = ["feather-server", "uvicorn"]
+dependencies = [
+    "feather-server",
+    "psycopg>=3.3.9",
+    "uvicorn",
+]
 
 [project.scripts]
 feather = "feather_cli.main:entry"

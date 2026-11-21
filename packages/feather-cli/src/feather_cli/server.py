@@ -1,5 +1,5 @@
-"""`feather server`: binds the port itself, then runs Uvicorn on that socket in
-the same process, one process per container."""
+"""`feather server`: binds the port itself, starts the database watch, then
+runs Uvicorn on that socket in the same process, one process per container."""
 
 import errno
 import ipaddress
@@ -15,6 +15,7 @@ from feather_cli import problems
 from feather_cli.logs import log_problem
 from feather_cli.problems import Problem, ProblemError
 from feather_cli.settings import Settings
+from feather_cli.watch import DatabaseWatch
 from feather_server.app import create_app
 
 log = logging.getLogger("feather")
@@ -94,5 +95,10 @@ def run_server(settings: Settings) -> None:
         proxy_headers=False,  # trusting a proxy's headers comes with real sign-in
         server_header=False,  # no server name or version for visitors
     )
+    watch = DatabaseWatch(settings.database_url)
+    watch.start()
     announce(host, port)
-    uvicorn.Server(config).run(sockets=[sock])
+    try:
+        uvicorn.Server(config).run(sockets=[sock])
+    finally:
+        watch.stop()
