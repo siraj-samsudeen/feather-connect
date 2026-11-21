@@ -8,6 +8,7 @@ connection, runs one query and closes it, so a problem keeps its cause.
 
 import re
 import socket
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from enum import StrEnum
 
@@ -145,11 +146,16 @@ def check_database(url: str) -> DatabaseCheck:
     return assess_version(address, server_version)
 
 
-def diagnose_database(url: str) -> DatabaseCheck:
+def diagnose_database(
+    url: str,
+    *,
+    check: Callable[[str], DatabaseCheck] = check_database,
+    probe: Callable[[str, int], bool] = port_refuses,
+) -> DatabaseCheck:
     """The check, and when it timed out, a probe of the port to tell a refused
     port from a silent one: for the log, which names the cause. It can take
     PROBE_TIMEOUT_S more, so /readyz, which says one word, never does it."""
-    check = check_database(url)
-    if check.reason == TIMED_OUT and port_refuses(check.address.host, int(check.address.port)):
-        return replace(check, reason=REFUSED)
-    return check
+    result = check(url)
+    if result.reason == TIMED_OUT and probe(result.address.host, int(result.address.port)):
+        return replace(result, reason=REFUSED)
+    return result
