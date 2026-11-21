@@ -93,3 +93,20 @@ def test_any_other_driver_error_is_unreachable_with_its_first_line(monkeypatch: 
     check = check_database("postgresql://feather:feather@127.0.0.1:5442/feather")
 
     assert (check.problem, check.reason) == (Problem.UNREACHABLE, "the driver broke")
+
+
+def test_a_timeout_on_a_port_that_refuses_is_reported_as_refused():
+    """Windows' psycopg reports a refused port as a timeout; the probe corrects
+    it on every system, whatever the driver says there."""
+    url = "postgresql://feather:feather@127.0.0.1:5999/feather"
+    timed_out = check_database_result(url, reason="timed out")
+
+    check = diagnose_database(url, check=lambda _url: timed_out, probe=lambda _host, _port: True)
+
+    assert check.reason == "connection refused"
+
+
+def check_database_result(url: str, reason: str):
+    from feather_server.database import DatabaseCheck
+
+    return DatabaseCheck(address=address_of(url), problem=Problem.UNREACHABLE, reason=reason, detail="")
