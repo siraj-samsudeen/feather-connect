@@ -4,9 +4,8 @@ import socket
 from collections.abc import Iterator
 
 import pytest
+from feather_server.database import DatabaseAddress, Problem, address_of, check_database, port_refuses
 from psycopg import conninfo
-
-from feather_server.database import DatabaseAddress, Problem, check_database, port_refuses
 
 
 @pytest.mark.database
@@ -49,10 +48,10 @@ def test_a_server_that_never_answers_is_unreachable_because_it_timed_out(silent_
     assert (check.problem, check.reason) == (Problem.UNREACHABLE, "timed out")
 
 
-def test_the_check_names_the_database_by_host_port_name_and_user(free_port: int):
-    check = check_database("postgresql://alex:secret@127.0.0.1:%d/flows" % free_port)
+def test_the_check_names_the_database_by_host_port_name_and_user():
+    address = address_of("postgresql://alex:secret@db.internal:6543/flows")
 
-    assert check.address == DatabaseAddress(host="127.0.0.1", port=str(free_port), dbname="flows", user="alex")
+    assert address == DatabaseAddress(host="db.internal", port="6543", dbname="flows", user="alex")
 
 
 def test_the_port_probe_finds_a_port_nothing_listens_on_refuses(free_port: int):
