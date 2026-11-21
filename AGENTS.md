@@ -48,12 +48,14 @@ Feather Connect is an open-source (MIT) integration hub: flows written in Python
 one source to many destinations, and developers, operators and AI agents run, monitor and repair
 them from one dashboard.
 
-**Stack.** Lines marked *(proposed)* are to be confirmed by the first change:
+**Stack** (owner, 21-Nov-2026; the reasons are in [`adr/`](adr/)):
 
-- Python, managed with uv. Develop on Python 3.14 *(proposed)*: on 13-Nov-2026 PyYAML had no
-  Windows build for 3.15, so installing it there needs a C++ compiler.
-- Pages are rendered on the server as HTML. FastAPI, Jinja2 templates and HTMX *(proposed)*.
-- Postgres as the only required database, run in Docker for development *(proposed)*.
+- Python 3.14 only, for development and for the deployed server, managed with uv: a workspace of
+  three packages (`packages/feather-connect`, `feather-server`, `feather-cli`), one lock file.
+- Pages are rendered on the server as HTML: FastAPI and Jinja2 under Uvicorn, one process per
+  container. HTMX comes with the first page that refreshes part of itself.
+- Postgres 18 and later is the only database. For development, one shared Docker container
+  (`docker compose up -d`, on `127.0.0.1:5442`) holds a database per worktree.
 - The product has no Node toolchain. Node is on a developer's machine only for the OpenSpec CLI.
 
 **Front end** (owner, 13-Nov-2026):
@@ -76,15 +78,34 @@ them from one dashboard.
   page objects.
 
 **Tooling defaults, never asked**, added to those of the `change-modes` skill (§ Defaults): ruff to lint and
-format, pyright for types, pytest for inner tests, behave with Playwright for the acceptance
-suite (`stack: python`), `uv run` for every command. The end-of-change checks are the Python
-column of the table in the `outside-in-tdd` skill, § Reconcile.
+format (the defaults plus `S`, `B`, `I`, `UP`), pyright in strict mode, vulture, deptry, pytest
+for inner tests with 100% coverage, behave with Playwright for the acceptance suite
+(`stack: python`), `uv run` for every command. The end-of-change checks are the Python column of
+the table in the `outside-in-tdd` skill, § Reconcile, and CI runs them (`.github/workflows/`).
+deptry reads one package's `pyproject.toml`: run it from each package's directory,
+`uv run --directory packages/<package> deptry .`. Relaxed until the M1 release (#5): mutmut runs
+weekly as a report, the Windows and macOS tests do not block, Dependabot proposes monthly.
 
-**Worktrees.** Each worktree that runs the acceptance suite at the same time as another sets its
-own `ACCEPTANCE_PORT`. The app's own port and database per worktree are added here by the change
-that first boots the app.
+**Conventions** (one line each; the reasons are in [`adr/`](adr/)):
 
-**Windows.** Three things differ on a Windows machine:
+1. Settings come only from `FEATHER_*` environment variables, and from `.env` in development.
+2. Every command reports problems through the error helper in `feather-cli`: what is wrong and
+   what to do, never a password, never a traceback for an expected problem.
+3. One logger: text on a terminal, one JSON object per line elsewhere.
+4. Templates have no inline `<script>` and no `style=""`: the content policy refuses them.
+5. Redirects are relative.
+6. The flow library never imports the server or the command line.
+7. Database calls are sync, through psycopg, with plain SQL in the store layer.
+8. Tests that need a database are marked as such, and never skip.
+9. Examples and names are generic: no real organisation, customer, vendor system or site.
+
+**Worktrees.** The ports come from the issue number `n`: development `18000 + n`, acceptance
+`19000 + n` (issue 4: 18004 and 19004); the main checkout keeps 8080 and 8030. Each worktree has
+its own database `feather_issue_<n>` in the shared container. `uv run scripts/worktree_env.py <n>`
+writes the worktree's `.env` (both ports and the database address; other lines are kept) and
+creates the database; `--drop` removes it when the worktree goes.
+
+**Windows.** Four things differ on a Windows machine:
 
 - The skills under `.claude/skills/` are symbolic links. They work only with Developer Mode on
   and `git config core.symlinks true` set before the checkout; without both, each link is a
@@ -93,3 +114,5 @@ that first boots the app.
 - Tools installed with npm are called with `.cmd` in PowerShell (`openspec.cmd`) unless the
   user's execution policy allows scripts.
 - mutmut does not run on Windows itself: run it in CI, WSL or a Linux container.
+- Stopping `uv run` by its PID can leave its Python child holding the port: stop the whole tree,
+  `taskkill /T /PID <pid>`.
