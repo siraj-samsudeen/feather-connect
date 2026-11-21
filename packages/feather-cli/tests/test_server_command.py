@@ -129,6 +129,21 @@ def test_a_command_line_mistake_shows_the_commands_usage(capsys: pytest.CaptureF
     assert capsys.readouterr().err.splitlines()[1].startswith("  usage: feather server")
 
 
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [("FORCE_COLOR", "1"), ("COLUMNS", "30")],
+    ids=["colour forced", "narrow terminal"],
+)
+def test_the_usage_reads_the_same_whatever_the_terminal_asks_for(
+    name: str, value: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    monkeypatch.setenv(name, value)
+
+    main(["server", "--port", "eighty"])
+
+    assert capsys.readouterr().err.splitlines()[1] == "  usage: feather server [-h] [--host HOST] [--port PORT]"
+
+
 def test_a_taken_port_stops_it_with_exit_code_2(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ):
