@@ -2,15 +2,18 @@
 
 `database_url`: a throwaway database, made once per test session on the
 Postgres server FCON_DATABASE_URL names (from the environment, else from
-.env at the repo root) and dropped at the end. A test that needs it carries
-the `database` mark. With no database running it fails, and says how to start
-one: it never skips.
+.env at the repo root), upgraded once by the runner, so the migrations are
+tested on every run, and dropped at the end. `empty_database_url`: one more,
+new for each test that asks, for tests of the upgrades themselves. A test that
+needs either carries the `database` mark. With no database running it fails,
+and says how to start one: it never skips.
 """
 
 import os
 import socket
 import uuid
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import psycopg
@@ -18,6 +21,8 @@ import pytest
 from psycopg import conninfo, sql
 
 from fcon_cli.settings import ENV_FILE, read_env_file
+from fcon_server.store.clock import SystemClock
+from fcon_server.store.migrate import upgrade
 
 REPO_ROOT = Path(__file__).resolve().parent
 START_IT = "start the database: docker compose up -d"
@@ -38,9 +43,8 @@ def _admin(url: str) -> psycopg.Connection[tuple[object, ...]]:
         pytest.fail(f"cannot reach the test database server ({first_line}).\n{START_IT}", pytrace=False)
 
 
-@pytest.fixture(scope="session")
-def database_url() -> Iterator[str]:
-    """The address of this session's own empty database."""
+@contextmanager
+def _throwaway_database() -> Generator[str]:
     server_url = _server_url()
     name = f"feather_test_{uuid.uuid4().hex[:8]}"
     with _admin(server_url) as admin:
@@ -50,6 +54,21 @@ def database_url() -> Iterator[str]:
     finally:
         with _admin(server_url) as admin:
             admin.execute(sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(sql.Identifier(name)))
+
+
+@pytest.fixture(scope="session")
+def database_url() -> Iterator[str]:
+    """The address of this session's own database, upgraded."""
+    with _throwaway_database() as url:
+        upgrade(url, SystemClock())
+        yield url
+
+
+@pytest.fixture
+def empty_database_url() -> Iterator[str]:
+    """The address of a database of this test's own, new and empty."""
+    with _throwaway_database() as url:
+        yield url
 
 
 @pytest.fixture
