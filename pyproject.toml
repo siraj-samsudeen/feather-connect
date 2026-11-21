@@ -93,4 +93,7 @@ ignore_names = [
     "lead",  # the page views' fields that only a template prints
     "product",
     "stylesheet",
+    "heading",
+    "link_text",
+    "link_href",
 ]

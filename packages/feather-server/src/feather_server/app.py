@@ -9,9 +9,20 @@ from feather_server.middleware import HeadAsGet, SafetyHeaders
 
 def create_app(database_url: str) -> ASGIApp:
     """The app, talking to the database at `database_url` (a libpq address)."""
+    return with_middleware(build_app(database_url))
+
+
+def build_app(database_url: str) -> FastAPI:
+    """The routes and their error pages, without the middleware around them."""
     # No automatic trailing-slash redirect: FastAPI builds it as a full http://
     # address from what it saw, which behind an https proxy is the insecure one.
     app = FastAPI(redirect_slashes=False)
     app.include_router(health.router(database_url))
     app.include_router(pages.router())
+    pages.install_error_pages(app)
+    return app
+
+
+def with_middleware(app: ASGIApp) -> ASGIApp:
+    """What holds for every answer, errors included: HEAD, the safety headers."""
     return SafetyHeaders(HeadAsGet(app))
