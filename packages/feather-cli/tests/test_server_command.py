@@ -17,6 +17,7 @@ import pytest
 
 from feather_cli import problems
 from feather_cli.main import main
+from feather_cli.settings import Settings
 
 START_TIMEOUT_S = 30
 
@@ -132,3 +133,24 @@ def test_a_taken_port_stops_it_with_exit_code_2(
         code = main(["server", "--host", "127.0.0.1", "--port", str(port)])
 
     assert (code, capsys.readouterr().err) == (2, problems.port_taken("127.0.0.1", port).text() + "\n")
+
+
+def crash(_settings: Settings) -> None:
+    raise RuntimeError("a bug at start-up")
+
+
+def test_a_bug_at_start_up_says_it_is_one_then_shows_the_traceback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    monkeypatch.setenv("FEATHER_DATABASE_URL", "postgresql://feather@127.0.0.1:9/feather")
+    monkeypatch.chdir(tmp_path)
+
+    code = main(["server"], serve=crash)
+
+    first, second, *_, last = capsys.readouterr().err.splitlines()
+    assert (code, first, second, last) == (
+        1,
+        problems.bug().text(),
+        "Traceback (most recent call last):",
+        "RuntimeError: a bug at start-up",
+    )

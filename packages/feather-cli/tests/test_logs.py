@@ -4,7 +4,6 @@ Uvicorn's lines go through it; successful health checks are left out."""
 import io
 import json
 import logging
-from collections.abc import Iterator
 
 import pytest
 
@@ -15,15 +14,6 @@ from feather_cli.problems import Level, Problem
 class Terminal(io.StringIO):
     def isatty(self) -> bool:
         return True
-
-
-@pytest.fixture(autouse=True)
-def restore_root_logger() -> Iterator[None]:
-    root = logging.getLogger()
-    handlers, level = root.handlers[:], root.level
-    yield
-    root.handlers[:] = handlers
-    root.setLevel(level)
 
 
 PROBLEM = Problem(Level.WARNING, "something is wrong.", ("Do this.", "Or that."))
