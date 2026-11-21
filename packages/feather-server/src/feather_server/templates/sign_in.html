@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ view.product }}</h1>
+<p class="lead">{{ view.lead }}</p>
+{% for alert in view.alerts %}
+<p class="alert" role="alert" id="{{ alert.id }}">{{ alert.text }}</p>
+{% endfor %}
+<form{{ view.form | xmlattr }}>
+<label for="{{ view.user_field.id }}">User name</label>
+<input{{ view.user_field | xmlattr }}>
+<label for="{{ view.password_field.id }}">Password</label>
+<input{{ view.password_field | xmlattr }}>
+<button type="submit">Sign in</button>
+</form>
+{% endblock %}

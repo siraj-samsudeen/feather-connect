@@ -1,0 +1,169 @@
+# The checks every change passes (issue 4, point 9). Five jobs side by side;
+# "other-systems" shows red when it fails but blocks nothing until M1 (#5).
+# Safety: every action pinned to its full commit id, a read-only token, no
+# secrets.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A newer push cancels the older run on the same branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FORCE_COLOR: "1"
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/uv.lock"
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pyright
+      - run: uv run vulture
+      # deptry reads the package's own pyproject.toml: run it from each package.
+      - run: uv run --directory packages/feather-connect deptry .
+      - run: uv run --directory packages/feather-server deptry .
+      - run: uv run --directory packages/feather-cli deptry .
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: feather
+          POSTGRES_PASSWORD: feather
+          POSTGRES_DB: feather
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U feather -d feather"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      # The service container; the tests make a throwaway database on it.
+      FEATHER_DATABASE_URL: postgresql://feather:feather@localhost:5432/feather
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/uv.lock"
+      - run: uv sync --locked
+      # 100% coverage across the three packages and scripts/ (pyproject.toml).
+      - run: uv run pytest
+
+  acceptance:
+    name: Acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: feather
+          POSTGRES_PASSWORD: feather
+          POSTGRES_DB: feather
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U feather -d feather"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      ACCEPTANCE_PORT: "8030"
+      ACCEPTANCE_ADMIN_DATABASE_URL: postgresql://feather:feather@localhost:5432/postgres
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/uv.lock"
+      - run: uv sync --locked
+      - run: uv sync --locked --project acceptance-tests
+      # Playwright's browser download, kept between runs; keyed on the
+      # suite's lock file, which pins Playwright's version.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('acceptance-tests/uv.lock') }}
+      - run: uv run --project acceptance-tests playwright install --with-deps chromium
+      - run: uv run --project acceptance-tests python acceptance-tests/run_acceptance.py
+      # The HTML report, screenshots, recordings and traces, for download.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: acceptance-reports
+          path: acceptance-tests/reports/
+          if-no-files-found: warn
+
+  other-systems:
+    name: Tests (${{ matrix.os }}, no database)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    # Relaxed until M1 (#5): shows red when it fails, blocks nothing.
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/uv.lock"
+      - run: uv sync --locked
+      # The tests marked as needing a database run on Linux; without them the
+      # coverage is not complete, so no threshold here.
+      - run: uv run pytest -m "not database" --cov-fail-under=0
+
+  specs:
+    name: Specs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Node for the OpenSpec CLI, in CI only: the product has no Node.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - run: npx --yes @fission-ai/openspec@2.0.0 validate --specs --no-interactive
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/uv.lock"
+      # The Gherkin extraction and the effective spec, without running a scenario.
+      - run: uv run --locked --project acceptance-tests python acceptance-tests/run_acceptance.py --print-locations

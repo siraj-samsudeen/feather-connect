@@ -1,0 +1,29 @@
+# The development database, shared by every worktree: start it once with
+#   docker compose up -d
+# The project name is fixed, so a second worktree reuses this container
+# instead of starting its own copy. For the developer's machine only.
+name: feather-connect
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: feather
+      POSTGRES_PASSWORD: feather
+      POSTGRES_DB: feather
+    # 127.0.0.1 only, never every network interface. 5442: local installs
+    # take 5432 to 5439, and Windows reserves high port ranges.
+    ports:
+      - "127.0.0.1:5442:5432"
+    # The 18 image keeps its data under /var/lib/postgresql/18/docker.
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U feather -d feather"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+volumes:
+  db-data:

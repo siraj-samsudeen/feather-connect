@@ -1,0 +1,35 @@
+[project]
+name = "feather-cli"
+version = "0.0.0"
+description = "Feather Connect's command line: the feather command."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.14"
+dependencies = [
+    "feather-server",
+    "psycopg>=3.3.9",
+    "uvicorn",
+]
+
+[project.scripts]
+feather = "feather_cli.main:entry"
+
+[tool.uv.sources]
+feather-server = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
+[tool.deptry]
+# Run from this directory: uv run --directory packages/feather-cli deptry .
+known_first_party = ["feather_cli"]
+extend_exclude = ["tests"]
+
+[tool.mutmut]
+# The weekly mutation report (.github/workflows/mutation.yml), run from this
+# directory on Linux: uv run --with mutmut mutmut run. mutmut does not run on
+# Windows. The repo root's pytest settings apply, without its coverage options.
+source_paths = ["src/"]
+pytest_add_cli_args_test_selection = ["tests/"]
+pytest_add_cli_args = ["-o", "addopts=--import-mode=importlib --strict-markers --strict-config"]

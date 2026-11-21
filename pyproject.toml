@@ -1,0 +1,106 @@
+# The uv workspace: the three packages under packages/, one lock file, one
+# environment for development. acceptance-tests/ is a project of its own and
+# is not a member: it never imports the product's code.
+[project]
+name = "feather-workspace"
+version = "0"
+requires-python = ">=3.14"
+dependencies = ["feather-connect", "feather-server", "feather-cli"]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+feather-connect = { workspace = true }
+feather-server = { workspace = true }
+feather-cli = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "pyright[nodejs]",
+    "vulture",
+    "deptry",
+    "httpx2",
+    "beautifulsoup4>=4.15.0",
+]
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["packages/feather-connect/tests", "packages/feather-server/tests", "packages/feather-cli/tests", "tests"]
+# The repo's own scripts (scripts/worktree_env.py) are imported by name.
+pythonpath = ["scripts"]
+addopts = [
+    "--import-mode=importlib",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=feather_connect",
+    "--cov=feather_server",
+    "--cov=feather_cli",
+    "--cov=scripts",
+    "--cov-branch",
+    "--cov-report=term-missing:skip-covered",
+    "--cov-fail-under=100",
+]
+markers = [
+    "database: needs the Postgres server FEATHER_DATABASE_URL names; fails, never skips, when it is not running",
+]
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+# `feather server` is tested as the command a person runs, in a subprocess.
+patch = ["subprocess"]
+
+[tool.coverage.report]
+exclude_also = ["if TYPE_CHECKING:"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+# The product's code and its tests; the acceptance suite and the process's
+# copied skill files have their own conventions.
+extend-exclude = ["acceptance-tests", ".agents", ".opencode", ".claude", "openspec", "docs", "adr"]
+
+[tool.ruff.lint]
+extend-select = ["S", "B", "I", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["feather_connect", "feather_server", "feather_cli", "worktree_env"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests assert, start the command they test, and use made-up passwords.
+"**/tests/**" = ["S101", "S105", "S106", "S603"]
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.14"
+venvPath = "."
+venv = ".venv"
+include = ["packages", "tests", "scripts", "conftest.py"]
+extraPaths = ["scripts"]
+
+[tool.vulture]
+paths = ["packages", "scripts"]
+min_confidence = 60
+# Called by the framework, not by our code: routes and fixtures.
+ignore_decorators = ["@routes.get", "@routes.post", "@pytest.fixture"]
+# The short reviewed list of names only something outside our code reads.
+ignore_names = [
+    "format",  # logging.Formatter.format, called by the logging module
+    "formatTime",  # logging.Formatter.formatTime, likewise; its datefmt is unused (always UTC ISO 8601)
+    "datefmt",
+    "dbname",  # DatabaseAddress: read by the database watch's messages
+    "detail",  # DatabaseCheck: the driver's own line, for the server's log
+    "lead",  # the page views' fields that only a template prints
+    "product",
+    "stylesheet",
+    "heading",
+    "link_text",
+    "link_href",
+    "total_tokens",  # anyio's thread limit, set by a test that fills every worker thread
+]
