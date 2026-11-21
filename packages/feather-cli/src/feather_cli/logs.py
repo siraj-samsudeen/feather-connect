@@ -23,12 +23,20 @@ def log_problem(logger: logging.Logger, problem: Problem, exc_info: bool = False
     logger.log(_LEVELS[problem.level], problem.text(), exc_info=exc_info, extra={_PROBLEM: True})
 
 
+def time_of(record: logging.LogRecord) -> str:
+    """UTC, ISO 8601, to the millisecond, with its offset: the same in both formats."""
+    return datetime.fromtimestamp(record.created, UTC).isoformat(timespec="milliseconds")
+
+
 class Text(logging.Formatter):
     """A problem's text starts with its own level ("warning: ..."), so its
     line leaves out the level name."""
 
     def __init__(self) -> None:
         super().__init__(TEXT_FORMAT)
+
+    def formatTime(self, record: logging.LogRecord, datefmt: str | None = None) -> str:
+        return time_of(record)
 
     def formatMessage(self, record: logging.LogRecord) -> str:
         if getattr(record, _PROBLEM, False):
@@ -39,7 +47,7 @@ class Text(logging.Formatter):
 class JsonLines(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         line = {
-            "time": datetime.fromtimestamp(record.created, UTC).isoformat(timespec="milliseconds"),
+            "time": time_of(record),
             "level": record.levelname.lower(),
             "logger": record.name,
             "message": record.getMessage(),
