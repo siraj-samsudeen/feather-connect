@@ -54,18 +54,22 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: "**/uv.lock"
-      - run: uv sync --locked
-      - run: uv run --with "$MUTMUT" mutmut run
+      # From the repo root: every package and the root's dev group (pytest, httpx2,
+      # beautifulsoup4), which a sync from the package's directory would leave out.
+      - run: uv sync --locked --all-packages
+        working-directory: .
+      # --no-sync: from the package's directory, uv run would sync to that package alone.
+      - run: uv run --no-sync --with "$MUTMUT" mutmut run
       - name: Report
         if: ${{ !cancelled() }}
         env:
           PACKAGE: ${{ matrix.package }}
         run: |
-          uv run --with "$MUTMUT" mutmut export-cicd-stats
+          uv run --no-sync --with "$MUTMUT" mutmut export-cicd-stats
           {
             echo "## Mutation report: $PACKAGE"
             echo '```'
-            uv run --with "$MUTMUT" mutmut results
+            uv run --no-sync --with "$MUTMUT" mutmut results
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
