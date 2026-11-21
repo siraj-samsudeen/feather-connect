@@ -220,6 +220,19 @@ def _stop(process):
         pass  # already gone
 
 
+def track(process, name):
+    """A process a page object started itself (pages/terminal.py): stop_all()
+    takes it if the run ends while it is still going."""
+    _children.append(({"name": name}, process, None))
+
+
+def forget(process):
+    """That process has ended: nothing left to stop."""
+    for child in list(_children):
+        if child[1] is process:
+            _children.remove(child)
+
+
 def stop(process):
     """Stops one process this run started, with its children."""
     for child in list(_children):

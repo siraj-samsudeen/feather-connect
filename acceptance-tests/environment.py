@@ -8,6 +8,7 @@ from pages.accessibility import AccessibilityCheck
 from pages.monitor import Monitor
 from pages.not_found_page import NotFoundPage
 from pages.sign_in_page import SignInPage
+from pages.terminal import Terminal
 from support import captions, stack, world
 
 
@@ -37,9 +38,13 @@ def before_scenario(context, scenario):
     context.sign_in_page = SignInPage(context.world)
     context.not_found_page = NotFoundPage(context.world)
     context.accessibility = AccessibilityCheck()
+    context.terminal = Terminal(context.world)
 
 
 def after_scenario(context, scenario):
+    terminal = getattr(context, "terminal", None)
+    if terminal is not None:
+        terminal.close()  # the other program lets go of its port
     scenario_world = getattr(context, "world", None)
     if scenario_world is None:
         return
