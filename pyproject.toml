@@ -1,0 +1,80 @@
+# The uv workspace: the three packages under packages/, one lock file, one
+# environment for development. acceptance-tests/ is a project of its own and
+# is not a member: it never imports the product's code.
+[project]
+name = "feather-workspace"
+version = "0"
+requires-python = ">=3.14"
+dependencies = ["feather-connect", "feather-server", "feather-cli"]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+feather-connect = { workspace = true }
+feather-server = { workspace = true }
+feather-cli = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "pyright[nodejs]",
+    "vulture",
+    "deptry",
+    "httpx2",
+]
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["packages/feather-connect/tests", "packages/feather-server/tests", "packages/feather-cli/tests", "tests"]
+addopts = [
+    "--import-mode=importlib",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=feather_connect",
+    "--cov=feather_server",
+    "--cov=feather_cli",
+    "--cov-branch",
+    "--cov-report=term-missing:skip-covered",
+    "--cov-fail-under=100",
+]
+markers = [
+    "database: needs the Postgres server FEATHER_DATABASE_URL names; fails, never skips, when it is not running",
+]
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+# `feather server` is tested as the command a person runs, in a subprocess.
+patch = ["subprocess"]
+
+[tool.coverage.report]
+exclude_also = ["if TYPE_CHECKING:"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+extend-exclude = ["acceptance-tests"]
+
+[tool.ruff.lint]
+extend-select = ["S", "B", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests assert, and start the command they test.
+"**/tests/**" = ["S101", "S603"]
+"conftest.py" = ["S101"]
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.14"
+venvPath = "."
+venv = ".venv"
+include = ["packages", "tests", "conftest.py"]
+
+[tool.vulture]
+paths = ["packages"]
+min_confidence = 60

@@ -1,0 +1,21 @@
+[project]
+name = "feather-cli"
+version = "0.0.0"
+description = "Feather Connect's command line: the feather command."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.14"
+dependencies = ["feather-server", "uvicorn"]
+
+[project.scripts]
+feather = "feather_cli.main:entry"
+
+[tool.uv.sources]
+feather-server = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
+[tool.deptry]
+extend_exclude = ["tests"]
