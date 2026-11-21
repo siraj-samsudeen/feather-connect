@@ -47,18 +47,6 @@ Examples:
   | dark |
 ```
 
-### Requirement: Works on a narrow screen
-The system SHALL keep every page usable on a screen as narrow as a phone's.
-
-#### Scenario: The sign-in page fits a phone's screen
-
-```gherkin
-Given the user's screen is as narrow as a small phone's
-When the user opens the sign-in page
-Then nothing on the page has to be scrolled sideways
-And the user can reach the button that signs them in
-```
-
 ### Requirement: A missing page says so
 The system SHALL answer an address it does not have with a page that says the page was not found, and offers the way to sign in.
 

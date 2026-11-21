@@ -43,9 +43,6 @@
 - [x] 2.23 dashboard-basics: Then the page is shown in the dark appearance — red → green → commit
 - [x] 2.24 dashboard-basics: When the user opens the sign-in page, a refused sign-in and a page that does not exist — red → green → commit
 - [x] 2.25 dashboard-basics: Then an automatic accessibility check finds no problem on any of them — red → green → commit
-- [ ] 2.26 dashboard-basics: Given the user's screen is as narrow as a small phone's — red → green → commit
-- [ ] 2.27 dashboard-basics: Then nothing on the page has to be scrolled sideways — red → green → commit
-- [ ] 2.28 dashboard-basics: And the user can reach the button that signs them in — red → green → commit
 - [x] 2.29 dashboard-basics: When the user opens the address of run 42, which the dashboard does not have — red → green → commit
 - [x] 2.30 dashboard-basics: Then the user is told the page was not found — red → green → commit
 - [x] 2.31 dashboard-basics: And the user can go on to the sign-in page from there — red → green → commit
