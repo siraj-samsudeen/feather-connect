@@ -4,7 +4,8 @@ helper (feather_cli.problems) on stderr, with exit code 2."""
 import argparse
 import os
 import sys
-from collections.abc import Sequence
+import traceback
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import NoReturn
 
@@ -12,9 +13,10 @@ from feather_cli import problems
 from feather_cli.logs import configure_logging
 from feather_cli.problems import ProblemError
 from feather_cli.server import run_server
-from feather_cli.settings import load_settings
+from feather_cli.settings import Settings, load_settings
 
 PROBLEM_EXIT = 2  # a mistake only a person can fix
+BUG_EXIT = 1
 
 
 class Parser(argparse.ArgumentParser):
@@ -33,18 +35,23 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(argv: Sequence[str] | None = None, serve: Callable[[Settings], None] = run_server) -> int:
+    """`serve` starts the server once the settings are read (a test gives its own)."""
     try:
         args = _parser().parse_args(argv)
         settings = load_settings(os.environ, Path.cwd(), host=args.host, port=args.port)
         configure_logging(settings.log_format, sys.stderr)
-        run_server(settings)
+        serve(settings)
     except ProblemError as err:
         print(err.problem.text(), file=sys.stderr)
         return PROBLEM_EXIT
+    except Exception:  # noqa: BLE001 - any other failure is a bug, said as one
+        print(problems.bug().text(), file=sys.stderr)
+        print(traceback.format_exc().rstrip(), file=sys.stderr)
+        return BUG_EXIT
     # A stop signal ends the server with SystemExit(0) (feather_cli.server), so
     # Uvicorn returns here only if it could not start the app.
-    return 1  # pragma: no cover - no test makes Uvicorn fail to start on a bound socket
+    return BUG_EXIT  # pragma: no cover - no test makes Uvicorn fail to start on a bound socket
 
 
 def entry() -> NoReturn:
