@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from starlette.types import ASGIApp
 
 from feather_server import health
-from feather_server.middleware import HeadAsGet
+from feather_server.middleware import HeadAsGet, SafetyHeaders
 
 
 def create_app(database_url: str) -> ASGIApp:
@@ -13,4 +13,4 @@ def create_app(database_url: str) -> ASGIApp:
     # address from what it saw, which behind an https proxy is the insecure one.
     app = FastAPI(redirect_slashes=False)
     app.include_router(health.router(database_url))
-    return HeadAsGet(app)
+    return SafetyHeaders(HeadAsGet(app))
