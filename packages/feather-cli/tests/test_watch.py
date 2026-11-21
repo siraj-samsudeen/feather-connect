@@ -125,6 +125,19 @@ def test_a_bug_in_the_check_is_logged_as_one_with_its_traceback(caplog: pytest.L
     assert (record.getMessage(), record.exc_info is not None) == (problems.bug().text(), True)
 
 
+def test_a_bug_that_lasts_is_logged_again_once_a_minute(caplog: pytest.LogCaptureFixture):
+    now = [0.0]
+
+    def broken(_url: str) -> DatabaseCheck:
+        raise RuntimeError("a bug in the check")
+
+    watch = DatabaseWatch(URL, check=broken, clock=lambda: now[0])
+    for now[0] in (0.0, 5.0, 30.0, 60.0):
+        watch.look()
+
+    assert len(caplog.records) == 2
+
+
 def test_it_looks_again_and_again_in_the_background_until_stopped():
     looked_twice = threading.Event()
     looks: list[str] = []
