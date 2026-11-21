@@ -43,19 +43,23 @@ class DatabaseWatch:
         try:
             check = self._check(self._url)
         except Exception:  # noqa: BLE001 - a bug in the check must not end the watch
-            log_problem(log, problems.bug(), exc_info=True)
+            self._say(problems.bug(), exc_info=True)
             return
         if check.problem is None:
             if self._problem is not None or not self._seen:
                 log.info(problems.database_usable(check, again=self._problem is not None))
             self._problem = None
         else:
-            problem = problems.database_problem(check)
-            now = self._clock()
-            if problem != self._problem or now - self._said_at >= REPEAT_S:
-                log_problem(log, problem)
-                self._problem, self._said_at = problem, now
+            self._say(problems.database_problem(check))
         self._seen = True
+
+    def _say(self, problem: Problem, exc_info: bool = False) -> None:
+        """A problem (a bug in the check too) when it starts, and once every
+        REPEAT_S while it lasts."""
+        now = self._clock()
+        if problem != self._problem or now - self._said_at >= REPEAT_S:
+            log_problem(log, problem, exc_info=exc_info)
+            self._problem, self._said_at = problem, now
 
     def _run(self) -> None:
         while True:
