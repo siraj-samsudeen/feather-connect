@@ -68,7 +68,7 @@ def test_a_missing_database_address_is_a_settings_mistake(tmp_path: Path):
     "url",
     [
         "mysql://feather@db.internal/feather",
-        "host=db.internal dbname=feather",
+        "feather",
         "postgresql://feather:secret@[db.internal/feather",
         "postgresql://feather:secret@db.internal:abc/feather",
     ],
@@ -77,10 +77,11 @@ def test_an_address_that_is_not_postgres_is_a_settings_mistake(tmp_path: Path, u
     assert mistake({"FEATHER_DATABASE_URL": url}, tmp_path) == problems.database_url_not_postgres()
 
 
-def test_the_short_postgres_scheme_is_a_postgres_address(tmp_path: Path):
-    settings = load_settings({"FEATHER_DATABASE_URL": "postgres://feather@db.internal/feather"}, tmp_path)
-
-    assert settings.database_url == "postgres://feather@db.internal/feather"
+@pytest.mark.parametrize(
+    "url", ["postgres://feather@db.internal/feather", "host=db.internal dbname=feather sslmode=require"]
+)
+def test_every_address_psycopg_reads_is_a_postgres_address(tmp_path: Path, url: str):
+    assert load_settings({"FEATHER_DATABASE_URL": url}, tmp_path).database_url == url
 
 
 def test_a_port_that_is_not_a_number_is_a_settings_mistake(tmp_path: Path):

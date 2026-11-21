@@ -108,7 +108,10 @@ def test_a_settings_mistake_stops_it_with_exit_code_2(
 def test_a_command_line_mistake_stops_it_with_exit_code_2(capsys: pytest.CaptureFixture[str]):
     code = main(["server", "--port", "eighty"])
 
-    assert (code, capsys.readouterr().err.splitlines()[0]) == (2, "error: argument --port: invalid int value: 'eighty'.")
+    assert (code, capsys.readouterr().err.splitlines()[0]) == (
+        2,
+        "error: argument --port: invalid int value: 'eighty'.",
+    )
 
 
 def test_a_command_line_mistake_shows_the_commands_usage(capsys: pytest.CaptureFixture[str]):

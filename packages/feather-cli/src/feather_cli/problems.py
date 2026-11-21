@@ -29,6 +29,14 @@ class Problem:
         return "\n".join([f"{self.level}: {self.what}", *(f"  {line}" for line in self.todo)])
 
 
+class ProblemError(Exception):
+    """A problem only a person can fix: the command stops and says it."""
+
+    def __init__(self, problem: Problem) -> None:
+        super().__init__(problem.text())
+        self.problem = problem
+
+
 def _pick_port(port: int) -> str:
     return f"FEATHER_PORT={port} (or --port {port})"
 

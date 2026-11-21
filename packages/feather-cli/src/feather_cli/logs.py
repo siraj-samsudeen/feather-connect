@@ -5,7 +5,6 @@ so their lines reach it too."""
 
 import json
 import logging
-from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import TextIO
 
@@ -37,9 +36,9 @@ def is_successful_health_check(record: logging.LogRecord) -> bool:
     return str(path).split("?")[0] in HEALTH_PATHS and isinstance(status, int) and 200 <= status < 300
 
 
-def configure_logging(environ: Mapping[str, str], stream: TextIO) -> None:
-    chosen = environ.get("FEATHER_LOG_FORMAT", "")
-    as_json = chosen == "json" if chosen in ("text", "json") else not stream.isatty()
+def configure_logging(log_format: str, stream: TextIO) -> None:
+    """log_format: "text", "json", or "" for text on a terminal, json elsewhere."""
+    as_json = log_format == "json" if log_format else not stream.isatty()
     handler = logging.StreamHandler(stream)
     handler.setFormatter(JsonLines() if as_json else logging.Formatter(TEXT_FORMAT))
     handler.addFilter(lambda record: not is_successful_health_check(record))

@@ -32,7 +32,7 @@ def access_line(path: str, status: int) -> None:
 
 def test_away_from_a_terminal_each_line_is_one_json_object():
     stream = io.StringIO()
-    configure_logging({}, stream)
+    configure_logging("", stream)
 
     logging.getLogger("feather").info("listening on %s", "http://127.0.0.1:8080")
 
@@ -42,25 +42,25 @@ def test_away_from_a_terminal_each_line_is_one_json_object():
 
 def test_on_a_terminal_the_lines_are_text():
     stream = Terminal()
-    configure_logging({}, stream)
+    configure_logging("", stream)
 
     logging.getLogger("feather").info("listening on %s", "http://127.0.0.1:8080")
 
     assert stream.getvalue().rstrip().endswith("INFO listening on http://127.0.0.1:8080")
 
 
-def test_feather_log_format_chooses_json_on_a_terminal():
+def test_json_can_be_chosen_on_a_terminal():
     stream = Terminal()
-    configure_logging({"FEATHER_LOG_FORMAT": "json"}, stream)
+    configure_logging("json", stream)
 
     logging.getLogger("feather").info("listening")
 
     assert json.loads(stream.getvalue())["message"] == "listening"
 
 
-def test_feather_log_format_chooses_text_away_from_a_terminal():
+def test_text_can_be_chosen_away_from_a_terminal():
     stream = io.StringIO()
-    configure_logging({"FEATHER_LOG_FORMAT": "text"}, stream)
+    configure_logging("text", stream)
 
     logging.getLogger("feather").info("listening")
 
@@ -69,7 +69,7 @@ def test_feather_log_format_chooses_text_away_from_a_terminal():
 
 def test_a_failure_is_logged_with_its_traceback():
     stream = io.StringIO()
-    configure_logging({}, stream)
+    configure_logging("", stream)
 
     try:
         raise RuntimeError("a bug")
@@ -81,7 +81,7 @@ def test_a_failure_is_logged_with_its_traceback():
 
 def test_uvicorns_lines_go_through_the_one_logger():
     stream = io.StringIO()
-    configure_logging({}, stream)
+    configure_logging("", stream)
 
     access_line("/sign-in", 200)
 
@@ -91,7 +91,7 @@ def test_uvicorns_lines_go_through_the_one_logger():
 @pytest.mark.parametrize("path", ["/healthz", "/readyz"])
 def test_a_successful_health_check_is_not_logged(path: str):
     stream = io.StringIO()
-    configure_logging({}, stream)
+    configure_logging("", stream)
 
     access_line(path, 200)
 
@@ -100,7 +100,7 @@ def test_a_successful_health_check_is_not_logged(path: str):
 
 def test_a_failed_readiness_check_is_logged():
     stream = io.StringIO()
-    configure_logging({}, stream)
+    configure_logging("", stream)
 
     access_line("/readyz", 503)
 
