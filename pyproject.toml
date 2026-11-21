@@ -84,10 +84,13 @@ include = ["packages", "tests", "conftest.py"]
 paths = ["packages"]
 min_confidence = 60
 # Called by the framework, not by our code: routes and fixtures.
-ignore_decorators = ["@routes.get", "@pytest.fixture"]
+ignore_decorators = ["@routes.get", "@routes.post", "@pytest.fixture"]
 # The short reviewed list of names only something outside our code reads.
 ignore_names = [
     "format",  # logging.Formatter.format, called by the logging module
     "dbname",  # DatabaseAddress: read by the database watch's messages
     "detail",  # DatabaseCheck: the driver's own line, for the server's log
+    "lead",  # the page views' fields that only a template prints
+    "product",
+    "stylesheet",
 ]

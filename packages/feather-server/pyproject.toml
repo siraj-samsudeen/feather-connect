@@ -5,7 +5,13 @@ description = "Feather Connect's server: the dashboard's pages, health and readi
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.14"
-dependencies = ["fastapi", "starlette", "psycopg[binary]"]
+dependencies = [
+    "fastapi",
+    "starlette",
+    "psycopg[binary]",
+    "jinja2>=3.1.6",
+    "python-multipart>=0.0.34",
+]
 
 [build-system]
 requires = ["uv_build>=0.13,<0.14"]
@@ -15,3 +21,7 @@ build-backend = "uv_build"
 # Run from this directory: uv run --directory packages/feather-server deptry .
 known_first_party = ["feather_server"]
 extend_exclude = ["tests"]
+
+[tool.deptry.per_rule_ignores]
+# FastAPI reads form bodies with it; our code never imports it.
+DEP002 = ["python-multipart"]
