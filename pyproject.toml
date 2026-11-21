@@ -2,10 +2,10 @@
 # environment for development. acceptance-tests/ is a project of its own and
 # is not a member: it never imports the product's code.
 [project]
-name = "feather-workspace"
+name = "fcon-workspace"
 version = "0"
 requires-python = ">=3.14"
-dependencies = ["feather-connect", "feather-server", "feather-cli"]
+dependencies = ["fcon-sdk", "fcon-server", "fcon-cli"]
 
 [tool.uv]
 package = false
@@ -14,9 +14,9 @@ package = false
 members = ["packages/*"]
 
 [tool.uv.sources]
-feather-connect = { workspace = true }
-feather-server = { workspace = true }
-feather-cli = { workspace = true }
+fcon-sdk = { workspace = true }
+fcon-server = { workspace = true }
+fcon-cli = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -32,28 +32,28 @@ dev = [
 
 [tool.pytest.ini_options]
 minversion = "9.0"
-testpaths = ["packages/feather-connect/tests", "packages/feather-server/tests", "packages/feather-cli/tests", "tests"]
+testpaths = ["packages/fcon-sdk/tests", "packages/fcon-server/tests", "packages/fcon-cli/tests", "tests"]
 # The repo's own scripts (scripts/worktree_env.py) are imported by name.
 pythonpath = ["scripts"]
 addopts = [
     "--import-mode=importlib",
     "--strict-markers",
     "--strict-config",
-    "--cov=feather_connect",
-    "--cov=feather_server",
-    "--cov=feather_cli",
+    "--cov=fcon_sdk",
+    "--cov=fcon_server",
+    "--cov=fcon_cli",
     "--cov=scripts",
     "--cov-branch",
     "--cov-report=term-missing:skip-covered",
     "--cov-fail-under=100",
 ]
 markers = [
-    "database: needs the Postgres server FEATHER_DATABASE_URL names; fails, never skips, when it is not running",
+    "database: needs the Postgres server FCON_DATABASE_URL names; fails, never skips, when it is not running",
 ]
 filterwarnings = ["error"]
 
 [tool.coverage.run]
-# `feather server` is tested as the command a person runs, in a subprocess.
+# `fcon server` is tested as the command a person runs, in a subprocess.
 patch = ["subprocess"]
 
 [tool.coverage.report]
@@ -70,7 +70,7 @@ extend-exclude = ["acceptance-tests", ".agents", ".opencode", ".claude", "opensp
 extend-select = ["S", "B", "I", "UP"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["feather_connect", "feather_server", "feather_cli", "worktree_env"]
+known-first-party = ["fcon_sdk", "fcon_server", "fcon_cli", "worktree_env"]
 
 [tool.ruff.lint.per-file-ignores]
 # Tests assert, start the command they test, and use made-up passwords.

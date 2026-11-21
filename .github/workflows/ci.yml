@@ -39,9 +39,9 @@ jobs:
       - run: uv run pyright
       - run: uv run vulture
       # deptry reads the package's own pyproject.toml: run it from each package.
-      - run: uv run --directory packages/feather-connect deptry .
-      - run: uv run --directory packages/feather-server deptry .
-      - run: uv run --directory packages/feather-cli deptry .
+      - run: uv run --directory packages/fcon-sdk deptry .
+      - run: uv run --directory packages/fcon-server deptry .
+      - run: uv run --directory packages/fcon-cli deptry .
 
   tests:
     name: Tests
@@ -63,7 +63,7 @@ jobs:
           --health-retries 30
     env:
       # The service container; the tests make a throwaway database on it.
-      FEATHER_DATABASE_URL: postgresql://feather:feather@localhost:5432/feather
+      FCON_DATABASE_URL: postgresql://feather:feather@localhost:5432/feather
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -40,8 +40,8 @@ BOOT_TIMEOUT_S = 240
 SERVICES = [
     {
         "name": "server",
-        "command": ["uv", "run", "feather", "server", "--host", "127.0.0.1", "--port", str(PORT)],
-        "env": {},  # FEATHER_DATABASE_URL: the run's own database, set by prepare()
+        "command": ["uv", "run", "fcon", "server", "--host", "127.0.0.1", "--port", str(PORT)],
+        "env": {},  # FCON_DATABASE_URL: the run's own database, set by prepare()
         "ready_url": BASE_URL + "/readyz",
         "port": (PORT, "ACCEPTANCE_PORT"),
     },
@@ -81,7 +81,7 @@ def prepare():
         admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(RUN_DATABASE)))
     _database_created = True
     for service in SERVICES:
-        service["env"]["FEATHER_DATABASE_URL"] = run_database_url()
+        service["env"]["FCON_DATABASE_URL"] = run_database_url()
 
 
 def _drop_database():
@@ -179,7 +179,7 @@ def free_port():
 
 
 def start_server(name, database_url, ready_path="/healthz"):
-    """A second `feather server` for one scenario, on a free port and the given
+    """A second `fcon server` for one scenario, on a free port and the given
     database address, waited on at `ready_path`. Returns (base URL, process);
     give the process to stop() at the scenario's end (stop_all() takes any
     that are left)."""
@@ -187,8 +187,8 @@ def start_server(name, database_url, ready_path="/healthz"):
     base_url = "http://127.0.0.1:%d" % port
     service = {
         "name": name,
-        "command": ["uv", "run", "feather", "server", "--host", "127.0.0.1", "--port", str(port)],
-        "env": {"FEATHER_DATABASE_URL": database_url},
+        "command": ["uv", "run", "fcon", "server", "--host", "127.0.0.1", "--port", str(port)],
+        "env": {"FCON_DATABASE_URL": database_url},
         "ready_url": base_url + ready_path,
     }
     process, log_path = _start(service)

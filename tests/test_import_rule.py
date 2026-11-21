@@ -4,9 +4,9 @@ can run anywhere the library is installed (ADR 0002)."""
 import ast
 from pathlib import Path
 
-import feather_connect
+import fcon_sdk
 
-FORBIDDEN = ("feather_server", "feather_cli")
+FORBIDDEN = ("fcon_server", "fcon_cli")
 
 
 def imported_modules(source: Path) -> set[str]:
@@ -21,7 +21,7 @@ def imported_modules(source: Path) -> set[str]:
 
 
 def test_the_flow_library_imports_neither_the_server_nor_the_command_line():
-    library = Path(feather_connect.__file__).parent
+    library = Path(fcon_sdk.__file__).parent
 
     found = {
         f"{source.relative_to(library)}: {name}"
@@ -30,4 +30,4 @@ def test_the_flow_library_imports_neither_the_server_nor_the_command_line():
         if name.split(".")[0] in FORBIDDEN
     }
 
-    assert not found, f"feather_connect imports {sorted(found)}"
+    assert not found, f"fcon_sdk imports {sorted(found)}"

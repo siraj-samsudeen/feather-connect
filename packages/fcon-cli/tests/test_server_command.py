@@ -1,0 +1,180 @@
+"""`fcon server`, run as a person runs it: a process of its own."""
+
+import json
+import os
+import signal
+import socket
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from collections.abc import Iterator
+from dataclasses import dataclass
+from pathlib import Path
+
+import pytest
+
+from fcon_cli import problems
+from fcon_cli.main import main
+from fcon_cli.settings import Settings
+
+START_TIMEOUT_S = 30
+
+
+@dataclass
+class Running:
+    process: subprocess.Popen[bytes]
+    base_url: str
+    log: Path
+
+    def lines(self) -> list[dict[str, str]]:
+        return [json.loads(line) for line in self.log.read_text(encoding="utf-8").splitlines() if line.startswith("{")]
+
+    def stop(self) -> int:
+        """Asks it to stop as a host or a person at a terminal does."""
+        if sys.platform == "win32":
+            self.process.send_signal(signal.CTRL_BREAK_EVENT)
+        else:
+            self.process.send_signal(signal.SIGTERM)
+        return self.process.wait(timeout=30)
+
+
+def _get(url: str) -> tuple[int, bytes]:
+    with urllib.request.urlopen(url, timeout=2) as response:  # noqa: S310 - our own local server
+        return response.status, response.read()
+
+
+@pytest.fixture
+def running(tmp_path: Path, free_port: int) -> Iterator[Running]:
+    """`fcon server` on a free port, its database address pointing nowhere
+    (/healthz does not need it), in an empty directory (no .env)."""
+    log = tmp_path / "server.log"
+    env = {
+        **os.environ,
+        "FCON_DATABASE_URL": "postgresql://feather:feather@127.0.0.1:9/feather",
+        "FCON_LOG_FORMAT": "json",
+    }
+    with log.open("wb") as output:
+        process = subprocess.Popen(
+            [sys.executable, "-m", "fcon_cli", "server", "--host", "127.0.0.1", "--port", str(free_port)],
+            cwd=tmp_path,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+            # Its own process group, so the stop signal reaches it alone.
+            creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
+            start_new_session=sys.platform != "win32",
+        )
+    server = Running(process, f"http://127.0.0.1:{free_port}", log)
+    deadline = time.monotonic() + START_TIMEOUT_S
+    while time.monotonic() < deadline and process.poll() is None:
+        try:
+            _get(server.base_url + "/healthz")
+            break
+        except urllib.error.URLError, OSError:
+            time.sleep(0.2)
+    yield server
+    if process.poll() is None:
+        server.stop()
+
+
+def test_it_answers_health_checks_on_the_port_it_was_given(running: Running):
+    assert _get(running.base_url + "/healthz") == (200, b'{"status":"alive"}')
+
+
+def test_it_logs_where_it_listens(running: Running):
+    _get(running.base_url + "/healthz")
+
+    assert f"listening on {running.base_url}" in [line["message"] for line in running.lines()]
+
+
+def test_it_stops_cleanly_when_asked(running: Running):
+    assert running.stop() == 0
+
+
+def test_it_watches_the_database_in_the_background(running: Running):
+    expected = "warning: cannot reach the database at 127.0.0.1:9"
+    deadline = time.monotonic() + START_TIMEOUT_S
+    while time.monotonic() < deadline and not any(expected in line["message"] for line in running.lines()):
+        time.sleep(0.2)
+
+    assert [line["level"] for line in running.lines() if expected in line["message"]] == ["warning"]
+
+
+def test_a_settings_mistake_stops_it_with_exit_code_2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    monkeypatch.delenv("FCON_DATABASE_URL", raising=False)
+    monkeypatch.chdir(tmp_path)
+
+    code = main(["server"])
+
+    assert (code, capsys.readouterr().err) == (2, problems.database_url_missing().text() + "\n")
+
+
+def test_a_command_line_mistake_stops_it_with_exit_code_2(capsys: pytest.CaptureFixture[str]):
+    code = main(["server", "--port", "eighty"])
+
+    assert (code, capsys.readouterr().err.splitlines()[0]) == (
+        2,
+        "error: argument --port: invalid int value: 'eighty'.",
+    )
+
+
+def test_a_command_line_mistake_shows_the_commands_usage(capsys: pytest.CaptureFixture[str]):
+    main(["server", "--port", "eighty"])
+
+    assert capsys.readouterr().err.splitlines()[1].startswith("  usage: fcon server")
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [("FORCE_COLOR", "1"), ("COLUMNS", "30")],
+    ids=["colour forced", "narrow terminal"],
+)
+def test_the_usage_reads_the_same_whatever_the_terminal_asks_for(
+    name: str, value: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    monkeypatch.setenv(name, value)
+
+    main(["server", "--port", "eighty"])
+
+    assert capsys.readouterr().err.splitlines()[1] == "  usage: fcon server [-h] [--host HOST] [--port PORT]"
+
+
+def test_a_taken_port_stops_it_with_exit_code_2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    monkeypatch.setenv("FCON_DATABASE_URL", "postgresql://feather@127.0.0.1:9/feather")
+    monkeypatch.chdir(tmp_path)
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as other:
+        other.bind(("127.0.0.1", 0))
+        other.listen()
+        port = other.getsockname()[1]
+
+        code = main(["server", "--host", "127.0.0.1", "--port", str(port)])
+
+    assert (code, capsys.readouterr().err) == (2, problems.port_taken("127.0.0.1", port).text() + "\n")
+
+
+def crash(_settings: Settings) -> None:
+    raise RuntimeError("a bug at start-up")
+
+
+def test_a_bug_at_start_up_says_it_is_one_then_shows_the_traceback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    monkeypatch.setenv("FCON_DATABASE_URL", "postgresql://feather@127.0.0.1:9/feather")
+    monkeypatch.chdir(tmp_path)
+
+    code = main(["server"], serve=crash)
+
+    first, second, *_, last = capsys.readouterr().err.splitlines()
+    assert (code, first, second, last) == (
+        1,
+        problems.bug().text(),
+        "Traceback (most recent call last):",
+        "RuntimeError: a bug at start-up",
+    )

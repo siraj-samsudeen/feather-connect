@@ -1,9 +1,9 @@
-"""A developer's terminal: `feather server` typed at a prompt, and what it
+"""A developer's terminal: `fcon server` typed at a prompt, and what it
 printed. The command, the settings it is given, and every message text the
 start-up checks expect live here; the steps only ask questions.
 
 The command runs from an empty directory of its own, with none of the
-developer's FEATHER_* variables (nor PORT), so neither the developer's shell
+developer's FCON_* variables (nor PORT), so neither the developer's shell
 nor the worktree's .env can fill in a setting the scenario leaves out.
 """
 
@@ -24,7 +24,7 @@ SETTINGS_MISTAKE_EXIT = 2  # the error helper's exit code for a setting only a p
 
 # Issue 4, point 5: the error helper's texts, exactly.
 DATABASE_URL_MISSING = (
-    "error: FEATHER_DATABASE_URL is not set.",
+    "error: FCON_DATABASE_URL is not set.",
     "  Set it to your Postgres 18 address: postgresql://user:password@host:5432/feather",
     "  For development: copy .env.example to .env, then run: docker compose up -d",
 )
@@ -33,7 +33,7 @@ DATABASE_URL_MISSING = (
 def port_taken(port):
     return (
         "error: port %d on 127.0.0.1 is already in use." % port,
-        "  Stop the program using it, or pick another port: FEATHER_PORT=%d (or --port %d)" % (port + 1, port + 1),
+        "  Stop the program using it, or pick another port: FCON_PORT=%d (or --port %d)" % (port + 1, port + 1),
     )
 
 
@@ -63,7 +63,7 @@ class Result:
 class Terminal:
     def __init__(self, world):
         self.world = world
-        self.env = {}  # the FEATHER_* settings the scenario gives the command
+        self.env = {}  # the FCON_* settings the scenario gives the command
         self.port = None  # the port the server is told to listen on
         self.result = None
         self._held = None  # the other program's socket, while the scenario lasts
@@ -71,7 +71,7 @@ class Terminal:
     # -- the situation ---------------------------------------------------
 
     def without_database_address(self):
-        self.env.pop("FEATHER_DATABASE_URL", None)
+        self.env.pop("FCON_DATABASE_URL", None)
         self.port = stack.free_port()
 
     def port_held_by_another_program(self):
@@ -82,26 +82,26 @@ class Terminal:
         holder.listen(1)
         self._held = holder
         self.port = holder.getsockname()[1]
-        self.env["FEATHER_DATABASE_URL"] = stack.run_database_url()
+        self.env["FCON_DATABASE_URL"] = stack.run_database_url()
 
     # -- the command -----------------------------------------------------
 
     def _environment(self):
-        env = {k: v for k, v in os.environ.items() if not k.upper().startswith("FEATHER_")}
+        env = {k: v for k, v in os.environ.items() if not k.upper().startswith("FCON_")}
         for name in CLEARED_VARIABLES:
             env.pop(name, None)
         env.update(self.env)
         if self.port is not None:
-            env["FEATHER_PORT"] = str(self.port)
+            env["FCON_PORT"] = str(self.port)
         return env
 
     def start_server(self):
-        """`uv run feather server`, from an empty directory, until it ends or the timeout."""
+        """`uv run fcon server`, from an empty directory, until it ends or the timeout."""
         if self.port is None:
             self.port = stack.free_port()
-        command = [shutil.which("uv") or "uv", "run", "--project", str(stack.REPO_ROOT), "feather", "server"]
+        command = [shutil.which("uv") or "uv", "run", "--project", str(stack.REPO_ROOT), "fcon", "server"]
         own_group = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
-        with tempfile.TemporaryDirectory(prefix="feather-terminal-") as empty:
+        with tempfile.TemporaryDirectory(prefix="fcon-terminal-") as empty:
             process = subprocess.Popen(
                 command,
                 cwd=empty,
@@ -134,7 +134,7 @@ class Terminal:
         page = self.world.signed_out("the terminal")
         page.set_content(
             "<!doctype html><title>Terminal</title>"
-            "<body bgcolor='#111827' text='#e5e7eb'><pre>&gt; uv run feather server\n%s\n[exit code %s]</pre></body>"
+            "<body bgcolor='#111827' text='#e5e7eb'><pre>&gt; uv run fcon server\n%s\n[exit code %s]</pre></body>"
             % (html.escape(self.result.output), self.result.exit_code)
         )
 

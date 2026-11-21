@@ -455,7 +455,7 @@ in `adr/`. The walking skeleton (issue #4) settled D-01, D-12 and the first half
 | D-07 | How agents reach the product: the protocol, and one service layer under the dashboard, the API and the agent tools | R12.2 |
 | D-08 | How it is deployed: the container setup and the one-command local stack | Area 15 |
 | D-09 | How long versions are kept by default, and the archive policy | R3.5 |
-| D-10 | The public home: package name, image registry, documentation address | R15.7 |
+| D-10 | The public home: package name, image registry, documentation address | Package names **settled:** [ADR 0008](../adr/0008-fcon-technical-names.md). The registry and the documentation address: R15.7 |
 | D-11 | Who maintains it, and how reviews and releases are run | R15.8 |
 | D-12 | The lowest supported language version | **Settled:** [ADR 0001](../adr/0001-python-3-14-only.md) |
 | D-13 | Whether a transform runs when a route delivers, or its result is stored as a version of its own | Area 4 |

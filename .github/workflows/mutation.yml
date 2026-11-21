@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [feather-server, feather-cli]
+        package: [fcon-server, fcon-cli]
     services:
       postgres:
         image: postgres:18
@@ -41,7 +41,7 @@ jobs:
           --health-timeout 5s
           --health-retries 30
     env:
-      FEATHER_DATABASE_URL: postgresql://feather:feather@localhost:5432/feather
+      FCON_DATABASE_URL: postgresql://feather:feather@localhost:5432/feather
       MUTMUT: mutmut==3.8.1
     defaults:
       run:

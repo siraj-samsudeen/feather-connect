@@ -12,9 +12,9 @@ import worktree_env
 
 def test_the_values_come_from_the_issue_number():
     assert worktree_env.env_values(4) == {
-        "FEATHER_PORT": "18004",
+        "FCON_PORT": "18004",
         "ACCEPTANCE_PORT": "19004",
-        "FEATHER_DATABASE_URL": "postgresql://feather:feather@127.0.0.1:5442/feather_issue_4",
+        "FCON_DATABASE_URL": "postgresql://feather:feather@127.0.0.1:5442/feather_issue_4",
     }
 
 
@@ -25,47 +25,47 @@ def test_a_number_that_gives_no_usable_port_is_refused(number: int):
 
 
 def test_an_empty_file_gets_the_three_lines():
-    text, changes = worktree_env.merge_env("", {"FEATHER_PORT": "18004", "ACCEPTANCE_PORT": "19004"})
+    text, changes = worktree_env.merge_env("", {"FCON_PORT": "18004", "ACCEPTANCE_PORT": "19004"})
 
-    assert text == "FEATHER_PORT=18004\nACCEPTANCE_PORT=19004\n"
+    assert text == "FCON_PORT=18004\nACCEPTANCE_PORT=19004\n"
     assert changes == []
 
 
 def test_other_lines_are_kept_and_the_keys_are_replaced_in_place():
-    existing = "# mine\nFEATHER_LOG_FORMAT=json\nFEATHER_PORT=8080\n\nOTHER=1"
+    existing = "# mine\nFCON_LOG_FORMAT=json\nFCON_PORT=8080\n\nOTHER=1"
 
-    text, _ = worktree_env.merge_env(existing, {"FEATHER_PORT": "18004", "ACCEPTANCE_PORT": "19004"})
+    text, _ = worktree_env.merge_env(existing, {"FCON_PORT": "18004", "ACCEPTANCE_PORT": "19004"})
 
-    assert text == "# mine\nFEATHER_LOG_FORMAT=json\nFEATHER_PORT=18004\n\nOTHER=1\nACCEPTANCE_PORT=19004\n"
+    assert text == "# mine\nFCON_LOG_FORMAT=json\nFCON_PORT=18004\n\nOTHER=1\nACCEPTANCE_PORT=19004\n"
 
 
 def test_a_value_it_replaces_is_reported():
     _, changes = worktree_env.merge_env(
-        "FEATHER_PORT=8080\nACCEPTANCE_PORT=19004\n", {"FEATHER_PORT": "18004", "ACCEPTANCE_PORT": "19004"}
+        "FCON_PORT=8080\nACCEPTANCE_PORT=19004\n", {"FCON_PORT": "18004", "ACCEPTANCE_PORT": "19004"}
     )
 
-    assert changes == ["FEATHER_PORT: 8080 -> 18004"]
+    assert changes == ["FCON_PORT: 8080 -> 18004"]
 
 
 def test_a_new_env_file_is_written(tmp_path: Path):
-    message = worktree_env.write_env(tmp_path, {"FEATHER_PORT": "18004"})
+    message = worktree_env.write_env(tmp_path, {"FCON_PORT": "18004"})
 
-    assert (tmp_path / ".env").read_text(encoding="utf-8") == "FEATHER_PORT=18004\n"
+    assert (tmp_path / ".env").read_text(encoding="utf-8") == "FCON_PORT=18004\n"
     assert message == f"wrote {tmp_path / '.env'}"
 
 
 def test_an_existing_env_file_says_what_it_changed(tmp_path: Path):
-    (tmp_path / ".env").write_text("FEATHER_PORT=8080\n", encoding="utf-8")
+    (tmp_path / ".env").write_text("FCON_PORT=8080\n", encoding="utf-8")
 
-    message = worktree_env.write_env(tmp_path, {"FEATHER_PORT": "18004"})
+    message = worktree_env.write_env(tmp_path, {"FCON_PORT": "18004"})
 
-    assert message == f"updated {tmp_path / '.env'} (FEATHER_PORT: 8080 -> 18004; other lines kept)"
+    assert message == f"updated {tmp_path / '.env'} (FCON_PORT: 8080 -> 18004; other lines kept)"
 
 
 def test_an_env_file_already_right_is_left_alone(tmp_path: Path):
-    (tmp_path / ".env").write_text("FEATHER_PORT=18004\n", encoding="utf-8")
+    (tmp_path / ".env").write_text("FCON_PORT=18004\n", encoding="utf-8")
 
-    assert worktree_env.write_env(tmp_path, {"FEATHER_PORT": "18004"}) == f"{tmp_path / '.env'} already up to date"
+    assert worktree_env.write_env(tmp_path, {"FCON_PORT": "18004"}) == f"{tmp_path / '.env'} already up to date"
 
 
 def _exists(server_url: str, name: str) -> bool:
@@ -105,7 +105,7 @@ def test_the_command_writes_the_env_file_and_creates_the_database(
         code = worktree_env.main([str(number)], root=tmp_path, server_url=database_url)
 
         assert code == 0
-        assert f"FEATHER_PORT={18000 + number}\n" in (tmp_path / ".env").read_text(encoding="utf-8")
+        assert f"FCON_PORT={18000 + number}\n" in (tmp_path / ".env").read_text(encoding="utf-8")
         assert _exists(database_url, f"feather_issue_{number}")
         assert f"created database feather_issue_{number}" in capsys.readouterr().out
     finally:
@@ -151,6 +151,6 @@ def test_the_command_refuses_a_bad_number(tmp_path: Path, capsys: pytest.Capture
 def test_an_existing_env_file_missing_the_keys_says_it_added_them(tmp_path: Path):
     (tmp_path / ".env").write_text("OTHER=1\n", encoding="utf-8")
 
-    message = worktree_env.write_env(tmp_path, {"FEATHER_PORT": "18004"})
+    message = worktree_env.write_env(tmp_path, {"FCON_PORT": "18004"})
 
     assert message == f"updated {tmp_path / '.env'} (added missing keys; other lines kept)"
