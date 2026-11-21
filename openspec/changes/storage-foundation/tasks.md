@@ -25,13 +25,13 @@
 
 ### Logs and health
 
-- [ ] 2.16 logs-and-health: Given the product is running on a new, empty database — red → green → commit
-- [ ] 2.17 logs-and-health: And its log says the database is behind, and how to upgrade it — red → green → commit
-- [ ] 2.18 logs-and-health: Then the product answers that it is ready to take work, without being restarted — red → green → commit
-- [ ] 2.19 logs-and-health: Given the product is running on a database that has been upgraded — red → green → commit
-- [ ] 2.20 logs-and-health: And its log names the upgrade that changed, and says to restore it — red → green → commit
-- [ ] 2.21 logs-and-health: And the database has one more upgrade, from a newer version — red → green → commit
-- [ ] 2.22 logs-and-health: Then the product answers that it is ready to take work — red → green → commit
+- [x] 2.16 logs-and-health: Given the product is running on a new, empty database — red → green → commit
+- [x] 2.17 logs-and-health: And its log says the database is behind, and how to upgrade it — red → green → commit
+- [x] 2.18 logs-and-health: Then the product answers that it is ready to take work, without being restarted — red → green → commit
+- [x] 2.19 logs-and-health: Given the product is running on a database that has been upgraded — red → green → commit
+- [x] 2.20 logs-and-health: And its log names the upgrade that changed, and says to restore it — red → green → commit
+- [x] 2.21 logs-and-health: And the database has one more upgrade, from a newer version — red → green → commit
+- [x] 2.22 logs-and-health: Then the product answers that it is ready to take work — red → green → commit
 
 ## 3. What no scenario drives — each arrives with the inner test that needs it
 

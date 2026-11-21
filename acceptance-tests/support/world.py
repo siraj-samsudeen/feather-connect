@@ -295,6 +295,13 @@ class World:
             self._http.dispose()
             self._http = None
 
+    def scenario_server_still_running(self):
+        """The server started on the scenario's own database has not stopped
+        (and so was not restarted) since it was started."""
+        if self.scenario_server is None:
+            raise RuntimeError("the scenario started no server of its own")
+        return self.scenario_server.poll() is None
+
     def close(self, failed):
         """Ends the scenario: keeps a failed one's screenshots and traces, and a
         VIDEO=1 run's clips. Returns the screenshots it saved."""

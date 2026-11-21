@@ -3,6 +3,7 @@ health addresses and their answers. All of the routes, status codes and
 answer texts live here; the steps only ask questions."""
 
 import json
+import time
 
 LIVENESS_PATH = "/healthz"
 READINESS_PATH = "/readyz"
@@ -10,6 +11,11 @@ READINESS_PATH = "/readyz"
 RUNNING = {"status": "alive"}
 READY = {"status": "ready", "checks": {"database": "ok"}}
 NOT_READY_DATABASE_UNAVAILABLE = {"status": "not ready", "checks": {"database": "unavailable"}}
+
+# Readiness is live: the product's database watch looks again every 5 s, so
+# an answer may take up to that, and a little more, to change.
+READINESS_SETTLES_S = 15
+POLL_S = 0.5
 
 # Words that would tell a reader what the database is, whatever its address.
 DATABASE_WORDS = ("postgres", "psycopg", "version", "localhost")
@@ -74,6 +80,26 @@ class Monitor:
     def says_not_ready_database_unavailable(self):
         answer = self._answer(READINESS_PATH)
         return answer.status == 503 and answer.json() == NOT_READY_DATABASE_UNAVAILABLE, answer
+
+    def _readiness_becomes(self, says, timeout_s):
+        """(yes?, last answer): asks for readiness again until `says` holds of
+        the answer, or the time is up. The first answer is the one already
+        asked for, when there is one."""
+        deadline = time.monotonic() + timeout_s
+        if READINESS_PATH not in self.answers:
+            self._ask("GET", READINESS_PATH)
+        while True:
+            yes, answer = says()
+            if yes or time.monotonic() >= deadline:
+                return yes, answer
+            time.sleep(POLL_S)
+            self._ask("GET", READINESS_PATH)
+
+    def becomes_ready(self, timeout_s=READINESS_SETTLES_S):
+        return self._readiness_becomes(self.says_ready, timeout_s)
+
+    def becomes_not_ready_database_unavailable(self, timeout_s=READINESS_SETTLES_S):
+        return self._readiness_becomes(self.says_not_ready_database_unavailable, timeout_s)
 
     def database_details_revealed(self, database):
         """What of the database's address and nature any reply gives away,
