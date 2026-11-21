@@ -4,7 +4,10 @@ the run, one World per scenario (support/world.py)."""
 import base64
 import os
 
+from pages.accessibility import AccessibilityCheck
 from pages.monitor import Monitor
+from pages.not_found_page import NotFoundPage
+from pages.sign_in_page import SignInPage
 from support import captions, stack, world
 
 
@@ -31,6 +34,9 @@ def before_scenario(context, scenario):
     context.world = world.World(context.suite, scenario.name)
     # The page objects the steps use, one per screen or flow.
     context.monitor = Monitor(context.world)
+    context.sign_in_page = SignInPage(context.world)
+    context.not_found_page = NotFoundPage(context.world)
+    context.accessibility = AccessibilityCheck()
 
 
 def after_scenario(context, scenario):
@@ -38,8 +44,16 @@ def after_scenario(context, scenario):
     if scenario_world is None:
         return
     failed = scenario.status.name in ("failed", "error", "hook_error")
-    for shot in scenario_world.close(failed):
+    console_errors = list(scenario_world.console_errors)
+    for shot in scenario_world.close(failed or bool(console_errors)):
         _embed_in_report(context, shot)
+    # Any error in the browser's console fails the scenario, even when every
+    # step passed: it is how a script or a style the content policy blocks shows.
+    if console_errors and not failed:
+        raise AssertionError(
+            "the browser's console showed %d error(s):\n%s"
+            % (len(console_errors), "\n".join("  %s: %s" % item for item in console_errors))
+        )
 
 
 def before_step(context, step):

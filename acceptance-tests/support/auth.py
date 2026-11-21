@@ -19,7 +19,7 @@ ADMIN = {
 }
 
 # PROJECT: the sign-in page, and the names of its form fields.
-SIGN_IN_PATH = "/login"
+SIGN_IN_PATH = "/sign-in"
 USER_FIELD = "username"
 PASSWORD_FIELD = "password"
 

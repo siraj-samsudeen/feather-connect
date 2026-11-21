@@ -11,6 +11,7 @@ dependencies = [
     "playwright",
     "beautifulsoup4",
     "psycopg[binary]",
+    "axe-playwright-python>=0.1.8",
 ]
 
 [tool.uv]

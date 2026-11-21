@@ -52,6 +52,15 @@ def verifier_width():
 
 DESKTOP = {"width": verifier_width(), "height": 900}
 PHONE = {"width": 375, "height": 812}
+# The narrowest screen the product promises to be usable on (issue 4, point 6):
+# the one check of the "narrow as a small phone's" scenario.
+SMALL_PHONE = {"width": 320, "height": 640}
+
+# A console error the browser prints for every document answered with an error
+# status ("Failed to load resource: ... 404"). For the page the scenario itself
+# opened, the steps check that status; for anything the page loads (a
+# stylesheet), the message stays and fails the scenario.
+FAILED_TO_LOAD = "Failed to load resource"
 
 
 def slug(text):
@@ -103,6 +112,9 @@ class World:
         self.slug = slug(scenario_name)
         self.viewport = DESKTOP
         self.javascript = True
+        self.color_scheme = "light"  # the computer's appearance setting the pages follow
+        self.console_errors = []  # (who, text) of every browser console error and page error
+        self._documents = set()  # URLs of the documents the scenario's pages opened
         self.pages = {}  # who ('the user', 'a colleague') -> page
         self.contexts = []  # (who, label, browser context, page), in the order opened
         self.caption = None  # VIDEO=1: the step being run, as written
@@ -113,7 +125,12 @@ class World:
 
     def _new_page(self, who, label, storage_state=None):
         """A browser context for one of the scenario's people: traced, and recorded with VIDEO=1."""
-        options = {"base_url": BASE_URL, "viewport": self.viewport, "java_script_enabled": self.javascript}
+        options = {
+            "base_url": BASE_URL,
+            "viewport": self.viewport,
+            "java_script_enabled": self.javascript,
+            "color_scheme": self.color_scheme,
+        }
         if storage_state is not None:
             options["storage_state"] = storage_state
         if VIDEO:
@@ -127,8 +144,33 @@ class World:
         if VIDEO:
             captions.install(browser_context)
         page = browser_context.new_page()
+        self._watch_console(label, page)
         self.contexts.append((who, label, browser_context, page))
         return page
+
+    def _watch_console(self, label, page):
+        """Every console error and uncaught page error is kept; environment.py
+        fails the scenario on any (issue 4, point 8: it catches a script or a
+        style the content policy blocks)."""
+
+        def on_response(response):
+            if response.request.resource_type == "document":
+                self._documents.add(response.url)
+
+        def on_console(message):
+            if message.type != "error":
+                return
+            where = (message.location or {}).get("url", "")
+            if message.text.startswith(FAILED_TO_LOAD) and where in self._documents:
+                return  # the page's own status: the steps check it
+            self.console_errors.append((label, "%s (at %s)" % (message.text, where or "?")))
+
+        def on_page_error(error):
+            self.console_errors.append((label, "page error: %s" % error))
+
+        page.on("response", on_response)
+        page.on("console", on_console)
+        page.on("pageerror", on_page_error)
 
     def signed_in(self, who, user=None, password=None, fresh=False):
         """That person's page, already signed in without the form (support/auth.py).
@@ -161,11 +203,24 @@ class World:
         """The scenario's open pages (captions.py puts each step's caption on all of them)."""
         return list(self.pages.values())
 
-    def use_phone(self):
+    def use_phone(self, screen=PHONE):
         """Every page of this scenario, open now or later, is on a phone-sized screen."""
-        self.viewport = PHONE
+        self.viewport = screen
         for page in self.pages.values():
-            page.set_viewport_size(PHONE)
+            page.set_viewport_size(screen)
+
+    def use_small_phone(self):
+        """As use_phone(), on the narrowest screen promised: 320 px wide."""
+        self.use_phone(SMALL_PHONE)
+
+    def use_appearance(self, scheme):
+        """The computer's appearance setting, "light" or "dark", that every page
+        of this scenario, open now or later, sees as `prefers-color-scheme`."""
+        if scheme not in ("light", "dark"):
+            raise ValueError("no appearance %r: light or dark" % scheme)
+        self.color_scheme = scheme
+        for page in self.pages.values():
+            page.emulate_media(color_scheme=scheme)
 
     def without_javascript(self):
         """Every page this scenario opens from now on has JavaScript off: for the
@@ -245,6 +300,7 @@ class World:
                     clips.write(json.dumps(entry) + "\n")
         self.contexts = []
         self.pages = {}
+        self._documents = set()
         if self._http is not None:
             self._http.dispose()
             self._http = None
