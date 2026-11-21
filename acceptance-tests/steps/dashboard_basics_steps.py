@@ -13,11 +13,6 @@ def step_appearance(context, appearance):
     context.world.use_appearance(appearance)
 
 
-@given("the user's screen is as narrow as a small phone's")
-def step_small_phone(context):
-    context.world.use_small_phone()
-
-
 @when("the user opens the sign-in page")
 def step_open_sign_in(context):
     context.sign_in_page.open()
@@ -49,22 +44,6 @@ def step_shown_in(context, appearance):
 def step_no_accessibility_problem(context):
     problems = context.accessibility.problems()
     assert not problems, "%d accessibility problem(s):\n  %s" % (len(problems), "\n  ".join(problems))
-
-
-@then("nothing on the page has to be scrolled sideways")
-def step_no_sideways_scroll(context):
-    page_width, screen_width = context.sign_in_page.sideways_overflow()
-    assert page_width <= screen_width, "the page is %d px wide on a %d px screen at %s" % (
-        page_width,
-        screen_width,
-        context.sign_in_page.where(),
-    )
-
-
-@then("the user can reach the button that signs them in")
-def step_reach_button(context):
-    problems = context.sign_in_page.button_reach_problems()
-    assert not problems, "; ".join(problems)
 
 
 @then("the user is told the page was not found")

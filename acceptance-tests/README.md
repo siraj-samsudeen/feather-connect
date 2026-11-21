@@ -46,8 +46,8 @@ scenario, `TRACE=1` keeps traces of failed scenarios (always on in CI).
 
 ## Browser checks
 
-- Chromium at the verifier's width (1280 px); the one narrow-screen scenario uses 320 px
-  (`world.use_small_phone()`; `use_phone()` keeps the pack's 375 px).
+- Chromium at the verifier's width (1280 px). The dashboard is built for laptops and desktops, so no
+  scenario checks a phone-width screen (`world.use_phone()` stays from the pack for when one does).
 - The computer's appearance is emulated as `prefers-color-scheme` (`world.use_appearance()`); a
   page is "dark" when its background's relative luminance is below 0.2, "light" above 0.8.
 - Any error in the browser's console, or an uncaught error in a page, fails the scenario
@@ -70,7 +70,7 @@ scenario, `TRACE=1` keeps traces of failed scenarios (always on in CI).
 |---|---|
 | `steps/` | Step definitions: page-object calls and assertions only, no URLs, selectors or texts |
 | `pages/` | Page objects: every route, label, selector and expected text (`monitor.py`: `/healthz`, `/readyz`) |
-| `pages/sign_in_page.py` | `/`, `/sign-in`, its labels, button, refusal text, and the appearance and phone-width checks |
+| `pages/sign_in_page.py` | `/`, `/sign-in`, its labels, button, refusal text, and the appearance check |
 | `pages/not_found_page.py` | `/runs/42`, the "Page not found" heading and the link on to sign-in |
 | `pages/accessibility.py` | axe-core (WCAG 2.1 A and AA), put into the page by Playwright, never by loosening the app's content policy |
 | `support/stack.py` | Starts and stops the servers and the run's database |

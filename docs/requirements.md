@@ -246,7 +246,7 @@ In the order a person meets them. **M** is the milestone.
 | R7.8 | The audit log, filtered by who, what and which item. | M1 |
 | R7.9 | Every view has an address that can be shared; filters are part of it. | M1 |
 | R7.10 | Pages that only show information work with JavaScript off. | M1 |
-| R7.11 | Light and dark themes, a keyboard command menu, and pages that work on a narrow screen. | M1 |
+| R7.11 | Light and dark themes, and a keyboard command menu. | M1 |
 | R7.12 | Views of freshness against a target and of unusual volumes. | M2 |
 | R7.13 | One page summarising several environments, each opening its own dashboard. | M2 |
 | R7.14 | The workers connected, the code version each runs, and when each was last heard from. | M1 |
@@ -257,6 +257,7 @@ In the order a person meets them. **M** is the milestone.
 | R7.19 | A delivery shows each attempt, and what the destination answered for each record, with secrets removed. | M1 |
 | R7.20 | A flow found running on two versions of the code at once is flagged. | M1 |
 | R7.21 | A run's whole log on one page: every task's lines in the order they were written, each naming its task, partition and route and linking to that task's own log. It can be narrowed to warnings and errors, and is paged. | M1 |
+| R7.22 | Pages that work on a narrow screen, such as a phone's. Operators use the dashboard on laptops and desktops, so it is built for those first (owner, 21-Nov-2026). | M2 |
 
 ### Area 8 — Dashboard: acting
 

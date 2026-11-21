@@ -229,34 +229,3 @@ class SignInPage:
         if appearance == "dark":
             return luminance < DARK, seen
         return luminance > LIGHT, seen
-
-    def sideways_overflow(self):
-        """(page width, screen width): the page is wider than the screen when the first is larger."""
-        width = self.page.evaluate("() => document.documentElement.scrollWidth")
-        return width, self.page.viewport_size["width"]
-
-    def button_reach_problems(self, max_tabs=10):
-        """Why the button cannot be reached: once scrolled to, it must lie
-        wholly on the screen, and pressing Tab from the top of the page must
-        get to it."""
-        problems = []
-        button = self.page.get_by_role("button", name=BUTTON, exact=True)
-        if button.count() != 1:
-            return ["%d %r buttons (expected 1) at %s" % (button.count(), BUTTON, self.where())]
-        button.scroll_into_view_if_needed()
-        box = button.bounding_box()
-        screen = self.page.viewport_size
-        if box is None:
-            problems.append("the button is not shown")
-        elif box["x"] < 0 or box["y"] < 0 or box["x"] + box["width"] > screen["width"] or box["y"] + box["height"] > screen["height"]:
-            problems.append("the button %r lies partly off the %dx%d screen" % (box, screen["width"], screen["height"]))
-        self.page.evaluate("() => { document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0); }")
-        for _ in range(max_tabs):
-            self.page.keyboard.press("Tab")
-            if button.evaluate("el => el === document.activeElement"):
-                break
-        else:
-            problems.append("%d presses of Tab never reached the button" % max_tabs)
-        if problems:
-            problems.append("at %s" % self.where())
-        return problems

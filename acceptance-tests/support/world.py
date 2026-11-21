@@ -52,9 +52,6 @@ def verifier_width():
 
 DESKTOP = {"width": verifier_width(), "height": 900}
 PHONE = {"width": 375, "height": 812}
-# The narrowest screen the product promises to be usable on (issue 4, point 6):
-# the one check of the "narrow as a small phone's" scenario.
-SMALL_PHONE = {"width": 320, "height": 640}
 
 # A console error the browser prints for every document answered with an error
 # status ("Failed to load resource: ... 404"). For the page the scenario itself
@@ -203,15 +200,11 @@ class World:
         """The scenario's open pages (captions.py puts each step's caption on all of them)."""
         return list(self.pages.values())
 
-    def use_phone(self, screen=PHONE):
+    def use_phone(self):
         """Every page of this scenario, open now or later, is on a phone-sized screen."""
-        self.viewport = screen
+        self.viewport = PHONE
         for page in self.pages.values():
-            page.set_viewport_size(screen)
-
-    def use_small_phone(self):
-        """As use_phone(), on the narrowest screen promised: 320 px wide."""
-        self.use_phone(SMALL_PHONE)
+            page.set_viewport_size(PHONE)
 
     def use_appearance(self, scheme):
         """The computer's appearance setting, "light" or "dark", that every page
