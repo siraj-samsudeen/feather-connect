@@ -7,21 +7,21 @@
 
 ### Database upgrades
 
-- [ ] 2.1 database-upgrades: Given a new, empty database — red → green → commit
-- [ ] 2.2 database-upgrades: When the operator asks for the database's status — red → green → commit
-- [ ] 2.3 database-upgrades: Then every upgrade of this version is listed as waiting — red → green → commit
-- [ ] 2.4 database-upgrades: Given a database that has been upgraded — red → green → commit
-- [ ] 2.5 database-upgrades: Then every upgrade of this version is listed as applied, with when it ran — red → green → commit
-- [ ] 2.6 database-upgrades: And none is listed as waiting — red → green → commit
-- [ ] 2.7 database-upgrades: When the operator upgrades the database — red → green → commit
-- [ ] 2.8 database-upgrades: Then the operator is told how many upgrades were applied — red → green → commit
-- [ ] 2.9 database-upgrades: And the database is up to date — red → green → commit
-- [ ] 2.10 database-upgrades: Then the operator is told the database was already up to date — red → green → commit
-- [ ] 2.11 database-upgrades: When the operator starts two upgrades of the database at the same time — red → green → commit
-- [ ] 2.12 database-upgrades: Then both finish without an error — red → green → commit
-- [ ] 2.13 database-upgrades: But one of its applied upgrades has been edited since it ran — red → green → commit
-- [ ] 2.14 database-upgrades: Then the upgrade is refused — red → green → commit
-- [ ] 2.15 database-upgrades: And the operator is told which upgrade changed, and to restore it — red → green → commit
+- [x] 2.1 database-upgrades: Given a new, empty database — red → green → commit
+- [x] 2.2 database-upgrades: When the operator asks for the database's status — red → green → commit
+- [x] 2.3 database-upgrades: Then every upgrade of this version is listed as waiting — red → green → commit
+- [x] 2.4 database-upgrades: Given a database that has been upgraded — red → green → commit
+- [x] 2.5 database-upgrades: Then every upgrade of this version is listed as applied, with when it ran — red → green → commit
+- [x] 2.6 database-upgrades: And none is listed as waiting — red → green → commit
+- [x] 2.7 database-upgrades: When the operator upgrades the database — red → green → commit
+- [x] 2.8 database-upgrades: Then the operator is told how many upgrades were applied — red → green → commit
+- [x] 2.9 database-upgrades: And the database is up to date — red → green → commit
+- [x] 2.10 database-upgrades: Then the operator is told the database was already up to date — red → green → commit
+- [x] 2.11 database-upgrades: When the operator starts two upgrades of the database at the same time — red → green → commit
+- [x] 2.12 database-upgrades: Then both finish without an error — red → green → commit
+- [x] 2.13 database-upgrades: But one of its applied upgrades has been edited since it ran — red → green → commit
+- [x] 2.14 database-upgrades: Then the upgrade is refused — red → green → commit
+- [x] 2.15 database-upgrades: And the operator is told which upgrade changed, and to restore it — red → green → commit
 
 ### Logs and health
 
