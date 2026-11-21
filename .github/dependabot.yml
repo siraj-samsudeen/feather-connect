@@ -1,0 +1,36 @@
+# Relaxed until the M1 release (#5): updates once a month, one grouped PR per
+# kind. GitHub's security alerts still arrive at once. A release is proposed
+# only once it is a week old (cooldown), so a bad one has time to be pulled.
+version: 2
+updates:
+  # The uv workspace (one lock file) and the acceptance suite's own project.
+  - package-ecosystem: uv
+    directories: ["/", "/acceptance-tests"]
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      python:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # compose.yaml: the development database's image.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      docker:
+        patterns: ["*"]

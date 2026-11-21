@@ -1,0 +1,76 @@
+# The weekly mutation report on main (issue 4, point 9). Relaxed until the M1
+# release (#5): a report to read, never a check that blocks. mutmut runs on
+# Linux only. Each package with code runs from its own directory, with the
+# [tool.mutmut] settings of its pyproject.toml.
+name: Mutation
+
+on:
+  schedule:
+    - cron: "17 3 * * 1" # Mondays, 03:17 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  mutmut:
+    name: mutmut (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [feather-server, feather-cli]
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: feather
+          POSTGRES_PASSWORD: feather
+          POSTGRES_DB: feather
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U feather -d feather"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      FEATHER_DATABASE_URL: postgresql://feather:feather@localhost:5432/feather
+      MUTMUT: mutmut==3.8.1
+    defaults:
+      run:
+        working-directory: packages/${{ matrix.package }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/uv.lock"
+      - run: uv sync --locked
+      - run: uv run --with "$MUTMUT" mutmut run
+      - name: Report
+        if: ${{ !cancelled() }}
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: |
+          uv run --with "$MUTMUT" mutmut export-cicd-stats
+          {
+            echo "## Mutation report: $PACKAGE"
+            echo '```'
+            uv run --with "$MUTMUT" mutmut results
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: mutmut-${{ matrix.package }}
+          path: packages/${{ matrix.package }}/mutants/mutmut-cicd-stats.json
+          if-no-files-found: warn
