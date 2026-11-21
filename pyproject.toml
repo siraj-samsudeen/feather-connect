@@ -27,6 +27,7 @@ dev = [
     "vulture",
     "deptry",
     "httpx2",
+    "beautifulsoup4>=4.15.0",
 ]
 
 [tool.pytest.ini_options]
