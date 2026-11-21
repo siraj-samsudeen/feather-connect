@@ -94,6 +94,15 @@ def test_it_stops_cleanly_when_asked(running: Running):
     assert running.stop() == 0
 
 
+def test_it_watches_the_database_in_the_background(running: Running):
+    expected = "warning: cannot reach the database at 127.0.0.1:9"
+    deadline = time.monotonic() + START_TIMEOUT_S
+    while time.monotonic() < deadline and not any(expected in line["message"] for line in running.lines()):
+        time.sleep(0.2)
+
+    assert [line["level"] for line in running.lines() if expected in line["message"]] == ["warning"]
+
+
 def test_a_settings_mistake_stops_it_with_exit_code_2(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ):
