@@ -439,13 +439,14 @@ Each must pass before the milestone it belongs to is released.
 
 ## 11. Decisions to make
 
-None of these is taken. Each is settled by the first change that needs it, through that change's
-ADR step, and recorded in `adr/`. `CLAUDE.md` lists what is proposed so far.
+Each is settled by the first change that needs it, through that change's ADR step, and recorded
+in `adr/`. The walking skeleton (issue #4) settled D-01, D-12 and the first half of D-02;
+`AGENTS.md` § Project lists the stack that follows from them.
 
 | ID | Decision | Needed by |
 |---|---|---|
-| D-01 | Server framework and how pages are rendered and refreshed | The first change |
-| D-02 | The required database, and whether it also holds the spool | The first change that stores data |
+| D-01 | Server framework and how pages are rendered and refreshed | **Settled:** [ADR 0003](../adr/0003-pages-rendered-on-the-server.md) |
+| D-02 | The required database, and whether it also holds the spool | The database is **settled:** [ADR 0004](../adr/0004-postgres-18-only.md). The spool: the first change that stores data |
 | D-03 | How durable execution is provided: an existing engine behind a small interface of our own, or our own | R6.1 |
 | D-04 | The data model: dataset, record, partition, version, route and ledger for both batches and events. Events are not tied to webhooks: database change events (R3.15, M2) must fit in as one more source of events, resumed from where they stopped, with no redesign | Area 3 |
 | D-05 | Environment as deployment, tenant as namespace; how light tenancy is in M1 | R9.1, R14.1 |
@@ -455,7 +456,7 @@ ADR step, and recorded in `adr/`. `CLAUDE.md` lists what is proposed so far.
 | D-09 | How long versions are kept by default, and the archive policy | R3.5 |
 | D-10 | The public home: package name, image registry, documentation address | R15.7 |
 | D-11 | Who maintains it, and how reviews and releases are run | R15.8 |
-| D-12 | The lowest supported language version | The first change |
+| D-12 | The lowest supported language version | **Settled:** [ADR 0001](../adr/0001-python-3-14-only.md) |
 | D-13 | Whether a transform runs when a route delivers, or its result is stored as a version of its own | Area 4 |
 | D-14 | Whether one service layer sits under the dashboard, the API and the agent tools, so rights, previews and audit are the same for all three | R8.6 |
 
