@@ -49,12 +49,12 @@
 
 ### Local development
 
-- [ ] 2.32 local-development: Given no database address has been set — red → green → commit
-- [ ] 2.33 local-development: When the user starts the server — red → green → commit
-- [ ] 2.34 local-development: Then the server does not start — red → green → commit
-- [ ] 2.35 local-development: And it says the database address is missing, and how to set it — red → green → commit
-- [ ] 2.36 local-development: Given another program is using the server's port (the number it listens on) — red → green → commit
-- [ ] 2.37 local-development: And it names the port, and says how to choose another — red → green → commit
+- [x] 2.32 local-development: Given no database address has been set — red → green → commit
+- [x] 2.33 local-development: When the user starts the server — red → green → commit
+- [x] 2.34 local-development: Then the server does not start — red → green → commit
+- [x] 2.35 local-development: And it says the database address is missing, and how to set it — red → green → commit
+- [x] 2.36 local-development: Given another program is using the server's port (the number it listens on) — red → green → commit
+- [x] 2.37 local-development: And it names the port, and says how to choose another — red → green → commit
 
 ## 3. What no scenario drives — each still arrives with the test or check that needs it
 
