@@ -4,10 +4,10 @@ requires-python = ">=3.14"
 
 [manifest]
 members = [
-    "feather-cli",
-    "feather-connect",
-    "feather-server",
-    "feather-workspace",
+    "fcon-cli",
+    "fcon-sdk",
+    "fcon-server",
+    "fcon-workspace",
 ]
 
 [[package]]
@@ -191,31 +191,31 @@ wheels = [
 ]
 
 [[package]]
-name = "feather-cli"
+name = "fcon-cli"
 version = "0.0.0"
-source = { editable = "packages/feather-cli" }
+source = { editable = "packages/fcon-cli" }
 dependencies = [
-    { name = "feather-server" },
+    { name = "fcon-server" },
     { name = "psycopg" },
     { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "feather-server", editable = "packages/feather-server" },
+    { name = "fcon-server", editable = "packages/fcon-server" },
     { name = "psycopg", specifier = ">=3.3.9" },
     { name = "uvicorn" },
 ]
 
 [[package]]
-name = "feather-connect"
+name = "fcon-sdk"
 version = "0.0.0"
-source = { editable = "packages/feather-connect" }
+source = { editable = "packages/fcon-sdk" }
 
 [[package]]
-name = "feather-server"
+name = "fcon-server"
 version = "0.0.0"
-source = { editable = "packages/feather-server" }
+source = { editable = "packages/fcon-server" }
 dependencies = [
     { name = "fastapi" },
     { name = "jinja2" },
@@ -234,13 +234,13 @@ requires-dist = [
 ]
 
 [[package]]
-name = "feather-workspace"
+name = "fcon-workspace"
 version = "0"
 source = { virtual = "." }
 dependencies = [
-    { name = "feather-cli" },
-    { name = "feather-connect" },
-    { name = "feather-server" },
+    { name = "fcon-cli" },
+    { name = "fcon-sdk" },
+    { name = "fcon-server" },
 ]
 
 [package.dev-dependencies]
@@ -257,9 +257,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "feather-cli", editable = "packages/feather-cli" },
-    { name = "feather-connect", editable = "packages/feather-connect" },
-    { name = "feather-server", editable = "packages/feather-server" },
+    { name = "fcon-cli", editable = "packages/fcon-cli" },
+    { name = "fcon-sdk", editable = "packages/fcon-sdk" },
+    { name = "fcon-server", editable = "packages/fcon-server" },
 ]
 
 [package.metadata.requires-dev]

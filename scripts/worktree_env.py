@@ -33,9 +33,9 @@ def env_values(number: int) -> dict[str, str]:
     if not 1 <= number <= LAST:
         raise ValueError(f"the issue number must be between 1 and {LAST}, not {number}")
     return {
-        "FEATHER_PORT": str(18000 + number),
+        "FCON_PORT": str(18000 + number),
         "ACCEPTANCE_PORT": str(19000 + number),
-        "FEATHER_DATABASE_URL": DATABASE_URL.format(name=database_name(number)),
+        "FCON_DATABASE_URL": DATABASE_URL.format(name=database_name(number)),
     }
 
 

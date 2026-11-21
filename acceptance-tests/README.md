@@ -1,6 +1,6 @@
 # Acceptance tests
 
-The scenarios in `openspec/**/spec.md` run here, against the real product: `feather server`
+The scenarios in `openspec/**/spec.md` run here, against the real product: `fcon server`
 started as a separate process on its own throwaway database, driven from outside through HTTP and
 a browser. This is its own uv project (Python 3.14); it never imports the product's code.
 
@@ -25,7 +25,7 @@ What one run does:
 1. Extracts the Gherkin of every `spec.md` into `.extracted/` (rebuilt each run, never edited)
    and composes the effective spec: the source of truth with the active changes applied.
 2. Creates an empty database `feather_acceptance_<port>_<random>` and starts
-   `uv run feather server` on `ACCEPTANCE_PORT` with `FEATHER_DATABASE_URL` pointing at it, then
+   `uv run fcon server` on `ACCEPTANCE_PORT` with `FCON_DATABASE_URL` pointing at it, then
    waits until `/readyz` answers 2xx.
 3. Runs the scenarios with behave. The outage scenario starts a second server of its own on a free
    port, given a database address where nothing listens, and stops it at the scenario's end.

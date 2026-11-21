@@ -51,7 +51,7 @@ them from one dashboard.
 **Stack** (owner, 21-Nov-2026; the reasons are in [`adr/`](adr/)):
 
 - Python 3.14 only, for development and for the deployed server, managed with uv: a workspace of
-  three packages (`packages/feather-connect`, `feather-server`, `feather-cli`), one lock file.
+  three packages (`packages/fcon-sdk`, `fcon-server`, `fcon-cli`), one lock file.
 - Pages are rendered on the server as HTML: FastAPI and Jinja2 under Uvicorn, one process per
   container. HTMX comes with the first page that refreshes part of itself.
 - Postgres 18 and later is the only database. For development, one shared Docker container
@@ -88,8 +88,8 @@ weekly as a report, the Windows and macOS tests do not block, Dependabot propose
 
 **Conventions** (one line each; the reasons are in [`adr/`](adr/)):
 
-1. Settings come only from `FEATHER_*` environment variables, and from `.env` in development.
-2. Every command reports problems through the error helper in `feather-cli`: what is wrong and
+1. Settings come only from `FCON_*` environment variables, and from `.env` in development.
+2. Every command reports problems through the error helper in `fcon-cli`: what is wrong and
    what to do, never a password, never a traceback for an expected problem.
 3. One logger: text on a terminal, one JSON object per line elsewhere.
 4. Templates have no inline `<script>` and no `style=""`: the content policy refuses them.
@@ -98,6 +98,9 @@ weekly as a report, the Windows and macOS tests do not block, Dependabot propose
 7. Database calls are sync, through psycopg, with plain SQL in the store layer.
 8. Tests that need a database are marked as such, and never skip.
 9. Examples and names are generic: no real organisation, customer, vendor system or site.
+10. Technical names use `fcon`: the packages, imports, the command, `FCON_*` settings, and
+    anything new such as the database schema, loggers, cookies and images. Text people read says
+    Feather Connect.
 
 **Worktrees.** The ports come from the issue number `n`: development `18000 + n`, acceptance
 `19000 + n` (issue 4: 18004 and 19004); the main checkout keeps 8080 and 8030. Each worktree has

@@ -1,7 +1,7 @@
 """Fixtures every package's tests share.
 
 `database_url`: a throwaway database, made once per test session on the
-Postgres server FEATHER_DATABASE_URL names (from the environment, else from
+Postgres server FCON_DATABASE_URL names (from the environment, else from
 .env at the repo root) and dropped at the end. A test that needs it carries
 the `database` mark. With no database running it fails, and says how to start
 one: it never skips.
@@ -17,7 +17,7 @@ import psycopg
 import pytest
 from psycopg import conninfo, sql
 
-from feather_cli.settings import ENV_FILE, read_env_file
+from fcon_cli.settings import ENV_FILE, read_env_file
 
 REPO_ROOT = Path(__file__).resolve().parent
 START_IT = "start the database: docker compose up -d"
@@ -25,9 +25,9 @@ START_IT = "start the database: docker compose up -d"
 
 def _server_url() -> str:
     variables = {**read_env_file(REPO_ROOT / ENV_FILE), **os.environ}
-    if url := variables.get("FEATHER_DATABASE_URL"):
+    if url := variables.get("FCON_DATABASE_URL"):
         return url
-    pytest.fail("FEATHER_DATABASE_URL is not set (environment or .env); " + START_IT, pytrace=False)
+    pytest.fail("FCON_DATABASE_URL is not set (environment or .env); " + START_IT, pytrace=False)
 
 
 def _admin(url: str) -> psycopg.Connection[tuple[object, ...]]:

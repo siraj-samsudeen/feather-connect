@@ -34,7 +34,7 @@ uv sync
 uv run pytest                   # the inner tests, which must cover 100% of the code
 uv run --project acceptance-tests playwright install chromium     # once per machine
 uv run --project acceptance-tests python acceptance-tests/run_acceptance.py
-uv run feather server           # then open http://127.0.0.1:8080
+uv run fcon server           # then open http://127.0.0.1:8080
 ```
 
 When a command can't run, it says what is wrong and what to do. How the acceptance suite works,
@@ -93,7 +93,7 @@ and how to watch it in a browser: [`acceptance-tests/README.md`](acceptance-test
 ## Rules every change keeps
 
 The conventions in `AGENTS.md` § Project apply to every change. Among them: settings come only from
-`FEATHER_*` environment variables; templates have no inline scripts or styles; examples and names
+`FCON_*` environment variables; templates have no inline scripts or styles; examples and names
 are generic, never a real organisation, customer, vendor system or site. Never commit a secret:
 `.env` is git-ignored.
 
