@@ -58,3 +58,12 @@ def free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         probe.bind(("127.0.0.1", 0))
         return probe.getsockname()[1]
+
+
+@pytest.fixture
+def silent_port() -> Iterator[int]:
+    """A port on 127.0.0.1 that takes connections and never says a word."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        yield listener.getsockname()[1]

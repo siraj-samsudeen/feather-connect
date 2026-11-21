@@ -1,5 +1,7 @@
 """What a monitor is told at /readyz."""
 
+import socket
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -25,6 +27,24 @@ def test_readyz_says_not_ready_when_the_database_cannot_be_reached(free_port: in
     response = TestClient(app).get("/readyz")
 
     assert (response.status_code, response.json()) == (503, NOT_READY)
+
+
+def test_readyz_never_probes_the_port_of_a_database_that_does_not_answer(
+    silent_port: int, monkeypatch: pytest.MonkeyPatch
+):
+    """The probe only names the cause for the log, and takes seconds."""
+    probes: list[object] = []
+
+    def probe(address: object, *_args: object, **_kwargs: object) -> socket.socket:
+        probes.append(address)
+        raise ConnectionRefusedError
+
+    monkeypatch.setattr(socket, "create_connection", probe)
+    app = create_app(f"postgresql://feather:feather@127.0.0.1:{silent_port}/feather")
+
+    TestClient(app).get("/readyz")
+
+    assert probes == []
 
 
 @pytest.mark.parametrize("problem", list(Problem), ids=[problem.name.lower() for problem in Problem])

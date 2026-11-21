@@ -107,6 +107,14 @@ def test_a_database_that_stays_usable_is_not_logged_again(caplog: pytest.LogCapt
     assert len(caplog.records) == 1
 
 
+def test_the_watch_names_a_refused_port_as_refused(free_port: int, caplog: pytest.LogCaptureFixture):
+    """On Windows the driver reports a refused port as a timeout: the watch
+    probes the port to tell the two apart."""
+    DatabaseWatch(f"postgresql://feather:feather@127.0.0.1:{free_port}/feather").look()
+
+    assert "(connection refused)" in caplog.records[0].getMessage()
+
+
 def test_a_bug_in_the_check_is_logged_as_one_with_its_traceback(caplog: pytest.LogCaptureFixture):
     def broken(_url: str) -> DatabaseCheck:
         raise RuntimeError("a bug in the check")
