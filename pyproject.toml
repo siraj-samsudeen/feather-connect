@@ -33,6 +33,8 @@ dev = [
 [tool.pytest.ini_options]
 minversion = "9.0"
 testpaths = ["packages/feather-connect/tests", "packages/feather-server/tests", "packages/feather-cli/tests", "tests"]
+# The repo's own scripts (scripts/worktree_env.py) are imported by name.
+pythonpath = ["scripts"]
 addopts = [
     "--import-mode=importlib",
     "--strict-markers",
@@ -40,6 +42,7 @@ addopts = [
     "--cov=feather_connect",
     "--cov=feather_server",
     "--cov=feather_cli",
+    "--cov=scripts",
     "--cov-branch",
     "--cov-report=term-missing:skip-covered",
     "--cov-fail-under=100",
@@ -78,10 +81,11 @@ typeCheckingMode = "strict"
 pythonVersion = "3.14"
 venvPath = "."
 venv = ".venv"
-include = ["packages", "tests", "conftest.py"]
+include = ["packages", "tests", "scripts", "conftest.py"]
+extraPaths = ["scripts"]
 
 [tool.vulture]
-paths = ["packages"]
+paths = ["packages", "scripts"]
 min_confidence = 60
 # Called by the framework, not by our code: routes and fixtures.
 ignore_decorators = ["@routes.get", "@routes.post", "@pytest.fixture"]
