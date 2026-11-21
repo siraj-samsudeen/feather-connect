@@ -1,7 +1,7 @@
 ## 1. First-time setup — `acceptance-tests/` exists (issue 4); only what this change adds
 
-- [ ] 1.1 `support/stack.py` runs `uv run fcon db upgrade` on the run's throwaway database before starting `fcon server`, so the existing scenarios keep a ready product; a helper gives a scenario a throwaway database of its own (new, upgraded, edited, or with an upgrade from a newer version) and a server on a free port pointed at it, dropped at the end
-- [ ] 1.2 A terminal page object runs `fcon db upgrade` and `fcon db status` against a scenario's database and keeps their output and exit code; a page object reads a started server's log
+- [x] 1.1 `support/stack.py` runs `uv run fcon db upgrade` on the run's throwaway database before starting `fcon server`, so the existing scenarios keep a ready product; a helper gives a scenario a throwaway database of its own (new, upgraded, edited, or with an upgrade from a newer version) and a server on a free port pointed at it, dropped at the end
+- [x] 1.2 A terminal page object runs `fcon db upgrade` and `fcon db status` against a scenario's database and keeps their output and exit code; a page object reads a started server's log
 
 ## 2. Step definitions — one task per pending step; each = fails for the right reason → implement → passes → commit
 
