@@ -37,7 +37,8 @@ def test_a_host_name_nobody_knows_is_not_here(free_port: int):
     assert bind_problem("no-such-host.invalid", free_port) == problems.host_not_here("no-such-host.invalid")
 
 
-@pytest.mark.parametrize("code", [errno.EACCES, getattr(errno, "WSAEACCES", 10013)])
+# The codes this system uses for it: EACCES, and on Windows also WSAEACCES (10013).
+@pytest.mark.parametrize("code", sorted({errno.EACCES, getattr(errno, "WSAEACCES", errno.EACCES)}))
 def test_a_port_the_machine_refuses_is_not_allowed(code: int):
     problem = listen_problem(PermissionError(code, "permission denied"), "0.0.0.0", 80)  # noqa: S104
 
