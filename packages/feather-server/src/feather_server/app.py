@@ -17,7 +17,8 @@ def build_app(database_url: str) -> FastAPI:
     """The routes and their error pages, without the middleware around them."""
     # No automatic trailing-slash redirect: FastAPI builds it as a full http://
     # address from what it saw, which behind an https proxy is the insecure one.
-    app = FastAPI(redirect_slashes=False)
+    # No API description pages until there is an API to describe.
+    app = FastAPI(redirect_slashes=False, docs_url=None, redoc_url=None, openapi_url=None)
     app.include_router(health.router(database_url))
     app.include_router(pages.router())
     app.mount(pages.STATIC_PATH, StaticFiles(directory=pages.STATIC_DIRECTORY))
