@@ -1,12 +1,12 @@
 ## 1. First-time setup — each task is ticked by the red/green pair of the first outer test that needs it
 
-- [ ] 1.1 Confirm the acceptance stack: `stack: python` in `openspec/config.yaml`
+- [x] 1.1 Confirm the acceptance stack: `stack: python` in `openspec/config.yaml`
 - [ ] 1.2 Set up the application skeleton so the app can boot: the uv workspace (Python 3.14, one lock file), `packages/feather-connect`, `packages/feather-server`, `packages/feather-cli` with the `feather server` command; `compose.yaml` (Postgres 18 on `127.0.0.1:5442`, project name fixed) and `.env.example`
 - [ ] 1.3 Create `acceptance-tests/` at the repo root as an independent uv project on Python 3.14, left out of the workspace, that creates a throwaway database, starts `feather server` on `ACCEPTANCE_PORT`, waits for readiness, and stops it and drops the database at the end
 - [ ] 1.4 Copy the Python pack's files verbatim into `acceptance-tests/` (`references/python/SETUP.md` "Files to copy"), so the runner extracts the Gherkin from every `spec.md` under `openspec/` into `acceptance-tests/.extracted/`, excluding `openspec/changes/archive/`; fill in the `PROJECT:` lines of `support/`
-- [ ] 1.5 Make the single test command always generate an HTML report under `acceptance-tests/reports/`
-- [ ] 1.6 Gitignore `acceptance-tests/.extracted/` and `acceptance-tests/reports/` (no separate spec lint: the runner's own parse is the check)
-- [ ] 1.7 Write `acceptance-tests/README.md` with instructions for running the suite and where the HTML report is written
+- [x] 1.5 Make the single test command always generate an HTML report under `acceptance-tests/reports/`
+- [x] 1.6 Gitignore `acceptance-tests/.extracted/` and `acceptance-tests/reports/` (no separate spec lint: the runner's own parse is the check)
+- [x] 1.7 Write `acceptance-tests/README.md` with instructions for running the suite and where the HTML report is written
 
 ## 2. Step definitions — one task per pending step; each = fails for the right reason → implement → passes → commit
 

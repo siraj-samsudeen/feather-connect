@@ -12,7 +12,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-from support import auth, captions
+from support import auth, captions, stack
 from support.stack import BASE_URL
 
 # For a person watching or debugging; agents and CI set none of these, and
@@ -106,6 +106,10 @@ class World:
         self.pages = {}  # who ('the user', 'a colleague') -> page
         self.contexts = []  # (who, label, browser context, page), in the order opened
         self.caption = None  # VIDEO=1: the step being run, as written
+        self.base_url = BASE_URL  # the product the scenario talks to: the run's server, unless replaced
+        self.database = None  # the database address that product was given, when the scenario chose it
+        self._http = None  # the scenario's plain HTTP client, opened on first use
+        self._servers = []  # servers started for this scenario alone
 
     def _new_page(self, who, label, storage_state=None):
         """A browser context for one of the scenario's people: traced, and recorded with VIDEO=1."""
@@ -181,6 +185,33 @@ class World:
     # PROJECT: helpers for setup the scenarios share (create a person with
     # roles, a record, a fixture), each through self.api().
 
+    def http(self):
+        """A plain HTTP client for the scenario's product, for what a monitor
+        or another program asks for without a browser."""
+        if self._http is None:
+            self._http = self.run.playwright.request.new_context(base_url=self.base_url)
+        return self._http
+
+    def product_without_database(self):
+        """From now on the scenario talks to a product of its own whose
+        database cannot be reached: a second server on a free port, given the
+        address of another free port where nothing listens. The run's shared
+        database is never stopped."""
+        self.database = {
+            "host": "127.0.0.1",
+            "port": str(stack.free_port()),
+            "user": "outage_probe_user",
+            "password": "outage_probe_secret",
+            "dbname": "outage_probe_db",
+        }
+        address = "postgresql://{user}:{password}@{host}:{port}/{dbname}".format(**self.database)
+        base_url, process = stack.start_server("server-without-database", address)
+        self._servers.append(process)
+        self.base_url = base_url
+        if self._http is not None:
+            self._http.dispose()
+            self._http = None
+
     def close(self, failed):
         """Ends the scenario: keeps a failed one's screenshots and traces, and a
         VIDEO=1 run's clips. Returns the screenshots it saved."""
@@ -214,4 +245,9 @@ class World:
                     clips.write(json.dumps(entry) + "\n")
         self.contexts = []
         self.pages = {}
+        if self._http is not None:
+            self._http.dispose()
+            self._http = None
+        while self._servers:
+            stack.stop(self._servers.pop())
         return screenshots

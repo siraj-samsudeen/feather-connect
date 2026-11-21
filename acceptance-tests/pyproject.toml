@@ -10,6 +10,7 @@ dependencies = [
     "behave-html-formatter",
     "playwright",
     "beautifulsoup4",
+    "psycopg[binary]",
 ]
 
 [tool.uv]

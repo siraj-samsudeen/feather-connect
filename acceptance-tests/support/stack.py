@@ -3,7 +3,7 @@ database and port, so a run never touches the developer's database and never
 collides with the dev server, another test suite, or another worktree's run.
 Lines marked PROJECT: are the ones each project fills in.
 
-Standard library only, so it also works before the app has any dependencies.
+The standard library, plus psycopg to make the run's own database.
 """
 
 import atexit
@@ -16,7 +16,11 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import uuid
 from pathlib import Path
+
+import psycopg
+from psycopg import conninfo, sql
 
 ACCEPTANCE = Path(__file__).resolve().parents[1]
 REPO_ROOT = ACCEPTANCE.parent
@@ -36,24 +40,57 @@ BOOT_TIMEOUT_S = 240
 SERVICES = [
     {
         "name": "server",
-        "command": ["uv", "run", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(PORT)],
-        "env": {"DATABASE_URL": os.environ.get("ACCEPTANCE_DATABASE_URL")},
-        "ready_url": BASE_URL + "/health",
+        "command": ["uv", "run", "feather", "server", "--host", "127.0.0.1", "--port", str(PORT)],
+        "env": {},  # FEATHER_DATABASE_URL: the run's own database, set by prepare()
+        "ready_url": BASE_URL + "/readyz",
         "port": (PORT, "ACCEPTANCE_PORT"),
     },
 ]
 
+# The Postgres server the run makes its throwaway database on: the shared
+# development container by default, the CI job's service container there.
+ADMIN_DATABASE_URL = os.environ.get(
+    "ACCEPTANCE_ADMIN_DATABASE_URL", "postgresql://feather:feather@127.0.0.1:5442/postgres"
+)
+RUN_DATABASE = "feather_acceptance_%d_%s" % (PORT, uuid.uuid4().hex[:8])
+
 _children = []  # (service, process, log path)
+_database_created = False
+
+
+def run_database_url():
+    """The address of this run's own database."""
+    return str(conninfo.make_conninfo(ADMIN_DATABASE_URL, dbname=RUN_DATABASE))
+
+
+def _admin():
+    try:
+        return psycopg.connect(ADMIN_DATABASE_URL, autocommit=True, connect_timeout=5)
+    except psycopg.OperationalError as err:
+        raise RuntimeError(
+            "cannot reach the test database server (%s).\n"
+            "Start the database: docker compose up -d" % str(err).splitlines()[0]
+        ) from None
 
 
 def prepare():
-    """Runs once, before the services start.
+    """Runs once, before the services start: the run's own empty database,
+    dropped again in stop_all(). The shared database is never stopped."""
+    global _database_created
+    with _admin() as admin:
+        admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(RUN_DATABASE)))
+    _database_created = True
+    for service in SERVICES:
+        service["env"]["FEATHER_DATABASE_URL"] = run_database_url()
 
-    PROJECT: give the run its own empty database here. For Postgres, create a
-    scratch database, migrate it, set ACCEPTANCE_DATABASE_URL to it (and fill
-    the service's "env" from that), and drop it in stop_all(). For SQLite, a
-    file under reports/ deleted here is enough.
-    """
+
+def _drop_database():
+    global _database_created
+    if not _database_created:
+        return
+    with _admin() as admin:
+        admin.execute(sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(sql.Identifier(RUN_DATABASE)))
+    _database_created = False
 
 
 def _port_taken(port):
@@ -134,29 +171,69 @@ def start_all():
         _wait_for(service, process, log_path)
 
 
+def free_port():
+    """A port nothing listens on right now, chosen by the operating system."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(("127.0.0.1", 0))
+        return probe.getsockname()[1]
+
+
+def start_server(name, database_url, ready_path="/healthz"):
+    """A second `feather server` for one scenario, on a free port and the given
+    database address, waited on at `ready_path`. Returns (base URL, process);
+    give the process to stop() at the scenario's end (stop_all() takes any
+    that are left)."""
+    port = free_port()
+    base_url = "http://127.0.0.1:%d" % port
+    service = {
+        "name": name,
+        "command": ["uv", "run", "feather", "server", "--host", "127.0.0.1", "--port", str(port)],
+        "env": {"FEATHER_DATABASE_URL": database_url},
+        "ready_url": base_url + ready_path,
+    }
+    process, log_path = _start(service)
+    try:
+        _wait_for(service, process, log_path)
+    except Exception:
+        stop(process)
+        raise
+    return base_url, process
+
+
+def _stop(process):
+    if process.poll() is not None:
+        return
+    try:
+        if sys.platform == "win32":
+            # The run's database is thrown away, so there is nothing to
+            # save: take the whole tree at once, by its PID.
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)], check=False, capture_output=True)
+        else:
+            os.killpg(process.pid, signal.SIGTERM)
+        process.wait(timeout=15)
+    except subprocess.TimeoutExpired:
+        if sys.platform == "win32":
+            process.kill()
+        else:
+            os.killpg(process.pid, signal.SIGKILL)  # the group, as above: not only its leader
+    except (ProcessLookupError, PermissionError):
+        pass  # already gone
+
+
+def stop(process):
+    """Stops one process this run started, with its children."""
+    for child in list(_children):
+        if child[1] is process:
+            _children.remove(child)
+    _stop(process)
+
+
 def stop_all():
     """Stops every service this run started, with its children. Safe to call twice."""
     while _children:
         _service, process, _log_path = _children.pop()
-        if process.poll() is not None:
-            continue
-        try:
-            if sys.platform == "win32":
-                # The run's database is thrown away, so there is nothing to
-                # save: take the whole tree at once.
-                subprocess.run(
-                    ["taskkill", "/F", "/T", "/PID", str(process.pid)], check=False, capture_output=True
-                )
-            else:
-                os.killpg(process.pid, signal.SIGTERM)
-            process.wait(timeout=15)
-        except subprocess.TimeoutExpired:
-            if sys.platform == "win32":
-                process.kill()
-            else:
-                os.killpg(process.pid, signal.SIGKILL)  # the group, as above: not only its leader
-        except (ProcessLookupError, PermissionError):
-            pass  # already gone
+        _stop(process)
+    _drop_database()
 
 
 atexit.register(stop_all)

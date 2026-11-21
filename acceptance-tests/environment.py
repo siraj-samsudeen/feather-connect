@@ -4,6 +4,7 @@ the run, one World per scenario (support/world.py)."""
 import base64
 import os
 
+from pages.monitor import Monitor
 from support import captions, stack, world
 
 
@@ -28,8 +29,8 @@ def after_all(context):
 
 def before_scenario(context, scenario):
     context.world = world.World(context.suite, scenario.name)
-    # PROJECT: attach the page objects the steps use, one per screen or flow:
-    # context.signup_page = SignupPage(context.world)
+    # The page objects the steps use, one per screen or flow.
+    context.monitor = Monitor(context.world)
 
 
 def after_scenario(context, scenario):
