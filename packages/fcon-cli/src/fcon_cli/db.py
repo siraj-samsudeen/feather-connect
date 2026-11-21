@@ -5,6 +5,8 @@ FCON_DATABASE_URL); the status reads with the app's and changes nothing."""
 from datetime import UTC, datetime
 from typing import TextIO
 
+from psycopg import conninfo
+
 from fcon_cli import problems
 from fcon_cli.problems import ProblemError
 from fcon_cli.settings import DatabaseSettings
@@ -37,6 +39,16 @@ def upgrade_lines(result: UpgradeResult) -> list[str]:
     ]
 
 
+def app_user(settings: DatabaseSettings) -> str | None:
+    """The user of the app's address, when the owner's is another: the one
+    the upgrade grants the app's rights to (design point 17). An address
+    without a user names none: libpq's default user is the owner's too."""
+    if settings.migration_database_url == settings.database_url:
+        return None
+    user = conninfo.conninfo_to_dict(settings.database_url).get("user")
+    return None if user is None else str(user)
+
+
 def upgrade_database(settings: DatabaseSettings, clock: Clock, out: TextIO, err: TextIO) -> None:
     setting = (
         "FCON_MIGRATION_DATABASE_URL"
@@ -45,7 +57,10 @@ def upgrade_database(settings: DatabaseSettings, clock: Clock, out: TextIO, err:
     )
     _usable(settings.migration_database_url, setting)
     result = upgrade(
-        settings.migration_database_url, clock, on_wait=lambda: print(problems.waiting_for_upgrade(), file=err)
+        settings.migration_database_url,
+        clock,
+        on_wait=lambda: print(problems.waiting_for_upgrade(), file=err),
+        app_user=app_user(settings),
     )
     if result.changed:
         raise ProblemError(problems.upgrade_changed(result.changed[0]))

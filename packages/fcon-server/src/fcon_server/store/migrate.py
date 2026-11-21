@@ -10,6 +10,9 @@ It returns facts; the command line words them.
 - Each file runs in its own transaction, with `fcon.now` set from the clock,
   unless its first line is `-- fcon: no-transaction`.
 - Then the audit log's months, through six ahead of the clock's (UTC).
+- Then the rights (design point 17): an app user other than the owner reads
+  and writes every `fcon` table, and only reads and adds to `fcon.audit`
+  and its months.
 """
 
 import hashlib
@@ -169,12 +172,37 @@ def _make_audit_months(connection: Connection, now: datetime) -> None:
         )
 
 
+def _grant(connection: Connection, app_user: str) -> None:
+    owner = connection.execute("SELECT current_user").fetchone()
+    if owner is not None and owner[0] == app_user:
+        return
+    user = sql.Identifier(app_user)
+    connection.execute(sql.SQL("GRANT USAGE ON SCHEMA fcon TO {}").format(user))
+    connection.execute(sql.SQL("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA fcon TO {}").format(user))
+    months = connection.execute(
+        "SELECT inhrelid::regclass::text FROM pg_inherits WHERE inhparent = 'fcon.audit'::regclass"
+    ).fetchall()
+    for (table,) in [("fcon.audit",), *months]:
+        connection.execute(
+            sql.SQL("REVOKE UPDATE, DELETE, TRUNCATE ON {} FROM {}").format(
+                sql.Identifier(*str(table).split(".")), user
+            )
+        )
+
+
 def upgrade(
-    url: str, clock: Clock, *, directory: Path = MIGRATIONS, on_wait: Callable[[], None] = lambda: None
+    url: str,
+    clock: Clock,
+    *,
+    directory: Path = MIGRATIONS,
+    on_wait: Callable[[], None] = lambda: None,
+    app_user: str | None = None,
 ) -> UpgradeResult:
     """Applies every waiting file, unless one that ran has changed. `on_wait`
     is called once when another upgrade holds the lock, before waiting for it.
-    A file that fails raises the driver's error; the ones before it stay."""
+    `app_user`, when it is not the owner `url` signs in as, is granted the
+    app's rights. A file that fails raises the driver's error; the ones before
+    it stay."""
     migrations = read_migrations(directory)
     with _connect(url) as lock, _connect(url) as connection:
         _lock(lock, on_wait)
@@ -185,4 +213,6 @@ def upgrade(
         for migration in waiting:
             _apply(connection, migration, clock.now())
         _make_audit_months(connection, clock.now())
+        if app_user is not None:
+            _grant(connection, app_user)
     return UpgradeResult(applied=tuple(migration.name for migration in waiting))

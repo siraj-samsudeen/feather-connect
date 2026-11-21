@@ -12,6 +12,10 @@ and says how to start one: it never skips.
 tenant of the test's own, `test-<6 hex>` (design decision 7), made through the
 store, so no clean-up is needed. `new_tenant`: makes one more, for a
 cross-tenant test.
+
+`app_role`: a login role of the session's own, `fcon_test_app_<6 hex>`, for
+the tests of the rights an upgrade grants (design point 17); roles belong to
+the whole server, so it is dropped at the end.
 """
 
 import os
@@ -72,6 +76,21 @@ def database_url() -> Iterator[str]:
     with _throwaway_database() as url:
         upgrade(url, SystemClock())
         yield url
+
+
+@pytest.fixture(scope="session")
+def app_role(database_url: str) -> Iterator[tuple[str, str]]:
+    """A login role's name and password; `database_url` comes first so its
+    databases are gone, with every right granted there, before the role is."""
+    name, password = f"fcon_test_app_{secrets.token_hex(3)}", secrets.token_hex(16)
+    server_url = _server_url()
+    with _admin(server_url) as admin:
+        admin.execute(sql.SQL("CREATE ROLE {} LOGIN PASSWORD {}").format(sql.Identifier(name), sql.Literal(password)))
+    try:
+        yield name, password
+    finally:
+        with _admin(server_url) as admin:
+            admin.execute(sql.SQL("DROP ROLE IF EXISTS {}").format(sql.Identifier(name)))
 
 
 class _Connect:

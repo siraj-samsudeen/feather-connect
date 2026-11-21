@@ -9,9 +9,10 @@ from pathlib import Path
 
 import psycopg
 import pytest
+from psycopg import conninfo
 
 from fcon_cli import problems
-from fcon_cli.db import format_time, status_lines, upgrade_database, upgrade_lines
+from fcon_cli.db import app_user, format_time, status_lines, upgrade_database, upgrade_lines
 from fcon_cli.main import main
 from fcon_cli.settings import DatabaseSettings
 from fcon_server.store.clock import FixedClock
@@ -81,6 +82,24 @@ def test_an_upgrade_uses_the_owners_address_when_it_is_set(
     monkeypatch.setenv("FCON_MIGRATION_DATABASE_URL", database)
 
     assert run(capsys, "db", "upgrade")[0] == 0
+
+
+@pytest.mark.database
+def test_an_upgrade_with_the_owners_address_grants_the_app_user_its_rights(
+    database: str, app_role: tuple[str, str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    app_url = conninfo.make_conninfo(database, user=app_role[0], password=app_role[1])
+    monkeypatch.setenv("FCON_DATABASE_URL", app_url)
+    monkeypatch.setenv("FCON_MIGRATION_DATABASE_URL", database)
+
+    run(capsys, "db", "upgrade")
+
+    with psycopg.connect(app_url) as connection:
+        assert connection.execute("SELECT tenant_id FROM fcon.tenant").fetchall() == [("default",)]
+
+
+def test_an_app_address_without_a_user_names_no_app_user():
+    assert app_user(DatabaseSettings(database_url="dbname=app", migration_database_url="dbname=owner")) is None
 
 
 def test_an_upgrade_stops_for_a_database_it_cannot_reach(
