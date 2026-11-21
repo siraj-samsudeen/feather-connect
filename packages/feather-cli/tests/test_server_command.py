@@ -17,7 +17,6 @@ import pytest
 
 from feather_cli import problems
 from feather_cli.main import main
-from feather_cli.server import bind
 
 START_TIMEOUT_S = 30
 
@@ -120,13 +119,16 @@ def test_a_command_line_mistake_shows_the_commands_usage(capsys: pytest.CaptureF
     assert capsys.readouterr().err.splitlines()[1].startswith("  usage: feather server")
 
 
-def test_a_port_another_program_listens_on_cannot_be_taken():
+def test_a_taken_port_stops_it_with_exit_code_2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    monkeypatch.setenv("FEATHER_DATABASE_URL", "postgresql://feather@127.0.0.1:9/feather")
+    monkeypatch.chdir(tmp_path)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as other:
-        # Uvicorn's own binding sets SO_REUSEADDR; Windows would let a second
-        # program share a port bound like that, unless it asks for exclusive use.
-        other.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         other.bind(("127.0.0.1", 0))
         other.listen()
+        port = other.getsockname()[1]
 
-        with pytest.raises(OSError):
-            bind("127.0.0.1", other.getsockname()[1])
+        code = main(["server", "--host", "127.0.0.1", "--port", str(port)])
+
+    assert (code, capsys.readouterr().err) == (2, problems.port_taken("127.0.0.1", port).text() + "\n")
