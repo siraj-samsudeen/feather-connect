@@ -166,4 +166,4 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "**/uv.lock"
       # The Gherkin extraction and the effective spec, without running a scenario.
-      - run: uv run --project acceptance-tests python acceptance-tests/run_acceptance.py --print-locations
+      - run: uv run --locked --project acceptance-tests python acceptance-tests/run_acceptance.py --print-locations
