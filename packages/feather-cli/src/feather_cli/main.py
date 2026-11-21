@@ -37,11 +37,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         args = _parser().parse_args(argv)
         settings = load_settings(os.environ, Path.cwd(), host=args.host, port=args.port)
+        configure_logging(settings.log_format, sys.stderr)
+        run_server(settings)
     except ProblemError as err:
         print(err.problem.text(), file=sys.stderr)
         return PROBLEM_EXIT
-    configure_logging(settings.log_format, sys.stderr)
-    run_server(settings)
     # A stop signal ends the server with SystemExit(0) (feather_cli.server), so
     # Uvicorn returns here only if it could not start the app.
     return 1  # pragma: no cover - no test makes Uvicorn fail to start on a bound socket

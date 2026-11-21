@@ -1,6 +1,7 @@
 """`feather server`: binds the port itself, then runs Uvicorn on that socket in
 the same process, one process per container."""
 
+import errno
 import logging
 import signal
 import socket
@@ -9,6 +10,8 @@ from typing import NoReturn
 
 import uvicorn
 
+from feather_cli import problems
+from feather_cli.problems import Problem, ProblemError
 from feather_cli.settings import Settings
 from feather_server.app import create_app
 
@@ -23,8 +26,24 @@ _ADDRESS_OPTION = getattr(socket, "SO_EXCLUSIVEADDRUSE", socket.SO_REUSEADDR)
 _STOP_SIGNALS = [sig for sig in (signal.SIGINT, signal.SIGTERM, getattr(signal, "SIGBREAK", None)) if sig is not None]
 
 
-def bind(host: str, port: int) -> socket.socket:
-    """The listening socket, so a taken port is found before Uvicorn starts."""
+# Windows has its own numbers for these, beside the C library's.
+_IN_USE = {errno.EADDRINUSE, getattr(errno, "WSAEADDRINUSE", errno.EADDRINUSE)}
+_NOT_ALLOWED = {errno.EACCES, getattr(errno, "WSAEACCES", errno.EACCES)}
+_NOT_HERE = {errno.EADDRNOTAVAIL, getattr(errno, "WSAEADDRNOTAVAIL", errno.EADDRNOTAVAIL)}
+
+
+def listen_problem(err: OSError, host: str, port: int) -> Problem | None:
+    """What a person can fix about a failure to listen; None for anything else."""
+    if err.errno in _IN_USE:
+        return problems.port_taken(host, port)
+    if err.errno in _NOT_ALLOWED:
+        return problems.port_not_allowed(host, port)
+    if err.errno in _NOT_HERE:
+        return problems.host_not_here(host)
+    return None
+
+
+def _open_and_listen(host: str, port: int) -> socket.socket:
     family, kind, proto, _, address = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)[0]
     sock = socket.socket(family, kind, proto)
     try:
@@ -35,6 +54,19 @@ def bind(host: str, port: int) -> socket.socket:
         sock.close()
         raise
     return sock
+
+
+def bind(host: str, port: int) -> socket.socket:
+    """The listening socket, so a taken port is found before Uvicorn starts."""
+    try:
+        return _open_and_listen(host, port)
+    except socket.gaierror:
+        raise ProblemError(problems.host_not_here(host)) from None
+    except OSError as err:
+        problem = listen_problem(err, host, port)
+        if problem is None:  # pragma: no cover - no real bind fails otherwise on a test machine; see listen_problem
+            raise  # a bug: main reports it as one
+        raise ProblemError(problem) from None
 
 
 def _stop(_signum: int, _frame: FrameType | None) -> NoReturn:
