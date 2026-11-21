@@ -7,7 +7,7 @@ import logging
 
 import pytest
 
-from feather_cli.logs import configure_logging, log_problem
+from feather_cli.logs import JsonLines, Text, configure_logging, log_problem
 from feather_cli.problems import Level, Problem
 
 
@@ -127,4 +127,10 @@ def test_on_a_terminal_a_problem_reads_as_its_own_text_after_the_time():
     log_problem(logging.getLogger("feather"), PROBLEM)
 
     first, *rest = stream.getvalue().splitlines()
-    assert (first.split(" ", 2)[2], rest) == ("warning: something is wrong.", ["  Do this.", "  Or that."])
+    assert (first.split(" ", 1)[1], rest) == ("warning: something is wrong.", ["  Do this.", "  Or that."])
+
+
+def test_a_text_line_carries_the_same_time_as_its_json_line():
+    record = logging.LogRecord("feather", logging.INFO, __file__, 1, "listening", None, None)
+
+    assert Text().format(record).split(" ")[0] == json.loads(JsonLines().format(record))["time"]
