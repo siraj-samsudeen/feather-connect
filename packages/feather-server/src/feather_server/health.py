@@ -27,9 +27,10 @@ def router(database_url: str) -> APIRouter:
     routes = APIRouter()
 
     @routes.get(LIVENESS_PATH)
-    def healthz() -> dict[str, str]:
+    async def healthz() -> dict[str, str]:
         """Up while the process is: never touches the database, so an outage
-        does not make the host restart the server."""
+        does not make the host restart the server. Async, so it answers even
+        when every worker thread is busy with a slow /readyz."""
         return {"status": "alive"}
 
     @routes.get(READINESS_PATH)

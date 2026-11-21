@@ -114,11 +114,29 @@ def port_refuses(host: str, port: int) -> bool:
         return isinstance(err, ConnectionRefusedError)
 
 
+def open_connection(url: str) -> psycopg.Connection[tuple[object, ...]]:
+    """The check's connection: connecting, each query and a peer that stops
+    answering are each cut off after TIMEOUT_S, and closing it sends nothing
+    more (no transaction to commit)."""
+    timeout_ms = TIMEOUT_S * 1000
+    return psycopg.connect(
+        url,
+        autocommit=True,
+        connect_timeout=TIMEOUT_S,
+        options=f"-c statement_timeout={timeout_ms}",
+        tcp_user_timeout=timeout_ms,  # unacknowledged data; ignored where the system has no such option
+        keepalives=1,
+        keepalives_idle=1,
+        keepalives_interval=1,
+        keepalives_count=2,
+    )
+
+
 def check_database(url: str) -> DatabaseCheck:
     """A fresh connection and one query, within TIMEOUT_S seconds each."""
     address = address_of(url)
     try:
-        with psycopg.connect(url, connect_timeout=TIMEOUT_S) as connection:
+        with open_connection(url) as connection:
             connection.execute("SELECT 1")
             server_version = connection.info.server_version
     except psycopg.OperationalError as err:
