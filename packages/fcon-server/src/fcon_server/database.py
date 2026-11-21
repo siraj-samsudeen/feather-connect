@@ -2,8 +2,11 @@
 problem it has. It returns facts; the command line words them for a person,
 and /readyz says one word.
 
-No connection pool yet (design decision 2): each check opens a fresh
-connection, runs one query and closes it, so a problem keeps its cause.
+Readiness keeps its own connection (storage-foundation, decision 3): each
+check opens a fresh connection, runs its few queries and closes it, so a
+problem keeps its cause. Beyond the connection it reads the database's
+encoding, whether the ICU collation exists, the upgrades recorded against
+this version's files, and the audit log's monthly partitions.
 """
 
 import re
@@ -11,15 +14,22 @@ import socket
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from enum import StrEnum
+from pathlib import Path
 
 import psycopg
 from psycopg import conninfo
+
+from fcon_server.store.clock import Clock, SystemClock
+from fcon_server.store.migrate import MIGRATIONS, MigrationStatus, audit_months, read_migrations, read_status
 
 TIMEOUT_S = 2
 # Windows reports a refused port on its own machine only after about 2 s of
 # retries, so the probe (diagnose_database) waits longer than the check.
 PROBE_TIMEOUT_S = 5
 OLDEST_SUPPORTED = 180000  # Postgres 18.0, as server_version_num counts it
+ENCODING = "UTF8"
+ICU_COLLATION = "und-x-icu"
+_SYSTEM_CLOCK = SystemClock()
 
 REFUSED = "connection refused"
 TIMED_OUT = "timed out"
@@ -31,6 +41,15 @@ class Problem(StrEnum):
     LOGIN_REFUSED = "login refused"
     DATABASE_MISSING = "database missing"
     TOO_OLD = "too old"
+    NOT_UTF8 = "not utf-8"
+    CHANGED = "upgrade changed"
+    BEHIND = "behind"
+    AUDIT_MONTH_MISSING = "audit month missing"
+
+
+# What stops a command from reaching the database at all; the others only
+# make the server not ready (a command such as `fcon db upgrade` fixes some).
+CONNECTION_PROBLEMS = frozenset({Problem.UNREACHABLE, Problem.LOGIN_REFUSED, Problem.DATABASE_MISSING, Problem.TOO_OLD})
 
 
 @dataclass(frozen=True)
@@ -46,14 +65,21 @@ class DatabaseAddress:
 @dataclass(frozen=True)
 class DatabaseCheck:
     """Usable when `problem` is None. `reason` says why it is unreachable,
-    `version` is the version found, `detail` the driver's own first line:
-    all for the log, never for a reply."""
+    `version` is the version found, `detail` the driver's own first line;
+    `encoding`, `icu` (whether the ICU collation exists), `migrations` (the
+    upgrades against this version's files) and `months_ahead` (the audit
+    months made after the current one) once connected: all for the log,
+    never for a reply."""
 
     address: DatabaseAddress
     problem: Problem | None = None
     reason: str = ""
     version: str = ""
     detail: str = ""
+    encoding: str = ""
+    icu: bool = True
+    migrations: MigrationStatus | None = None
+    months_ahead: int = 0
 
 
 # libpq gives no error code at connection time, only Postgres's English text.
@@ -133,17 +159,65 @@ def open_connection(url: str) -> psycopg.Connection[tuple[object, ...]]:
     )
 
 
-def check_database(url: str) -> DatabaseCheck:
-    """A fresh connection and one query, within TIMEOUT_S seconds each."""
+def _one(connection: psycopg.Connection[tuple[object, ...]], query: str, *params: object) -> object:
+    row = connection.execute(query.encode(), params).fetchone()
+    return row[0] if row else None
+
+
+def _audit_partitions(connection: psycopg.Connection[tuple[object, ...]]) -> set[str]:
+    rows = connection.execute(
+        "SELECT c.relname FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid"
+        " WHERE i.inhparent = to_regclass('fcon.audit')"
+    ).fetchall()
+    return {str(row[0]) for row in rows}
+
+
+def _months_ahead(partitions: set[str], clock: Clock) -> tuple[bool, int]:
+    """Whether the current UTC month has its partition, and how many months
+    in a row after it do."""
+    current, *ahead = (f"audit_{month:%Y_%m}" for month in audit_months(clock.now()))
+    count = 0
+    for name in ahead:
+        if name not in partitions:
+            break
+        count += 1
+    return current in partitions, count
+
+
+def _readiness_problem(encoding: str, status: MigrationStatus, has_current_month: bool) -> Problem | None:
+    if encoding != ENCODING:
+        return Problem.NOT_UTF8
+    if status.changed:
+        return Problem.CHANGED
+    if status.waiting:
+        return Problem.BEHIND
+    if not has_current_month:
+        return Problem.AUDIT_MONTH_MISSING
+    return None
+
+
+def check_database(url: str, *, clock: Clock = _SYSTEM_CLOCK, directory: Path = MIGRATIONS) -> DatabaseCheck:
+    """A fresh connection and a few queries, within TIMEOUT_S seconds each."""
     address = address_of(url)
     try:
         with open_connection(url) as connection:
             connection.execute("SELECT 1")
-            server_version = connection.info.server_version
+            version = assess_version(address, connection.info.server_version)
+            encoding = connection.info.parameter_status("server_encoding") or ""
+            icu = _one(connection, "SELECT EXISTS (SELECT 1 FROM pg_collation WHERE collname = %s)", ICU_COLLATION)
+            status = read_status(connection, read_migrations(directory))
+            has_current_month, months_ahead = _months_ahead(_audit_partitions(connection), clock)
     except psycopg.Error as err:  # any driver error: not ready, never a 500
         problem, reason = classify(str(err))
         return DatabaseCheck(address=address, problem=problem, reason=reason, detail=first_line(str(err)))
-    return assess_version(address, server_version)
+    return replace(
+        version,
+        problem=version.problem or _readiness_problem(encoding, status, has_current_month),
+        encoding=encoding,
+        icu=bool(icu),
+        migrations=status,
+        months_ahead=months_ahead,
+    )
 
 
 def diagnose_database(

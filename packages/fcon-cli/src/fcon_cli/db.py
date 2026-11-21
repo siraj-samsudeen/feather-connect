@@ -8,7 +8,7 @@ from typing import TextIO
 from fcon_cli import problems
 from fcon_cli.problems import ProblemError
 from fcon_cli.settings import DatabaseSettings
-from fcon_server.database import diagnose_database
+from fcon_server.database import CONNECTION_PROBLEMS, diagnose_database
 from fcon_server.store.clock import Clock
 from fcon_server.store.migrate import MigrationStatus, UpgradeResult, migration_status, upgrade
 
@@ -21,8 +21,9 @@ def format_time(when: datetime) -> str:
 
 
 def _usable(url: str, setting: str) -> None:
+    """Reachable: a database behind or changed is what these commands are for."""
     check = diagnose_database(url)
-    if check.problem is not None:
+    if check.problem in CONNECTION_PROBLEMS:
         raise ProblemError(problems.database_unusable(check, setting))
 
 
