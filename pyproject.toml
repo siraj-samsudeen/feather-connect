@@ -100,4 +100,5 @@ ignore_names = [
     "heading",
     "link_text",
     "link_href",
+    "total_tokens",  # anyio's thread limit, set by a test that fills every worker thread
 ]
