@@ -139,7 +139,7 @@ def check_database(url: str) -> DatabaseCheck:
         with open_connection(url) as connection:
             connection.execute("SELECT 1")
             server_version = connection.info.server_version
-    except psycopg.OperationalError as err:
+    except psycopg.Error as err:  # any driver error: not ready, never a 500
         problem, reason = classify(str(err))
         return DatabaseCheck(address=address, problem=problem, reason=reason, detail=first_line(str(err)))
     return assess_version(address, server_version)
