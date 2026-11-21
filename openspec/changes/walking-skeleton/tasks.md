@@ -1,8 +1,8 @@
 ## 1. First-time setup — each task is ticked by the red/green pair of the first outer test that needs it
 
 - [x] 1.1 Confirm the acceptance stack: `stack: python` in `openspec/config.yaml`
-- [ ] 1.2 Set up the application skeleton so the app can boot: the uv workspace (Python 3.14, one lock file), `packages/feather-connect`, `packages/feather-server`, `packages/feather-cli` with the `feather server` command; `compose.yaml` (Postgres 18 on `127.0.0.1:5442`, project name fixed) and `.env.example`
-- [ ] 1.3 Create `acceptance-tests/` at the repo root as an independent uv project on Python 3.14, left out of the workspace, that creates a throwaway database, starts `feather server` on `ACCEPTANCE_PORT`, waits for readiness, and stops it and drops the database at the end
+- [x] 1.2 Set up the application skeleton so the app can boot: the uv workspace (Python 3.14, one lock file), `packages/feather-connect`, `packages/feather-server`, `packages/feather-cli` with the `feather server` command; `compose.yaml` (Postgres 18 on `127.0.0.1:5442`, project name fixed) and `.env.example`
+- [x] 1.3 Create `acceptance-tests/` at the repo root as an independent uv project on Python 3.14, left out of the workspace, that creates a throwaway database, starts `feather server` on `ACCEPTANCE_PORT`, waits for readiness, and stops it and drops the database at the end
 - [ ] 1.4 Copy the Python pack's files verbatim into `acceptance-tests/` (`references/python/SETUP.md` "Files to copy"), so the runner extracts the Gherkin from every `spec.md` under `openspec/` into `acceptance-tests/.extracted/`, excluding `openspec/changes/archive/`; fill in the `PROJECT:` lines of `support/`
 - [x] 1.5 Make the single test command always generate an HTML report under `acceptance-tests/reports/`
 - [x] 1.6 Gitignore `acceptance-tests/.extracted/` and `acceptance-tests/reports/` (no separate spec lint: the runner's own parse is the check)
@@ -12,16 +12,16 @@
 
 ### Logs and health
 
-- [ ] 2.1 logs-and-health: Given the product is running with its database — red → green → commit
-- [ ] 2.2 logs-and-health: When a monitor checks it — red → green → commit
-- [ ] 2.3 logs-and-health: Then the product answers that it is running — red → green → commit
-- [ ] 2.4 logs-and-health: And it answers that it is ready to take work — red → green → commit
-- [ ] 2.5 logs-and-health: Given the product is running — red → green → commit
-- [ ] 2.6 logs-and-health: But its database cannot be reached — red → green → commit
-- [ ] 2.7 logs-and-health: But it answers that it is not ready, because its database is unavailable — red → green → commit
-- [ ] 2.8 logs-and-health: And the answer does not say where the database is — red → green → commit
-- [ ] 2.9 logs-and-health: When a monitor makes a quick check that asks for no details — red → green → commit
-- [ ] 2.10 logs-and-health: Then the monitor is told the product is running — red → green → commit
+- [x] 2.1 logs-and-health: Given the product is running with its database — red → green → commit
+- [x] 2.2 logs-and-health: When a monitor checks it — red → green → commit
+- [x] 2.3 logs-and-health: Then the product answers that it is running — red → green → commit
+- [x] 2.4 logs-and-health: And it answers that it is ready to take work — red → green → commit
+- [x] 2.5 logs-and-health: Given the product is running — red → green → commit
+- [x] 2.6 logs-and-health: But its database cannot be reached — red → green → commit
+- [x] 2.7 logs-and-health: But it answers that it is not ready, because its database is unavailable — red → green → commit
+- [x] 2.8 logs-and-health: And the answer does not say where the database is — red → green → commit
+- [x] 2.9 logs-and-health: When a monitor makes a quick check that asks for no details — red → green → commit
+- [x] 2.10 logs-and-health: Then the monitor is told the product is running — red → green → commit
 
 ### Users and access
 
@@ -61,7 +61,7 @@
 
 ## 3. What no scenario drives — each still arrives with the test or check that needs it
 
-- [ ] 3.1 The import rule: a test that the flow library imports neither the server nor the command line
+- [x] 3.1 The import rule: a test that the flow library imports neither the server nor the command line
 - [ ] 3.2 `scripts/worktree_env.py <n>` writes the worktree's `.env` and creates `feather_issue_<n>`; `--drop` removes it; same on Windows and Linux
 - [ ] 3.3 CI on GitHub Actions: the checks, tests, acceptance, other-systems and specs jobs of issue 4 point 9; actions pinned by commit id; read-only token; caches
 - [ ] 3.4 The relaxed checks until M1 (#5): weekly mutmut report on `main`, Windows and macOS not blocking, Dependabot monthly and grouped
