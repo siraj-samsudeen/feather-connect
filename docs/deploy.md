@@ -113,14 +113,20 @@ docker compose -f deploy/compose.yaml logs caddy
 
 ```sh
 git pull
-docker compose -f deploy/compose.yaml up -d --build
+docker compose -f deploy/compose.yaml build
+docker compose -f deploy/compose.yaml run --rm migrate
+docker compose -f deploy/compose.yaml up -d
 ```
 
-The upgrade runs first. If it fails, Compose has already stopped the old server, and the new one
-does not start: the site answers with an error until the upgrade succeeds. The command says
-`service "migrate" didn't complete successfully`, and the log of `migrate` says why. Fix the
-cause, often the database's address or its server, and run the same command again. An upgrade
-that failed leaves the upgrades before it in place, and the next run carries on from there.
+The third command upgrades the database while the old server keeps serving: upgrades only add,
+so the old version keeps working on the upgraded database. If it fails, it says why, and nothing
+else has changed: fix the cause, often the database's address or its server, and run it again. An
+upgrade that failed leaves the upgrades before it in place, and the next run carries on from
+there. The last command then replaces the server; its own upgrade step finds nothing left to do.
+
+Running only `up -d --build` also upgrades first, but Compose stops the old server before the
+upgrade runs: if the upgrade then fails (`service "migrate" didn't complete successfully`), the
+new server does not start, and the site answers with an error until the upgrade succeeds.
 
 ### A Postgres on the same machine
 
