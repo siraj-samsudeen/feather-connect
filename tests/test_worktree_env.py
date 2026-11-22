@@ -50,6 +50,27 @@ def test_a_value_it_replaces_is_reported():
     assert changes == ["FCON_PORT: 8080 -> 18004"]
 
 
+def test_a_default_is_added_when_its_key_is_missing():
+    text, changes = worktree_env.merge_env("OTHER=1\n", {"FCON_PORT": "18004"}, {"FCON_SECRET_KEY": "new"})
+
+    assert text == "OTHER=1\nFCON_PORT=18004\nFCON_SECRET_KEY=new\n"
+    assert changes == []
+
+
+def test_a_default_never_replaces_a_value_already_there():
+    text, changes = worktree_env.merge_env("FCON_SECRET_KEY=mine\n", {}, {"FCON_SECRET_KEY": "new"})
+
+    assert text == "FCON_SECRET_KEY=mine\n"
+    assert changes == []
+
+
+def test_a_new_secret_key_is_random_and_long_enough():
+    first, second = worktree_env.new_secret_key(), worktree_env.new_secret_key()
+
+    assert first != second
+    assert len(first) >= 32
+
+
 def test_a_new_env_file_is_written(tmp_path: Path):
     message = worktree_env.write_env(tmp_path, {"FCON_PORT": "18004"})
 
@@ -69,6 +90,13 @@ def test_an_env_file_already_right_is_left_alone(tmp_path: Path):
     (tmp_path / ".env").write_text("FCON_PORT=18004\n", encoding="utf-8")
 
     assert worktree_env.write_env(tmp_path, {"FCON_PORT": "18004"}) == f"{tmp_path / '.env'} already up to date"
+
+
+def _secret_key(root: Path) -> str:
+    lines = (root / ".env").read_text(encoding="utf-8").splitlines()
+    keys = [line.partition("=")[2] for line in lines if line.startswith("FCON_SECRET_KEY=")]
+    assert len(keys) == 1, lines
+    return keys[0]
 
 
 def _exists(server_url: str, name: str) -> bool:
@@ -111,6 +139,24 @@ def test_the_command_writes_the_env_file_and_creates_the_database(
         assert f"FCON_PORT={18000 + number}\n" in (tmp_path / ".env").read_text(encoding="utf-8")
         assert _exists(database_url, f"feather_issue_{number}")
         assert f"created database feather_issue_{number}" in capsys.readouterr().out
+    finally:
+        worktree_env.drop_database(database_url, f"feather_issue_{number}")
+
+
+@pytest.mark.database
+def test_the_command_writes_a_secret_key_once_and_keeps_it(
+    tmp_path: Path, database_url: str, capsys: pytest.CaptureFixture[str]
+):
+    number = 40000 + uuid.uuid4().int % 6000
+    try:
+        worktree_env.main([str(number)], root=tmp_path, server_url=database_url)
+        first = _secret_key(tmp_path)
+
+        worktree_env.main([str(number)], root=tmp_path, server_url=database_url)
+
+        assert len(first) >= 32
+        assert _secret_key(tmp_path) == first
+        assert first not in capsys.readouterr().out
     finally:
         worktree_env.drop_database(database_url, f"feather_issue_{number}")
 

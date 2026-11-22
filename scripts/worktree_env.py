@@ -7,11 +7,13 @@ The ports come from the issue number: development 18000 + n, acceptance
 19000 + n. The database lives in the shared development container of
 compose.yaml (start it once: docker compose up -d). An existing .env keeps
 every other line; the three keys are replaced in place, and each value that
-changes is reported. Each run then upgrades the database, as `fcon db upgrade`
+changes is reported. A random FCON_SECRET_KEY is added when the file has none;
+one already there is kept. Each run then upgrades the database, as `fcon db upgrade`
 does. Works the same on Windows and Linux.
 """
 
 import argparse
+import secrets
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -27,6 +29,12 @@ SERVER_URL = "postgresql://feather:feather@127.0.0.1:5442/feather"
 DATABASE_URL = "postgresql://feather:feather@127.0.0.1:5442/{name}"
 START_IT = "start the database: docker compose up -d"
 LAST = 65535 - 19000
+KEY_VARIABLE = "FCON_SECRET_KEY"
+
+
+def new_secret_key() -> str:
+    """A random secret key, as .env.example says to make one."""
+    return secrets.token_urlsafe(32)
 
 
 def database_name(number: int) -> str:
@@ -43,11 +51,14 @@ def env_values(number: int) -> dict[str, str]:
     }
 
 
-def merge_env(text: str, values: Mapping[str, str]) -> tuple[str, list[str]]:
-    """The .env text with `values` set, and a line for each value it replaced."""
+def merge_env(text: str, values: Mapping[str, str], defaults: Mapping[str, str] | None = None) -> tuple[str, list[str]]:
+    """The .env text with `values` set, `defaults` added only where their key
+    is missing, and a line for each value it replaced."""
     lines = text.splitlines()
     changes: list[str] = []
     missing = dict(values)
+    present = {line.partition("=")[0].strip() for line in lines if "=" in line}
+    missing.update({key: value for key, value in (defaults or {}).items() if key not in present})
     for index, line in enumerate(lines):
         key, sep, old = line.partition("=")
         key = key.strip()
@@ -60,13 +71,13 @@ def merge_env(text: str, values: Mapping[str, str]) -> tuple[str, list[str]]:
     return "".join(f"{line}\n" for line in lines), changes
 
 
-def write_env(root: Path, values: Mapping[str, str]) -> str:
+def write_env(root: Path, values: Mapping[str, str], defaults: Mapping[str, str] | None = None) -> str:
     path = root / ".env"
     if not path.exists():
-        path.write_text(merge_env("", values)[0], encoding="utf-8")
+        path.write_text(merge_env("", values, defaults)[0], encoding="utf-8")
         return f"wrote {path}"
     old = path.read_text(encoding="utf-8")
-    new, changes = merge_env(old, values)
+    new, changes = merge_env(old, values, defaults)
     if new == old:
         return f"{path} already up to date"
     path.write_text(new, encoding="utf-8")
@@ -128,7 +139,7 @@ def main(argv: Sequence[str], root: Path = ROOT, server_url: str = SERVER_URL) -
             done = drop_database(server_url, name)
             print(f"dropped database {name}" if done else f"database {name} did not exist")
             return 0
-        print(write_env(root, values))
+        print(write_env(root, values, {KEY_VARIABLE: new_secret_key()}))
         done = create_database(server_url, name)
         print(f"created database {name}" if done else f"database {name} already exists")
         upgraded = upgrade_database(server_url, name)

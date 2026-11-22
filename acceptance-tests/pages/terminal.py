@@ -63,7 +63,8 @@ class Result:
 class Terminal:
     def __init__(self, world):
         self.world = world
-        self.env = {}  # the FCON_* settings the scenario gives the command
+        # The FCON_* settings the scenario gives the command: the secret key every install needs, to start.
+        self.env = {stack.SECRET_KEY_SETTING: stack.SECRET_KEY}
         self.port = None  # the port the server is told to listen on
         self.result = None
         self._held = None  # the other program's socket, while the scenario lasts

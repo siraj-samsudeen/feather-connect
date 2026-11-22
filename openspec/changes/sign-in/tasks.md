@@ -1,6 +1,6 @@
 ## 1. First-time setup — `acceptance-tests/` already exists; this change only adds to it
 
-- [ ] 1.1 The suite's stack gives the server it starts a random `FCON_SECRET_KEY`, and the image's containers one too, so the scenarios already on `main` keep passing once the key is required; `scripts/worktree_env.py` writes a random key into `.env` (design, Migration Plan)
+- [x] 1.1 The suite's stack gives the server it starts a random `FCON_SECRET_KEY`, and the image's containers one too, so the scenarios already on `main` keep passing once the key is required; `scripts/worktree_env.py` writes a random key into `.env` (design, Migration Plan)
 - [ ] 1.2 The suite's support for users, delivered by the red/green of the first step that needs it: a page object for the command line's `fcon users` (password on stdin), one for the overview, one for choose-password, one for the expired form, and a way to read the scenario database's audit log, sessions and attempts; every URL, command and text in page objects, none in steps
 
 ## 2. Step definitions — one task per pending step; each = fails for the right reason → implement → passes → commit

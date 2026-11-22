@@ -17,7 +17,7 @@ import time
 import urllib.error
 import urllib.request
 
-from support import docker
+from support import docker, stack
 
 POSTGRES_PORT = 5432
 DATABASE = "fcon"
@@ -164,7 +164,7 @@ class ContainerHost:
         answers there."""
         self._require_database()
         image = docker.image()
-        settings = {DATABASE_SETTING: self.app_address}
+        settings = {DATABASE_SETTING: self.app_address, stack.SECRET_KEY_SETTING: stack.SECRET_KEY}
         self.container_port = DEFAULT_PORT
         if self.host_port is not None:
             settings[HOST_PORT_SETTING] = str(self.host_port)

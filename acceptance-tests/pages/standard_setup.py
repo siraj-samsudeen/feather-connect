@@ -138,10 +138,11 @@ class StandardSetup:
         REPORTS.mkdir(parents=True, exist_ok=True)
         self.env_file = REPORTS / ("%s.env" % self.project)
         self.env_file.write_text(
-            "%s=%s\n%s=%s\n%s=%s\n" % (
+            "%s=%s\n%s=%s\n%s=%s\n%s=%s\n" % (
                 SITE_SETTING, SITE_NAME,
                 MIGRATION_DATABASE_SETTING, self.host.owner_address,
                 DATABASE_SETTING, self.host.app_address,
+                stack.SECRET_KEY_SETTING, stack.SECRET_KEY,
             ),
             encoding="utf-8",
         )  # fmt: skip

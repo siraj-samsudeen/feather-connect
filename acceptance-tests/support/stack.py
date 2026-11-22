@@ -8,6 +8,7 @@ The standard library, plus psycopg to make the run's own database.
 
 import atexit
 import os
+import secrets
 import shutil
 import signal
 import socket
@@ -33,6 +34,11 @@ PORT = int(os.environ.get("ACCEPTANCE_PORT", "8030"))
 BASE_URL = "http://127.0.0.1:%d" % PORT
 BOOT_TIMEOUT_S = 240
 
+# The secret key every install needs (FCON_SECRET_KEY): a random one per run,
+# given to every server this run starts and to the image's containers.
+SECRET_KEY_SETTING = "FCON_SECRET_KEY"
+SECRET_KEY = secrets.token_urlsafe(32)
+
 # PROJECT: the command that starts the app on this port and on its own,
 # freshly reset database, and a URL that answers 2xx once it is up.
 # A server-rendered app is one service: the server renders the pages itself.
@@ -42,7 +48,7 @@ SERVICES = [
     {
         "name": "server",
         "command": ["uv", "run", "fcon", "server", "--host", "127.0.0.1", "--port", str(PORT)],
-        "env": {},  # FCON_DATABASE_URL: the run's own database, set by prepare()
+        "env": {SECRET_KEY_SETTING: SECRET_KEY},  # FCON_DATABASE_URL: the run's own database, set by prepare()
         "ready_url": BASE_URL + "/readyz",
         "port": (PORT, "ACCEPTANCE_PORT"),
     },
@@ -120,9 +126,10 @@ def fcon_environment(settings):
     return env
 
 
-def start_fcon(arguments, settings):
+def start_fcon(arguments, settings, stdin_text=None):
     """`uv run fcon <arguments>`, from an empty directory of its own (so no
-    .env fills in a setting), with only the given FCON_* settings. Returns the
+    .env fills in a setting), with only the given FCON_* settings, and
+    `stdin_text` as what is typed into it (nothing, when None). Returns the
     running process, its stdout and stderr piped; finish it with finish_fcon()."""
     command = [shutil.which("uv") or "uv", "run", "--project", str(REPO_ROOT), "fcon", *arguments]
     own_group = (
@@ -135,12 +142,13 @@ def start_fcon(arguments, settings):
         command,
         cwd=empty,
         env=fcon_environment(settings),
-        stdin=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL if stdin_text is None else subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         **own_group,
     )
     process.empty_directory = empty
+    process.stdin_bytes = None if stdin_text is None else stdin_text.encode("utf-8")
     track(process, "fcon " + " ".join(arguments))
     return process
 
@@ -150,7 +158,7 @@ def finish_fcon(process):
     stderr, timed out?), the texts with Unix line endings."""
     timed_out = False
     try:
-        out, err = process.communicate(timeout=COMMAND_TIMEOUT_S)
+        out, err = process.communicate(input=process.stdin_bytes, timeout=COMMAND_TIMEOUT_S)
     except subprocess.TimeoutExpired:
         timed_out = True
         stop(process)
@@ -279,7 +287,7 @@ def start_server(name, database_url, ready_path="/healthz"):
     service = {
         "name": name,
         "command": ["uv", "run", "fcon", "server", "--host", "127.0.0.1", "--port", str(port)],
-        "env": {"FCON_DATABASE_URL": database_url},
+        "env": {"FCON_DATABASE_URL": database_url, SECRET_KEY_SETTING: SECRET_KEY},
         "ready_url": base_url + ready_path,
     }
     process, log_path = _start(service)
