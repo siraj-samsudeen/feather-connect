@@ -4,6 +4,7 @@ starts, without waiting for the database, and closed when it stops."""
 import time
 from dataclasses import dataclass
 
+import psycopg
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -99,3 +100,16 @@ def test_the_pool_is_closed_when_the_server_stops(database_url: str):
         pass
 
     assert app.state.pool.closed
+
+
+@pytest.mark.database
+def test_a_connection_lost_while_idle_is_replaced_before_use(database_url: str, tenant: Context):
+    app = build_app(database_url, pool_size=1)
+
+    with TestClient(app):
+        with app.state.pool.connection() as connection:
+            lost = connection.info.backend_pid
+        with psycopg.connect(database_url, autocommit=True) as other:
+            other.execute("SELECT pg_terminate_backend(%s)", [lost])
+
+        assert setting_of(app, tenant, "application_name") == "fcon-server"
