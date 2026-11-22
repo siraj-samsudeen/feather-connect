@@ -172,6 +172,16 @@ def test_a_text_line_carries_the_tenant_of_the_bound_context_before_its_message(
     assert stream.getvalue().rstrip().endswith("INFO tenant=acme-test request_id=req-1 saved")
 
 
+def test_a_request_id_with_a_line_break_stays_on_its_text_line():
+    stream = io.StringIO()
+    configure_logging("text", stream)
+
+    with bind(Context(tenant_id="acme-test", actor="system:test", request_id="req-1\nINFO forged\t\x1b[2J")):
+        logging.getLogger("fcon").info("saved")
+
+    assert stream.getvalue().rstrip().endswith(r"INFO tenant=acme-test request_id=req-1\nINFO forged\t\u001b[2J saved")
+
+
 def test_a_problem_on_a_terminal_carries_the_tenant_of_the_bound_context():
     stream = Terminal()
     configure_logging("", stream)

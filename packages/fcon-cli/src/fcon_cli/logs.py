@@ -36,6 +36,12 @@ def time_of(record: logging.LogRecord) -> str:
     return datetime.fromtimestamp(record.created, UTC).isoformat(timespec="milliseconds")
 
 
+def _one_line(value: str) -> str:
+    """A line break or a control character escaped as JSON writes it, so a
+    request id sent by a client cannot start a line of its own."""
+    return json.dumps(value, ensure_ascii=False)[1:-1]
+
+
 class Text(logging.Formatter):
     """A problem's text starts with its own level ("warning: ..."), so its
     line leaves out the level name."""
@@ -47,7 +53,7 @@ class Text(logging.Formatter):
         return time_of(record)
 
     def formatMessage(self, record: logging.LogRecord) -> str:
-        fields = "".join(f"{name}={value} " for name, value in _context_fields().items())
+        fields = "".join(f"{name}={_one_line(value)} " for name, value in _context_fields().items())
         if getattr(record, _PROBLEM, False):
             return f"{record.asctime} {fields}{record.message}"
         return f"{record.asctime} {record.levelname} {fields}{record.message}"
