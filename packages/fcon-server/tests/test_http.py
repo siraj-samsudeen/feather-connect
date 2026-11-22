@@ -4,13 +4,15 @@ import pytest
 from fastapi.testclient import TestClient
 
 from fcon_server.app import create_app
+from fcon_server.signing import SecretKeys
 
+KEYS = SecretKeys("a-test-secret-key-of-32-characters-or-more")
 NO_DATABASE = "postgresql://nobody:secret@127.0.0.1:9/nowhere"
 
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(create_app(NO_DATABASE))
+    return TestClient(create_app(NO_DATABASE, keys=KEYS))
 
 
 def test_head_is_answered_like_get_without_the_body(client: TestClient):

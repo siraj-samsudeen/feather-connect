@@ -16,6 +16,8 @@
   --alert-border: #e3a1a1;
   --alert-text: #8a1c1c;
   --focus: #1f5fbf;
+  --tint: #e6effb;
+  --tint-text: #1a4f9e;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -32,6 +34,8 @@
     --alert-border: #8a3a3a;
     --alert-text: #ffc9c9;
     --focus: #8ab8ff;
+    --tint: #1e2c44;
+    --tint-text: #b9d3ff;
   }
 }
 
@@ -134,4 +138,58 @@ a {
 :focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
+}
+
+/* The pages behind sign-in: a header across the top, the page below. */
+
+body.app {
+  display: block;
+  padding: 0;
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.top p {
+  margin: 0;
+}
+
+.brand {
+  font-weight: 700;
+}
+
+.environment {
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: var(--tint);
+  color: var(--tint-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.top .who {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.top form {
+  display: block;
+}
+
+.top button {
+  margin: 0;
+  padding: 0.375rem 0.75rem;
+}
+
+.page {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
 }

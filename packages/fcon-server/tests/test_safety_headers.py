@@ -11,7 +11,9 @@ from starlette.routing import Route
 
 from fcon_server.app import create_app
 from fcon_server.middleware import SafetyHeaders
+from fcon_server.signing import SecretKeys
 
+KEYS = SecretKeys("a-test-secret-key-of-32-characters-or-more")
 NO_DATABASE = "postgresql://nobody:secret@127.0.0.1:9/nowhere"
 
 SAFETY_HEADERS = {
@@ -35,7 +37,7 @@ def safety_headers_of(headers: Mapping[str, str]) -> dict[str, str | None]:
     ids=["an-answer", "a-head-answer", "not-found", "method-not-allowed"],
 )
 def test_every_answer_carries_the_safety_headers(method: str, path: str):
-    client = TestClient(create_app(NO_DATABASE))
+    client = TestClient(create_app(NO_DATABASE, keys=KEYS))
 
     response = client.request(method, path)
 

@@ -9,7 +9,9 @@ from fastapi.testclient import TestClient
 
 from fcon_server.app import build_app, create_app, with_middleware
 from fcon_server.pages import error_view, not_found_view
+from fcon_server.signing import SecretKeys
 
+KEYS = SecretKeys("a-test-secret-key-of-32-characters-or-more")
 NO_DATABASE = "postgresql://nobody:secret@127.0.0.1:9/nowhere"
 MISSING = "/runs/a-made-up-address"
 FAILURE = "a made-up failure inside the server"
@@ -17,13 +19,13 @@ FAILURE = "a made-up failure inside the server"
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(create_app(NO_DATABASE))
+    return TestClient(create_app(NO_DATABASE, keys=KEYS))
 
 
 @pytest.fixture
 def crashing_client() -> TestClient:
     """The app with one more route, only here, that fails as a bug would."""
-    app = build_app(NO_DATABASE)
+    app = build_app(NO_DATABASE, keys=KEYS)
 
     def crash() -> None:
         raise RuntimeError(FAILURE)

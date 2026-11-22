@@ -23,7 +23,9 @@ def connection(database_url: str) -> Iterator[psycopg.Connection[tuple[object, .
 
 
 def test_the_default_tenant_is_a_production_tenant(connection: psycopg.Connection[tuple[object, ...]]):
-    rows = connection.execute("SELECT kind, made_from, created_by, row_version FROM fcon.tenant").fetchall()
+    rows = connection.execute(
+        "SELECT kind, made_from, created_by, row_version FROM fcon.tenant WHERE tenant_id = 'default'"
+    ).fetchall()
 
     assert rows == [("production", None, "system:migration", 1)]
 

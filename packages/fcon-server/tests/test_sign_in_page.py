@@ -1,18 +1,20 @@
-"""The front door and the sign-in page, as a browser is answered."""
+"""The front door and the sign-in page, as a browser is answered; signing in
+itself is in test_signing_in.py."""
 
 import pytest
 from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
 from fcon_server.app import create_app
+from fcon_server.signing import SecretKeys
 
 NO_DATABASE = "postgresql://nobody:secret@127.0.0.1:9/nowhere"
-REFUSAL = "The user name or password is wrong."
+KEYS = SecretKeys("a-test-secret-key-of-32-characters-or-more")
 
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(create_app(NO_DATABASE))
+    return TestClient(create_app(NO_DATABASE, keys=KEYS))
 
 
 def parse(html: str) -> BeautifulSoup:
@@ -57,37 +59,3 @@ def test_the_sign_in_form_posts_to_sign_in_with_its_button(client: TestClient):
     assert isinstance(form, Tag)
     buttons = [button.get_text(strip=True) for button in form.find_all("button")]
     assert (form["method"], form["action"], buttons) == ("post", "/sign-in", ["Sign in"])
-
-
-def test_a_sign_in_is_refused_with_the_same_words(client: TestClient):
-    response = client.post("/sign-in", data={"username": "alex", "password": "letmein"})
-
-    alerts = [alert.get_text(strip=True) for alert in parse(response.text).select('[role="alert"]')]
-    assert (response.status_code, alerts) == (200, [REFUSAL])
-
-
-def test_a_refused_sign_in_is_titled_as_failed(client: TestClient):
-    response = client.post("/sign-in", data={"username": "alex", "password": "letmein"})
-
-    title = parse(response.text).title
-    assert title is not None
-    assert title.get_text().startswith("Sign-in failed")
-
-
-def test_a_refused_sign_in_keeps_the_user_name_typed(client: TestClient):
-    response = client.post("/sign-in", data={"username": "alex", "password": "letmein"})
-
-    assert field_labelled(parse(response.text), "User name")["value"] == "alex"
-
-
-def test_a_refused_sign_in_never_shows_the_password(client: TestClient):
-    response = client.post("/sign-in", data={"username": "alex", "password": "a-secret-word"})
-
-    assert "a-secret-word" not in response.text
-
-
-def test_a_sign_in_with_empty_fields_is_refused_too(client: TestClient):
-    response = client.post("/sign-in", data={})
-
-    alerts = [alert.get_text(strip=True) for alert in parse(response.text).select('[role="alert"]')]
-    assert (response.status_code, alerts) == (200, [REFUSAL])

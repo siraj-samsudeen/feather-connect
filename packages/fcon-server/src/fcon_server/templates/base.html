@@ -6,9 +6,11 @@
 <title>{{ view.title }}</title>
 <link rel="stylesheet" href="{{ view.stylesheet }}">
 </head>
-<body>
+<body{% block body_attributes %}{% endblock %}>
+{% block body %}
 <main class="card">
 {% block content %}{% endblock %}
 </main>
+{% endblock %}
 </body>
 </html>

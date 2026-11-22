@@ -17,6 +17,7 @@ from fcon_cli.problems import Problem, ProblemError
 from fcon_cli.settings import Settings
 from fcon_cli.watch import DatabaseWatch
 from fcon_server.app import create_app
+from fcon_server.signing import SecretKeys
 
 log = logging.getLogger("fcon")
 
@@ -90,7 +91,15 @@ def run_server(settings: Settings) -> None:
     for sig in _STOP_SIGNALS:
         signal.signal(sig, _stop)
     config = uvicorn.Config(
-        create_app(settings.database_url, pool_size=settings.pool_size, prepare=settings.prepare),
+        create_app(
+            settings.database_url,
+            keys=SecretKeys(settings.secret_key, previous=settings.previous_secret_key),
+            environment=settings.environment,
+            # Plain http works only on this machine; beyond it, behind https (design point 8).
+            secure_cookies=not ipaddress.ip_address(host).is_loopback,
+            pool_size=settings.pool_size,
+            prepare=settings.prepare,
+        ),
         log_config=None,  # its lines go through the one logger
         proxy_headers=False,  # trusting a proxy's headers comes with real sign-in
         server_header=False,  # no server name or version for visitors
