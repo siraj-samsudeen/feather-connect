@@ -401,3 +401,46 @@ def test_an_update_refuses_a_column_the_store_fills(fixed_store: Store, tenant: 
 
     with pytest.raises(ValueError, match=column), fixed_store.transaction(tenant) as tx:
         tx.update(THING, {"id": thing_id}, {column: "caller"}, row_version=1)
+
+
+# -- a row that must go in once, and a change refused for a rule ----------------
+
+
+def test_a_row_added_if_absent_goes_in_with_its_audit_record(fixed_store: Store, tenant: Context):
+    with fixed_store.transaction(tenant) as tx:
+        key = tx.insert_if_absent(NOTE, {"id": FIXED_ID, "body": "hello"})
+
+    [audit] = audits(fixed_store, tenant, "fcon_test.note")
+    assert (key, audit.action, audit.row_key) == ({"id": FIXED_ID}, "insert", str(FIXED_ID))
+
+
+def test_a_row_added_if_absent_when_one_is_there_gives_nothing(fixed_store: Store, tenant: Context):
+    with fixed_store.transaction(tenant) as tx:
+        tx.insert(NOTE, {"id": FIXED_ID, "body": "hello"})
+
+    with fixed_store.transaction(tenant) as tx:
+        key = tx.insert_if_absent(NOTE, {"id": FIXED_ID, "body": "again"})
+
+    assert (key, len(audits(fixed_store, tenant, "fcon_test.note"))) == (None, 1)
+
+
+def test_a_refusal_writes_a_refused_audit_record_with_its_reason(fixed_store: Store, tenant: Context):
+    with fixed_store.transaction(tenant) as tx:
+        tx.refuse(THING, str(FIXED_ID), "the form's token is not the session's")
+
+    [audit] = audits(fixed_store, tenant)
+    assert (audit.action, audit.row_key, audit.reason, audit.created_by, audit.request_id) == (
+        "refused",
+        str(FIXED_ID),
+        "the form's token is not the session's",
+        "system:test",
+        tenant.request_id,
+    )
+
+
+def test_a_refusal_changes_no_row(fixed_store: Store, tenant: Context):
+    with fixed_store.transaction(tenant) as tx:
+        tx.refuse(THING, str(FIXED_ID), "a rule")
+
+    [audit] = audits(fixed_store, tenant)
+    assert (audit.before, audit.after) == (None, None)

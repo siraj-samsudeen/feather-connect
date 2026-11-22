@@ -9,7 +9,8 @@ opened by `Store.transaction`, carrying the context's tenant and actor.
   is what shows that no query reaches another tenant's rows.
 - `tx.insert` and `tx.update` write one row: they fill the tenant, the
   who-and-when columns and the row version, and write its audit record in the
-  same transaction.
+  same transaction. `tx.insert_if_absent` is `tx.insert` for what must happen
+  once; `tx.refuse` records a change refused for a rule, and writes nothing else.
 - `Store.transaction` never retries; `Store.run` runs a whole unit of work
   again, up to twice, on a deadlock or a serialization failure.
 - Database errors become the store's own (`errors`); a statement slower than
@@ -162,6 +163,24 @@ class Transaction:
     def insert(self, table: Table, values: Params) -> Row:
         """Adds one row and its audit record; gives the row's key besides the
         tenant, with the `id` made by `new_id()` when the key has one."""
+        key = self._insert(table, values, if_absent=False)
+        if key is None:  # pragma: no cover - an INSERT ... VALUES always returns its row
+            raise StoreError
+        return key
+
+    def insert_if_absent(self, table: Table, values: Params) -> Row | None:
+        """What must happen once (convention 13): adds the row and its audit
+        record unless a unique rule finds one there already
+        (`ON CONFLICT DO NOTHING`); gives its key, or None when nothing went in."""
+        return self._insert(table, values, if_absent=True)
+
+    def refuse(self, table: Table, row_key: str, reason: str) -> None:
+        """A change refused for a rule (design decision 3): a `refused` audit
+        record naming the row and why, and nothing else. An empty `row_key`
+        names the tenant."""
+        self._write_audit(table, "refused", row_key, None, None, reason)
+
+    def _insert(self, table: Table, values: Params, *, if_absent: bool) -> Row | None:
         _refuse_filled(values)
         now = self._clock.now()
         filled: Row = {**values, "tenant_id": self._context.tenant_id, "created_at": now}
@@ -170,17 +189,17 @@ class Transaction:
             filled["id"] = self._new_id()
         if table.changes:
             filled |= {"updated_at": now, "updated_by": self._context.actor, "row_version": 1}
-        query = sql.SQL("INSERT INTO {} ({}) VALUES ({}) RETURNING to_jsonb(OLD) AS before, to_jsonb(NEW) AS after")
-        changed = self._changed(
-            query.format(
-                _table(table),
-                sql.SQL(", ").join(sql.Identifier(column) for column in filled),
-                sql.SQL(", ").join(sql.Placeholder(column) for column in filled),
-            ),
-            filled,
+        query = sql.SQL(
+            "INSERT INTO {} ({}) VALUES ({}){} RETURNING to_jsonb(OLD) AS before, to_jsonb(NEW) AS after"
+        ).format(
+            _table(table),
+            sql.SQL(", ").join(sql.Identifier(column) for column in filled),
+            sql.SQL(", ").join(sql.Placeholder(column) for column in filled),
+            sql.SQL(" ON CONFLICT DO NOTHING" if if_absent else ""),
         )
-        if changed is None:  # pragma: no cover - an INSERT ... VALUES always returns its row
-            raise StoreError
+        changed = self._changed(query, filled)
+        if changed is None:
+            return None
         self._audit(table, "insert", changed)
         return {column: filled[column] for column in table.key if column != "tenant_id"}
 
@@ -218,6 +237,11 @@ class Transaction:
     def _audit(self, table: Table, action: str, changed: _Changed) -> None:
         before, after = _hide_secrets(table, changed)
         row_key = "/".join(str(changed.after[column]) for column in table.key if column != "tenant_id")
+        self._write_audit(table, action, row_key, before, after, self._context.reason)
+
+    def _write_audit(
+        self, table: Table, action: str, row_key: str, before: Row | None, after: Row | None, reason: str | None
+    ) -> None:
         self._run(
             self._connection.cursor(),
             _AUDIT,
@@ -231,8 +255,8 @@ class Transaction:
                 "action": action,
                 "row_key": row_key or self._context.tenant_id,
                 "before": None if before is None else Jsonb(before),
-                "after": Jsonb(after),
-                "reason": self._context.reason,
+                "after": None if after is None else Jsonb(after),
+                "reason": reason,
             },
         )
 
