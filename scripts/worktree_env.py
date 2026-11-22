@@ -1,4 +1,4 @@
-"""Set up a worktree for issue <n>: its .env and its own database.
+"""Set up a worktree for issue <n>: its .env and its own database, upgraded.
 
     uv run scripts/worktree_env.py <n>          # write .env, create feather_issue_<n>
     uv run scripts/worktree_env.py <n> --drop   # remove feather_issue_<n>
@@ -7,7 +7,8 @@ The ports come from the issue number: development 18000 + n, acceptance
 19000 + n. The database lives in the shared development container of
 compose.yaml (start it once: docker compose up -d). An existing .env keeps
 every other line; the three keys are replaced in place, and each value that
-changes is reported. Works the same on Windows and Linux.
+changes is reported. Each run then upgrades the database, as `fcon db upgrade`
+does. Works the same on Windows and Linux.
 """
 
 import argparse
@@ -16,7 +17,10 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import psycopg
-from psycopg import sql
+from psycopg import conninfo, sql
+
+from fcon_server.store.clock import SystemClock
+from fcon_server.store.migrate import upgrade
 
 ROOT = Path(__file__).resolve().parent.parent
 SERVER_URL = "postgresql://feather:feather@127.0.0.1:5442/feather"
@@ -92,6 +96,22 @@ def drop_database(server_url: str, name: str) -> bool:
         return True
 
 
+def upgrade_database(server_url: str, name: str) -> str | None:
+    """Applies the waiting upgrades; says what it did, or None when an
+    upgrade that ran has changed (nothing is applied then)."""
+    result = upgrade(conninfo.make_conninfo(server_url, dbname=name), SystemClock())
+    if result.changed:
+        print(
+            f"worktree_env.py: upgrade {result.changed[0]} has changed since it ran. "
+            "Restore it; never edit a migration that ran.",
+            file=sys.stderr,
+        )
+        return None
+    if not result.applied:
+        return f"database {name} is up to date"
+    return f"upgraded database {name}: {len(result.applied)} applied"
+
+
 def main(argv: Sequence[str], root: Path = ROOT, server_url: str = SERVER_URL) -> int:
     parser = argparse.ArgumentParser(prog="worktree_env.py", description="Set up a worktree's .env and database.")
     parser.add_argument("number", type=int, help="the issue number the worktree works on")
@@ -110,11 +130,15 @@ def main(argv: Sequence[str], root: Path = ROOT, server_url: str = SERVER_URL) -
             return 0
         print(write_env(root, values))
         done = create_database(server_url, name)
+        print(f"created database {name}" if done else f"database {name} already exists")
+        upgraded = upgrade_database(server_url, name)
     except psycopg.OperationalError as err:
         first_line = str(err).splitlines()[0] if str(err) else type(err).__name__
         print(f"worktree_env.py: cannot reach the database server ({first_line}).\n{START_IT}", file=sys.stderr)
         return 2
-    print(f"created database {name}" if done else f"database {name} already exists")
+    if upgraded is None:
+        return 2
+    print(upgraded)
     return 0
 
 
