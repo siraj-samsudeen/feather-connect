@@ -1,4 +1,4 @@
-"""Steps of the users-and-access capability: the sign-in page and a refused sign-in."""
+"""Steps of the users-and-access capability: users, signing in, and a refused sign-in."""
 
 from behave import given, then, when
 
@@ -15,12 +15,31 @@ def step_nobody_has_access(context):
     pass
 
 
+@given('"{name}" is an administrator with the password "{password}"')
+def step_administrator(context, name, password):
+    context.user_commands.add_administrator(name, password)
+
+
+@given("a new install with no users")
+def step_new_install(context):
+    empty, why = context.user_commands.no_users_yet()
+    assert empty, why
+
+
+@when('the operator adds the user "{name}" from the command line, with the password "{password}"')
+def step_operator_adds_user(context, name, password):
+    context.user_commands.add(name, password)
+    ended_well, why = context.user_commands.last_ended_well()
+    assert ended_well, why
+
+
 @when("the user opens the dashboard")
 def step_open_dashboard(context):
     context.sign_in_page.open_dashboard()
 
 
 @when('the user signs in as "{user}" with the password "{password}"')
+@when('signs in as "{user}" with the password "{password}"')
 def step_sign_in(context, user, password):
     context.sign_in_page.sign_in(user, password)
 
@@ -53,3 +72,16 @@ def step_told_wrong(context):
 def step_title_failed(context):
     failed, why = context.sign_in_page.title_says_failed()
     assert failed, why
+
+
+@then("the user sees the overview")
+def step_sees_overview(context):
+    problems = context.overview.problems()
+    assert not problems, "; ".join(problems)
+
+
+@then('the user is shown as "{name}", an {role}')
+@then('the user is shown as "{name}", a {role}')
+def step_shown_as(context, name, role):
+    shown, why = context.overview.shown_as(name, role)
+    assert shown, why

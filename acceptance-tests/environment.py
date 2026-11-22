@@ -9,11 +9,13 @@ from pages.container_host import ContainerHost
 from pages.database_commands import DatabaseCommands
 from pages.monitor import Monitor
 from pages.not_found_page import NotFoundPage
+from pages.overview_page import OverviewPage
 from pages.server_log import ServerLog
 from pages.sign_in_page import SignInPage
 from pages.standard_setup import StandardSetup
 from pages.terminal import Terminal
-from support import captions, docker, stack, world
+from pages.user_commands import UserCommands
+from support import auth, captions, docker, run_database, stack, world
 
 
 # Capabilities whose scenarios open no web page: with VIDEO=1 they are shown on
@@ -44,11 +46,18 @@ def after_all(context):
 
 
 def before_scenario(context, scenario):
+    # The run's database starts every scenario with no users, sessions or
+    # sign-in attempts; the sign-ins kept for the run go with them.
+    run_database.reset_users()
+    context.suite.signed_in_states.clear()
+    auth.dispose_api()
     context.world = world.World(context.suite, scenario.name)
     # The page objects the steps use, one per screen or flow.
     context.monitor = Monitor(context.world)
     context.sign_in_page = SignInPage(context.world)
     context.not_found_page = NotFoundPage(context.world)
+    context.overview = OverviewPage(context.world)
+    context.user_commands = UserCommands(context.world)
     context.accessibility = AccessibilityCheck()
     context.terminal = Terminal(context.world)
     context.database_commands = DatabaseCommands(context.world)

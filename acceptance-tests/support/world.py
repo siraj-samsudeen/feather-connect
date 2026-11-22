@@ -281,6 +281,11 @@ class World:
             self._http.dispose()
             self._http = None
 
+    def product_database_url(self):
+        """The address of the database the scenario's product runs on: its own,
+        when it has one, else the run's."""
+        return self.scenario_database or stack.run_database_url()
+
     @property
     def scenario_database(self):
         """The address of the scenario's own database, or None."""
