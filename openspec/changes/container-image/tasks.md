@@ -37,9 +37,9 @@
 
 ## 3. What no scenario drives — each still arrives with the test or check that needs it
 
-- [ ] 3.1 What the image holds: not root; no uv, no compiler, no `.env`, no `.git`, none of our tests — checked by `scripts/smoke-image.sh`
-- [ ] 3.2 CI: the image job for amd64 on every PR (buildx, GitHub's build cache, the smoke test against the job's Postgres 18 with `fcon db upgrade`, then `/healthz`, `/readyz` and `/sign-in`); the same natively on an arm64 machine, on `main` only; actions pinned by commit, read-only token
-- [ ] 3.3 CI's acceptance job runs the deployment scenarios (Docker on the runner)
+- [x] 3.1 What the image holds: not root; no uv, no compiler, no `.env`, no `.git`, none of our tests — checked by `scripts/smoke-image.sh`
+- [x] 3.2 CI: the image job for amd64 on every PR (buildx, GitHub's build cache, the smoke test against the job's Postgres 18 with `fcon db upgrade`, then `/healthz`, `/readyz` and `/sign-in`); the same natively on an arm64 machine, on `main` only; actions pinned by commit, read-only token
+- [x] 3.3 CI's acceptance job runs the deployment scenarios (Docker on the runner)
 - [ ] 3.4 Dependabot: the `docker` ecosystem for the `Dockerfile` (digests; never off Python 3.14), `/deploy` in the `docker-compose` entry
 - [ ] 3.5 `deploy/.env.example`, and `docs/deploy.md`: the administrator's one-time SQL, one machine, a cloud host that runs containers, the settings; no host named
 - [ ] 3.6 `AGENTS.md` § Project: the stack's line for the image and the setup (ADR 0015); `acceptance-tests/README.md`: the deployment scenarios need Docker
