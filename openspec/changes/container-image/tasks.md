@@ -21,19 +21,19 @@
 
 ### Deployment: upgrades its database by itself
 
-- [ ] 2.9 deployment: Given the standard setup on one machine, with a new, empty database — red → green → commit
-- [ ] 2.10 deployment: When the operator starts it — red → green → commit
-- [ ] 2.11 deployment: Then the product answers that it is ready to take work, with no upgrade run by hand — red → green → commit
-- [ ] 2.12 deployment: And the upgrade had finished before the product started — red → green → commit
+- [x] 2.9 deployment: Given the standard setup on one machine, with a new, empty database — red → green → commit
+- [x] 2.10 deployment: When the operator starts it — red → green → commit
+- [x] 2.11 deployment: Then the product answers that it is ready to take work, with no upgrade run by hand — red → green → commit
+- [x] 2.12 deployment: And the upgrade had finished before the product started — red → green → commit
 
 ### Deployment: reached only through its proxy
 
-- [ ] 2.13 deployment: Given the standard setup on one machine, with its site's name but no certificate — red → green → commit
-- [ ] 2.14 deployment: Then the sign-in page is served over an encrypted connection — red → green → commit
-- [ ] 2.15 deployment: And no other part of the setup can be reached from outside the machine — red → green → commit
-- [ ] 2.16 deployment: Given the standard setup is running on one machine — red → green → commit
-- [ ] 2.17 deployment: When the operator opens the site's plain, unencrypted address — red → green → commit
-- [ ] 2.18 deployment: Then the operator is sent on to the site's encrypted address — red → green → commit
+- [x] 2.13 deployment: Given the standard setup on one machine, with its site's name but no certificate — red → green → commit
+- [x] 2.14 deployment: Then the sign-in page is served over an encrypted connection — red → green → commit
+- [x] 2.15 deployment: And no other part of the setup can be reached from outside the machine — red → green → commit
+- [x] 2.16 deployment: Given the standard setup is running on one machine — red → green → commit
+- [x] 2.17 deployment: When the operator opens the site's plain, unencrypted address — red → green → commit
+- [x] 2.18 deployment: Then the operator is sent on to the site's encrypted address — red → green → commit
 
 ## 3. What no scenario drives — each still arrives with the test or check that needs it
 

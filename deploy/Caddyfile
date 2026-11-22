@@ -1,0 +1,6 @@
+# Caddy for the standard setup (deploy/compose.yaml): serves the site named by FCON_DOMAIN
+# over https, with a certificate it gets and renews, sends plain http on to https, and
+# passes every request to the product on the setup's own network.
+{$FCON_DOMAIN} {
+	reverse_proxy server:8080
+}
