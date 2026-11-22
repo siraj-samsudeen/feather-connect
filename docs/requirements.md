@@ -461,7 +461,7 @@ follow from them.
 | D-11 | Who maintains it, and how reviews and releases are run | R15.8 |
 | D-12 | The lowest supported language version | **Settled:** [ADR 0001](../adr/0001-python-3-14-only.md) |
 | D-13 | Whether a transform runs when a route delivers, or its result is stored as a version of its own | Area 4 |
-| D-14 | Whether one service layer sits under the dashboard, the API and the agent tools, so rights, previews and audit are the same for all three | R8.6 |
+| D-14 | Whether one service layer sits under the dashboard, the API and the agent tools, so rights, previews and audit are the same for all three | Rights **settled:** [ADR 0016](../adr/0016-users-roles-and-one-rights-check.md). Previews and audit follow the same layer: R8.6 |
 
 ## 12. Not planned
 
