@@ -24,9 +24,25 @@ updates:
       actions:
         patterns: ["*"]
 
-  # compose.yaml: the development database's image.
-  - package-ecosystem: docker-compose
+  # The Dockerfile's base images, pinned by tag and digest: the digests move,
+  # Python itself stays on 3.14 (ADR 0001).
+  - package-ecosystem: docker
     directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    ignore:
+      - dependency-name: python
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
+    groups:
+      docker:
+        patterns: ["*"]
+
+  # compose.yaml: the development database's image; deploy/compose.yaml: the
+  # standard setup's proxy.
+  - package-ecosystem: docker-compose
+    directories: ["/", "/deploy"]
     schedule:
       interval: monthly
     cooldown:

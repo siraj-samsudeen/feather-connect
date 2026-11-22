@@ -455,7 +455,7 @@ follow from them.
 | D-05 | Environment as deployment, tenant as namespace; how light tenancy is in M1 | **Settled:** [ADR 0009](../adr/0009-tenants-on-every-row.md) |
 | D-06 | How flows are packaged, installed and switched without a restart | Area 2 |
 | D-07 | How agents reach the product: the protocol, and one service layer under the dashboard, the API and the agent tools | R12.2 |
-| D-08 | How it is deployed: the container setup and the one-command local stack | Area 15 |
+| D-08 | How it is deployed: the container setup and the one-command local stack | The container setup is **settled:** [ADR 0015](../adr/0015-container-setup.md). The one-command local stack: R15.1 |
 | D-09 | How long versions are kept by default, and the archive policy | R3.5 |
 | D-10 | The public home: package name, image registry, documentation address | Package names **settled:** [ADR 0008](../adr/0008-fcon-technical-names.md). The registry and the documentation address: R15.7 |
 | D-11 | Who maintains it, and how reviews and releases are run | R15.8 |
