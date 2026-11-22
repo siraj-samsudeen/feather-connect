@@ -16,4 +16,8 @@ class Table:
 
 TENANT = Table("fcon.tenant", key=("tenant_id",), changes=True)
 
-TABLES = (TENANT,)
+USER = Table("fcon.user", key=("tenant_id", "id"), changes=True, secret=frozenset({"password_hash"}))
+SESSION = Table("fcon.session", key=("tenant_id", "id"), changes=True, secret=frozenset({"id_hash", "form_token"}))
+SIGN_IN_ATTEMPT = Table("fcon.sign_in_attempt", key=("tenant_id", "id"), changes=False)
+
+TABLES = (TENANT, USER, SESSION, SIGN_IN_ATTEMPT)
