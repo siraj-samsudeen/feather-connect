@@ -9,6 +9,7 @@ import pytest
 
 from fcon_cli.logs import JsonLines, Text, configure_logging, log_problem
 from fcon_cli.problems import Level, Problem
+from fcon_server.store.context import Context, bind
 
 
 class Terminal(io.StringIO):
@@ -134,3 +135,80 @@ def test_a_text_line_carries_the_same_time_as_its_json_line():
     record = logging.LogRecord("fcon", logging.INFO, __file__, 1, "listening", None, None)
 
     assert Text().format(record).split(" ")[0] == json.loads(JsonLines().format(record))["time"]
+
+
+def test_a_note_is_logged_at_the_info_level():
+    stream = io.StringIO()
+    configure_logging("", stream)
+
+    log_problem(logging.getLogger("fcon"), Problem(Level.INFO, "worth knowing."))
+
+    assert json.loads(stream.getvalue())["level"] == "info"
+
+
+# -- the context of a request or job (design decision 5) -----------------
+
+CONTEXT = Context(tenant_id="acme-test", actor="system:test", request_id="req-1")
+
+
+def test_a_json_line_carries_the_tenant_of_the_bound_context():
+    stream = io.StringIO()
+    configure_logging("json", stream)
+
+    with bind(CONTEXT):
+        logging.getLogger("fcon").info("saved")
+
+    line = json.loads(stream.getvalue())
+    assert (line["tenant"], line["request_id"]) == ("acme-test", "req-1")
+
+
+def test_a_text_line_carries_the_tenant_of_the_bound_context_before_its_message():
+    stream = io.StringIO()
+    configure_logging("text", stream)
+
+    with bind(CONTEXT):
+        logging.getLogger("fcon").info("saved")
+
+    assert stream.getvalue().rstrip().endswith("INFO tenant=acme-test request_id=req-1 saved")
+
+
+def test_a_request_id_with_a_line_break_stays_on_its_text_line():
+    stream = io.StringIO()
+    configure_logging("text", stream)
+
+    with bind(Context(tenant_id="acme-test", actor="system:test", request_id="req-1\nINFO forged\t\x1b[2J")):
+        logging.getLogger("fcon").info("saved")
+
+    assert stream.getvalue().rstrip().endswith(r"INFO tenant=acme-test request_id=req-1\nINFO forged\t\u001b[2J saved")
+
+
+def test_a_problem_on_a_terminal_carries_the_tenant_of_the_bound_context():
+    stream = Terminal()
+    configure_logging("", stream)
+
+    with bind(CONTEXT):
+        log_problem(logging.getLogger("fcon"), PROBLEM)
+
+    first = stream.getvalue().splitlines()[0]
+    assert first.split(" ", 1)[1] == "tenant=acme-test request_id=req-1 warning: something is wrong."
+
+
+def test_uvicorns_lines_carry_the_tenant_of_the_bound_context():
+    stream = io.StringIO()
+    configure_logging("json", stream)
+
+    with bind(CONTEXT):
+        access_line("/sign-in", 200)
+
+    assert json.loads(stream.getvalue())["tenant"] == "acme-test"
+
+
+def test_a_line_after_the_context_ends_carries_no_tenant():
+    stream = io.StringIO()
+    configure_logging("json", stream)
+
+    with bind(CONTEXT):
+        pass
+    logging.getLogger("fcon").info("idle")
+
+    assert "tenant" not in json.loads(stream.getvalue())

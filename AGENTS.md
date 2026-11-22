@@ -101,6 +101,28 @@ weekly as a report, the Windows and macOS tests do not block, Dependabot propose
 10. Technical names use `fcon`: the packages, imports, the command, `FCON_*` settings, and
     anything new such as the database schema, loggers, cookies and images. Text people read says
     Feather Connect.
+11. Every table, call, token, session, log line, audit record and job carries the tenant; code
+    takes it only from the request's or job's context, never from an address or a request body.
+12. Every table has `created_at` and `created_by`; a table whose rows change also has
+    `updated_at`, `updated_by` and `row_version`. Times are `timestamptz` in UTC, from the clock
+    object; SQL never calls `now()`. "By" is `user:<id>`, `token:<id>` or `system:<name>`. The
+    store fills them from the context; no query sets them by hand, and no trigger does.
+13. Concurrency: an edit applies only at the row version it read, else "changed by someone else"
+    (409 in the API); work is claimed with `FOR UPDATE SKIP LOCKED` and an expiring lease; what
+    must happen once is a unique constraint written with `ON CONFLICT DO NOTHING`; default
+    isolation, short transactions, never one open across a call to another system, rows locked
+    tenant then id.
+14. Tables: in the schema `fcon`, always named in full, singular snake_case; `_id`, `_at`, `is_`;
+    key `(tenant_id, id)` with ids from `new_id()`; a reference carries the tenant; every
+    reference is indexed and every index starts with `tenant_id`; fixed sets are text with a
+    `CHECK`, never an enum; `text`, not `varchar(n)`; text keys `collate pg_c_utf8`, lists for
+    people sorted `collate "und-x-icu"` in the query only; no "deleted" flag; long lists paged by
+    key, never `OFFSET`; rows written through the store's helpers, which write the audit record.
+15. Migrations expand, then contract: a migration only adds (tables, columns that are optional or
+    have a default); removing or renaming waits for a later release; a migration that ran is never
+    edited. The code review checks every migration against this.
+16. Flow and package code never reaches the store or gets the product's database address; only
+    the server and the worker do.
 
 **Worktrees.** The ports come from the issue number `n`: development `18000 + n`, acceptance
 `19000 + n` (issue 4: 18004 and 19004); the main checkout keeps 8080 and 8030. Each worktree has

@@ -13,6 +13,7 @@ import signal
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -74,14 +75,104 @@ def _admin():
 
 
 def prepare():
-    """Runs once, before the services start: the run's own empty database,
-    dropped again in stop_all(). The shared database is never stopped."""
+    """Runs once, before the services start: the run's own database, upgraded
+    with `fcon db upgrade` as an operator would before starting the product,
+    and dropped again in stop_all(). The shared database is never stopped."""
     global _database_created
     with _admin() as admin:
         admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(RUN_DATABASE)))
     _database_created = True
+    upgrade_database(run_database_url())
     for service in SERVICES:
         service["env"]["FCON_DATABASE_URL"] = run_database_url()
+
+
+# -- a scenario's own database ------------------------------------------------
+
+COMMAND_TIMEOUT_S = 120  # `uv run` may first sync the environment
+
+# What a command must not inherit: its settings are the ones it is given.
+CLEARED_VARIABLES = ("PORT", "PYTHONPATH", "UV_ENV_FILE", "VIRTUAL_ENV")
+
+
+def create_database():
+    """A new, empty database of a scenario's own, on the same server as the
+    run's. Returns its address; give it to drop_database() at the end."""
+    name = "feather_acceptance_%d_s_%s" % (PORT, uuid.uuid4().hex[:8])
+    with _admin() as admin:
+        admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
+    return str(conninfo.make_conninfo(ADMIN_DATABASE_URL, dbname=name))
+
+
+def drop_database(database_url):
+    name = conninfo.conninfo_to_dict(database_url)["dbname"]
+    with _admin() as admin:
+        admin.execute(sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(sql.Identifier(name)))
+
+
+def fcon_environment(settings):
+    """The environment of an `fcon` command: none of the developer's FCON_*
+    variables, only the settings given."""
+    env = {k: v for k, v in os.environ.items() if not k.upper().startswith("FCON_")}
+    for name in CLEARED_VARIABLES:
+        env.pop(name, None)
+    env.update(settings)
+    return env
+
+
+def start_fcon(arguments, settings):
+    """`uv run fcon <arguments>`, from an empty directory of its own (so no
+    .env fills in a setting), with only the given FCON_* settings. Returns the
+    running process, its stdout and stderr piped; finish it with finish_fcon()."""
+    command = [shutil.which("uv") or "uv", "run", "--project", str(REPO_ROOT), "fcon", *arguments]
+    own_group = (
+        {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+        if sys.platform == "win32"
+        else {"start_new_session": True}
+    )
+    empty = tempfile.mkdtemp(prefix="fcon-command-")
+    process = subprocess.Popen(
+        command,
+        cwd=empty,
+        env=fcon_environment(settings),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        **own_group,
+    )
+    process.empty_directory = empty
+    track(process, "fcon " + " ".join(arguments))
+    return process
+
+
+def finish_fcon(process):
+    """Waits for a command from start_fcon(). Returns (exit code, stdout,
+    stderr, timed out?), the texts with Unix line endings."""
+    timed_out = False
+    try:
+        out, err = process.communicate(timeout=COMMAND_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        stop(process)
+        out, err = process.communicate()
+    forget(process)
+    shutil.rmtree(process.empty_directory, ignore_errors=True)
+
+    def text(data):
+        return data.decode("utf-8", errors="replace").replace("\r\n", "\n")
+
+    return process.returncode, text(out), text(err), timed_out
+
+
+def upgrade_database(database_url):
+    """`fcon db upgrade` on that database, as setup: anything but success
+    stops the run, with what the command said."""
+    code, out, err, timed_out = finish_fcon(start_fcon(["db", "upgrade"], {"FCON_DATABASE_URL": database_url}))
+    if code != 0 or timed_out:
+        raise RuntimeError(
+            "`fcon db upgrade` did not upgrade the test database (exit %s%s).\n--- output ---\n%s%s"
+            % (code, ", timed out" if timed_out else "", out, err)
+        )
 
 
 def _drop_database():
@@ -218,6 +309,14 @@ def _stop(process):
             os.killpg(process.pid, signal.SIGKILL)  # the group, as above: not only its leader
     except (ProcessLookupError, PermissionError):
         pass  # already gone
+
+
+def log_path(process):
+    """Where a service started by this run writes its output."""
+    for _service, child, path in _children:
+        if child is process:
+            return path
+    raise RuntimeError("that process is not a service of this run")
 
 
 def track(process, name):

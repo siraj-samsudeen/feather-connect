@@ -13,6 +13,8 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 from support import auth, captions, stack
+from support.screen import Screen
+from support.scenario_database import ScenarioDatabase
 from support.stack import BASE_URL
 
 # For a person watching or debugging; agents and CI set none of these, and
@@ -119,6 +121,9 @@ class World:
         self.database = None  # the database address that product was given, when the scenario chose it
         self._http = None  # the scenario's plain HTTP client, opened on first use
         self._servers = []  # servers started for this scenario alone
+        self._database = None  # the scenario's own throwaway database (support/scenario_database.py)
+        self.scenario_server = None  # the server started on it, whose log pages/server_log.py reads
+        self.screen = Screen(self)  # VIDEO=1: what a scenario without a web page shows
 
     def _new_page(self, who, label, storage_state=None):
         """A browser context for one of the scenario's people: traced, and recorded with VIDEO=1."""
@@ -253,12 +258,64 @@ class World:
             "dbname": "outage_probe_db",
         }
         address = "postgresql://{user}:{password}@{host}:{port}/{dbname}".format(**self.database)
+        self.screen.note("a product of its own, started with a database address where nothing listens")
         base_url, process = stack.start_server("server-without-database", address)
         self._servers.append(process)
         self.base_url = base_url
         if self._http is not None:
             self._http.dispose()
             self._http = None
+
+    @property
+    def scenario_database(self):
+        """The address of the scenario's own database, or None."""
+        return self._database.url if self._database is not None else None
+
+    def own_database(self, upgraded=False):
+        """A new, empty database of the scenario's own (upgraded, when asked),
+        dropped when the scenario ends."""
+        if self._database is not None:
+            raise RuntimeError("the scenario already has a database of its own")
+        self._database = ScenarioDatabase()
+        self.screen.note("a new, empty database of the scenario's own")
+        if upgraded:
+            self._database.upgrade()
+            self.screen.note("that database upgraded (fcon db upgrade, as setup)")
+        return self._database
+
+    def edit_an_applied_upgrade(self):
+        name = self.own_database_state().edit_an_applied_upgrade()
+        self.screen.note("an applied upgrade (%s) edited since it ran" % self.own_database_state().edited_upgrade)
+        return name
+
+    def add_newer_upgrade(self):
+        self.own_database_state().add_newer_upgrade()
+        self.screen.note("one more upgrade recorded as applied, from a newer version")
+
+    def own_database_state(self):
+        if self._database is None:
+            raise RuntimeError("the scenario has no database of its own yet")
+        return self._database
+
+    def product_on_own_database(self):
+        """From now on the scenario talks to a product of its own, started on
+        its own database, and waited for until it answers that it runs (it
+        may not be ready)."""
+        self.screen.note("$ fcon server   (on that database, waited for until it answers)")
+        base_url, process = stack.start_server("server-on-scenario-database", self.own_database_state().url)
+        self._servers.append(process)
+        self.scenario_server = process
+        self.base_url = base_url
+        if self._http is not None:
+            self._http.dispose()
+            self._http = None
+
+    def scenario_server_still_running(self):
+        """The server started on the scenario's own database has not stopped
+        (and so was not restarted) since it was started."""
+        if self.scenario_server is None:
+            raise RuntimeError("the scenario started no server of its own")
+        return self.scenario_server.poll() is None
 
     def close(self, failed):
         """Ends the scenario: keeps a failed one's screenshots and traces, and a
@@ -299,4 +356,8 @@ class World:
             self._http = None
         while self._servers:
             stack.stop(self._servers.pop())
+        self.scenario_server = None
+        if self._database is not None:
+            self._database.drop()
+            self._database = None
         return screenshots

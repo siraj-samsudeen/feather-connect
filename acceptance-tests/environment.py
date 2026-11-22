@@ -5,11 +5,18 @@ import base64
 import os
 
 from pages.accessibility import AccessibilityCheck
+from pages.database_commands import DatabaseCommands
 from pages.monitor import Monitor
 from pages.not_found_page import NotFoundPage
+from pages.server_log import ServerLog
 from pages.sign_in_page import SignInPage
 from pages.terminal import Terminal
 from support import captions, stack, world
+
+
+# Capabilities whose scenarios open no web page: with VIDEO=1 they are shown on
+# a terminal-like page of the test's own (support/screen.py).
+SCREEN_FEATURES = ("Database upgrades", "Logs and health")
 
 
 def before_all(context):
@@ -39,6 +46,10 @@ def before_scenario(context, scenario):
     context.not_found_page = NotFoundPage(context.world)
     context.accessibility = AccessibilityCheck()
     context.terminal = Terminal(context.world)
+    context.database_commands = DatabaseCommands(context.world)
+    context.server_log = ServerLog(context.world)
+    if scenario.feature.name in SCREEN_FEATURES:
+        context.world.screen.open()  # VIDEO=1 only: these scenarios open no web page
 
 
 def after_scenario(context, scenario):

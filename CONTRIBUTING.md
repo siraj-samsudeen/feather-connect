@@ -31,11 +31,16 @@ cd feather-connect
 docker compose up -d            # Postgres 18 on 127.0.0.1:5442, shared by every worktree
 cp .env.example .env            # PowerShell: Copy-Item .env.example .env
 uv sync
+uv run fcon db upgrade          # brings the database's tables up to this version
 uv run pytest                   # the inner tests, which must cover 100% of the code
 uv run --project acceptance-tests playwright install chromium     # once per machine
 uv run --project acceptance-tests python acceptance-tests/run_acceptance.py
 uv run fcon server           # then open http://127.0.0.1:8080
 ```
+
+After pulling a change that adds a migration, run `uv run fcon db upgrade` again;
+`uv run fcon db status` lists the upgrades applied, with when they ran, and those waiting, and
+changes nothing. A migration that ran is never edited: add a new one (CI's checks refuse an edit).
 
 When a command can't run, it says what is wrong and what to do. How the acceptance suite works,
 and how to watch it in a browser: [`acceptance-tests/README.md`](acceptance-tests/README.md).
@@ -54,6 +59,9 @@ and how to watch it in a browser: [`acceptance-tests/README.md`](acceptance-test
    cd ../feather-connect-issue-<n>
    uv run scripts/worktree_env.py <n>   # .env: ports 18000+n and 19000+n, database feather_issue_<n>
    ```
+
+   It creates the worktree's database and upgrades it; run it again, or `uv run fcon db upgrade`,
+   after bringing in a migration.
 
 4. **Start your agent in the worktree** and tell it: "work on issue <n> in build mode". The other
    modes are autopilot and learning (the `change-modes` skill), and you can switch at any time. The

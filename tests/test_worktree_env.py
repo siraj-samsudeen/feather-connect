@@ -8,6 +8,9 @@ import pytest
 from psycopg import conninfo
 
 import worktree_env
+from fcon_server.store.migrate import MIGRATIONS
+
+FILES = sorted(path.name for path in MIGRATIONS.glob("*.sql"))
 
 
 def test_the_values_come_from_the_issue_number():
@@ -108,6 +111,60 @@ def test_the_command_writes_the_env_file_and_creates_the_database(
         assert f"FCON_PORT={18000 + number}\n" in (tmp_path / ".env").read_text(encoding="utf-8")
         assert _exists(database_url, f"feather_issue_{number}")
         assert f"created database feather_issue_{number}" in capsys.readouterr().out
+    finally:
+        worktree_env.drop_database(database_url, f"feather_issue_{number}")
+
+
+def _applied(url: str) -> list[str]:
+    with psycopg.connect(url) as connection:
+        return [str(name) for (name,) in connection.execute("SELECT name FROM fcon.migration ORDER BY name")]
+
+
+@pytest.mark.database
+def test_the_command_upgrades_the_database_it_creates(
+    tmp_path: Path, database_url: str, capsys: pytest.CaptureFixture[str]
+):
+    number = 40000 + uuid.uuid4().int % 6000
+    try:
+        worktree_env.main([str(number)], root=tmp_path, server_url=database_url)
+
+        url = conninfo.make_conninfo(database_url, dbname=f"feather_issue_{number}")
+        assert _applied(url) == FILES
+        assert f"upgraded database feather_issue_{number}: {len(FILES)} applied" in capsys.readouterr().out
+    finally:
+        worktree_env.drop_database(database_url, f"feather_issue_{number}")
+
+
+@pytest.mark.database
+def test_the_command_run_again_finds_the_database_up_to_date(
+    tmp_path: Path, database_url: str, capsys: pytest.CaptureFixture[str]
+):
+    number = 40000 + uuid.uuid4().int % 6000
+    try:
+        worktree_env.main([str(number)], root=tmp_path, server_url=database_url)
+
+        worktree_env.main([str(number)], root=tmp_path, server_url=database_url)
+
+        assert f"database feather_issue_{number} is up to date" in capsys.readouterr().out
+    finally:
+        worktree_env.drop_database(database_url, f"feather_issue_{number}")
+
+
+@pytest.mark.database
+def test_the_command_refuses_a_database_whose_upgrade_changed(
+    tmp_path: Path, database_url: str, capsys: pytest.CaptureFixture[str]
+):
+    number = 40000 + uuid.uuid4().int % 6000
+    try:
+        worktree_env.main([str(number)], root=tmp_path, server_url=database_url)
+        url = conninfo.make_conninfo(database_url, dbname=f"feather_issue_{number}")
+        with psycopg.connect(url) as connection:
+            connection.execute("UPDATE fcon.migration SET checksum = 'edited' WHERE name = %s", [FILES[0]])
+
+        code = worktree_env.main([str(number)], root=tmp_path, server_url=database_url)
+
+        assert code == 2
+        assert f"upgrade {FILES[0]} has changed since it ran" in capsys.readouterr().err
     finally:
         worktree_env.drop_database(database_url, f"feather_issue_{number}")
 
