@@ -42,7 +42,7 @@
 - [x] 3.3 CI's acceptance job runs the deployment scenarios (Docker on the runner)
 - [x] 3.4 Dependabot: the `docker` ecosystem for the `Dockerfile` (digests; never off Python 3.14), `/deploy` in the `docker-compose` entry
 - [x] 3.5 `deploy/.env.example`, and `docs/deploy.md`: the administrator's one-time SQL, one machine, a cloud host that runs containers, the settings; no host named
-- [ ] 3.6 `AGENTS.md` § Project: the stack's line for the image and the setup (ADR 0015); `acceptance-tests/README.md`: the deployment scenarios need Docker
+- [x] 3.6 `AGENTS.md` § Project: the stack's line for the image and the setup (ADR 0015); `acceptance-tests/README.md`: the deployment scenarios need Docker
 
 ## 4. Completion
 

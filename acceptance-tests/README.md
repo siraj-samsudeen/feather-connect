@@ -19,6 +19,9 @@ In PowerShell: `$env:ACCEPTANCE_PORT = "19004"; uv run --project acceptance-test
 - `ACCEPTANCE_ADMIN_DATABASE_URL` is the Postgres server the run makes its database on (default
   `postgresql://feather:feather@127.0.0.1:5442/postgres`, the development container).
 - The first time, install the browser: `uv run --project acceptance-tests playwright install chromium`.
+- The deployment scenarios need Docker running. They build the image and start containers of
+  their own (a Postgres 18 and the setup of `deploy/compose.yaml`), removed at the end. Without
+  Docker they fail, saying to start it; they never skip.
 
 What one run does:
 

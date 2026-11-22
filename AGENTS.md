@@ -57,6 +57,9 @@ them from one dashboard.
 - Postgres 18 and later is the only database. For development, one shared Docker container
   (`docker compose up -d`, on `127.0.0.1:5442`) holds a database per worktree.
 - The product has no Node toolchain. Node is on a developer's machine only for the OpenSpec CLI.
+- One container image, `fcon`, for every role, from the root `Dockerfile`. Production on one
+  machine runs `deploy/compose.yaml`: the upgrade step, the server and Caddy, with Postgres
+  outside; the guide is `docs/deploy.md` (ADR 0015).
 
 **Front end** (owner, 13-Nov-2026):
 
