@@ -12,12 +12,20 @@ from typing import NoReturn
 import uvicorn
 
 from fcon_cli import problems
+from fcon_cli.first_admin import FirstAdministrator
 from fcon_cli.logs import log_problem
 from fcon_cli.problems import Problem, ProblemError
 from fcon_cli.settings import Settings
 from fcon_cli.watch import DatabaseWatch
 from fcon_server.app import create_app
 from fcon_server.signing import SecretKeys
+from fcon_server.store.clock import SystemClock
+from fcon_server.store.context import Context
+from fcon_server.store.ids import new_id
+from fcon_server.store.pool import OneConnectionEach
+from fcon_server.store.transaction import Store
+from fcon_server.users.accounts import FIRST_ADMIN_ACTOR, add_first_administrator
+from fcon_server.users.tenant import request_tenant
 
 log = logging.getLogger("fcon")
 
@@ -85,6 +93,14 @@ def announce(host: str, port: int) -> None:
         log_problem(log, problems.listening_beyond_machine(host, port))
 
 
+def first_administrator(database_url: str, name: str) -> FirstAdministrator:
+    """Makes `name` the first administrator, through a connection of its own
+    for each try, as `system:first-admin` in the request's tenant."""
+    store = Store(OneConnectionEach(database_url, "fcon-first-admin"), SystemClock(), new_id)
+    context = Context(tenant_id=request_tenant(), actor=FIRST_ADMIN_ACTOR, request_id=f"first-admin-{new_id()}")
+    return FirstAdministrator(name, lambda: add_first_administrator(store, context, name))
+
+
 def run_server(settings: Settings) -> None:
     sock = bind(settings.host, settings.port)
     host, port = sock.getsockname()[:2]
@@ -106,8 +122,13 @@ def run_server(settings: Settings) -> None:
     )
     watch = DatabaseWatch(settings.database_url)
     watch.start()
+    first = first_administrator(settings.database_url, settings.first_admin) if settings.first_admin else None
+    if first is not None:
+        first.start()
     announce(host, port)
     try:
         uvicorn.Server(config).run(sockets=[sock])
     finally:
         watch.stop()
+        if first is not None:
+            first.stop()

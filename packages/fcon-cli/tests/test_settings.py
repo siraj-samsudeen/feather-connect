@@ -225,3 +225,18 @@ def test_the_environment_is_development_unless_named(tmp_path: Path):
 
 def test_the_environments_name_is_read_with_the_settings(tmp_path: Path):
     assert load_settings({**BASE, "FCON_ENVIRONMENT": " staging "}, tmp_path).environment == "staging"
+
+
+# -- the first administrator --------------------------------------------------
+
+
+def test_no_first_administrator_is_named_unless_set(tmp_path: Path):
+    assert load_settings(BASE, tmp_path).first_admin is None
+
+
+def test_the_first_administrator_is_read_as_a_user_name_is_stored(tmp_path: Path):
+    assert load_settings({**BASE, "FCON_FIRST_ADMIN": " Ann "}, tmp_path).first_admin == "ann"
+
+
+def test_a_first_administrator_whose_name_breaks_the_rules_is_a_settings_mistake(tmp_path: Path):
+    assert mistake({**BASE, "FCON_FIRST_ADMIN": "ann smith"}, tmp_path) == problems.first_admin_not_allowed("ann smith")

@@ -16,10 +16,10 @@
 - [x] 2.4 users-and-access: When the operator adds the user "ann" from the command line, with the password "blue-harbour-lamp" — red → green → commit
 - [x] 2.5 users-and-access: Then the user sees the overview — red → green → commit
 - [x] 2.6 users-and-access: And the user is shown as "ann", an administrator — red → green → commit
-- [ ] 2.7 users-and-access: And the product's settings name "ann" as the first administrator — red → green → commit
-- [ ] 2.8 users-and-access: When the operator starts the product — red → green → commit
-- [ ] 2.9 users-and-access: Then its log gives a one-time password for "ann", and says to sign in and choose a new one — red → green → commit
-- [ ] 2.10 users-and-access: And after a restart its log gives no password again — red → green → commit
+- [x] 2.7 users-and-access: And the product's settings name "ann" as the first administrator — red → green → commit
+- [x] 2.8 users-and-access: When the operator starts the product — red → green → commit
+- [x] 2.9 users-and-access: Then its log gives a one-time password for "ann", and says to sign in and choose a new one — red → green → commit
+- [x] 2.10 users-and-access: And after a restart its log gives no password again — red → green → commit
 
 ### Users and access: sign in, and back to the page asked for
 

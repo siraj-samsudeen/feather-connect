@@ -14,6 +14,7 @@ from psycopg import conninfo
 
 from fcon_cli import problems
 from fcon_cli.problems import ProblemError
+from fcon_server.users.rules import normal_name, user_name_problem
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
@@ -40,6 +41,7 @@ class Settings:
     prepare: bool = True
     previous_secret_key: str | None = None
     environment: str = DEFAULT_ENVIRONMENT
+    first_admin: str | None = None
 
 
 @dataclass(frozen=True)
@@ -127,6 +129,16 @@ def _secret_key(variables: Mapping[str, str], name: str) -> str | None:
     return key or None
 
 
+def _first_admin(variables: Mapping[str, str]) -> str | None:
+    """The user name, as it is stored, of the administrator to make on a start with no users."""
+    typed = variables.get("FCON_FIRST_ADMIN", "")
+    if not typed.strip():
+        return None
+    if user_name_problem(name := normal_name(typed)) is not None:
+        raise SettingsError(problems.first_admin_not_allowed(typed.strip()))
+    return name
+
+
 def _no_secret_key() -> NoReturn:
     raise SettingsError(problems.secret_key_missing())
 
@@ -145,6 +157,7 @@ def load_settings(
         secret_key=_secret_key(variables, "FCON_SECRET_KEY") or _no_secret_key(),
         previous_secret_key=_secret_key(variables, "FCON_SECRET_KEY_PREVIOUS"),
         environment=variables.get("FCON_ENVIRONMENT", "").strip() or DEFAULT_ENVIRONMENT,
+        first_admin=_first_admin(variables),
     )
 
 

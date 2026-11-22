@@ -112,6 +112,23 @@ def secret_key_too_short(name: str) -> Problem:
     return Problem(Level.ERROR, f"{name} is shorter than 32 characters.", ("Make a longer one with:", MAKE_A_KEY))
 
 
+def first_admin_not_allowed(name: str) -> Problem:
+    return Problem(
+        Level.ERROR,
+        f"FCON_FIRST_ADMIN is not an allowed user name: {name!r}.",
+        ("Use 1 to 64 lowercase letters, digits and . _ - @ +; an email address works.",),
+    )
+
+
+def first_admin_made(name: str, password: str) -> Problem:
+    """The one place a one-time password is written: the log, once (design point 1)."""
+    return Problem(
+        Level.WARNING,
+        f'no administrator yet; made "{name}" with a one-time password: {password}',
+        ("Sign in at /sign-in and choose your own password. Remove FCON_FIRST_ADMIN afterwards.",),
+    )
+
+
 def usage(message: str, usage_text: str) -> Problem:
     """A mistake on the command line, as argparse words it."""
     return Problem(Level.ERROR, f"{message}.", (usage_text.strip(), "For every option: fcon --help"))
