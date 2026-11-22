@@ -19,7 +19,7 @@ from fcon_server.store.transaction import ConnectionSource, Store
 from fcon_server.users.accounts import AddedUser, NewUser, add_user
 from fcon_server.users.passwords import password_matches
 from fcon_server.users.rights import Caller, Role
-from fcon_server.users.sessions import Attempt, sign_in, signed_in
+from fcon_server.users.sessions import Attempt, sign_in, sign_out, signed_in
 
 pytestmark = pytest.mark.database
 
@@ -309,3 +309,80 @@ def test_last_seen_is_not_written_within_a_minute(
     signed_in(fixed_store, clock, anonymous, cookie)
 
     assert sessions(database_url, anonymous)[0]["row_version"] == 1
+
+
+def test_last_seen_is_written_by_the_sessions_user(
+    fixed_store: Store, clock: FixedClock, anonymous: Context, cookie: str, database_url: str, ann: AddedUser
+):
+    clock.at = NOW + timedelta(minutes=1)
+
+    signed_in(fixed_store, clock, anonymous, cookie)
+
+    assert sessions(database_url, anonymous)[0]["updated_by"] == f"user:{ann.id}"
+
+
+def test_a_session_that_ran_out_is_ended_by_its_user(
+    fixed_store: Store, clock: FixedClock, anonymous: Context, cookie: str, database_url: str, ann: AddedUser
+):
+    clock.at = NOW + timedelta(hours=12)
+
+    signed_in(fixed_store, clock, anonymous, cookie)
+
+    assert sessions(database_url, anonymous)[0]["updated_by"] == f"user:{ann.id}"
+
+
+# -- signing out ------------------------------------------------------------
+
+
+def open_sessions(database_url: str, context: Context) -> list[dict[str, Any]]:
+    return [row for row in sessions(database_url, context) if row["ended_at"] is None]
+
+
+def test_signing_out_ends_every_session_of_the_user(
+    fixed_store: Store, clock: FixedClock, anonymous: Context, cookie: str, database_url: str
+):
+    sign_in(fixed_store, clock, anonymous, attempt())  # another computer
+    found = signed_in(fixed_store, clock, anonymous, cookie)
+    assert found is not None
+
+    sign_out(fixed_store, clock, found)
+
+    assert open_sessions(database_url, anonymous) == []
+
+
+def test_signing_out_leaves_other_users_sessions(
+    fixed_store: Store, clock: FixedClock, anonymous: Context, cookie: str, database_url: str
+):
+    add_user(fixed_store, Caller(anonymous, Role.ADMINISTRATOR), NewUser("ben", "ben-own-password-1"))
+    sign_in(fixed_store, clock, anonymous, attempt("ben", "ben-own-password-1"))
+    found = signed_in(fixed_store, clock, anonymous, cookie)
+    assert found is not None
+
+    sign_out(fixed_store, clock, found)
+
+    assert len(open_sessions(database_url, anonymous)) == 1
+
+
+def test_signing_out_is_audited_as_the_user(
+    fixed_store: Store, clock: FixedClock, anonymous: Context, cookie: str, database_url: str, ann: AddedUser
+):
+    found = signed_in(fixed_store, clock, anonymous, cookie)
+    assert found is not None
+
+    sign_out(fixed_store, clock, found)
+
+    [record] = rows(
+        database_url,
+        "SELECT created_by, after FROM fcon.audit WHERE tenant_id = %s AND table_name = 'fcon.session'"
+        " AND action = 'update'",
+        anonymous.tenant_id,
+    )
+    assert (record["created_by"], record["after"]["ended_at"] is not None) == (f"user:{ann.id}", True)
+
+
+def test_a_session_signed_out_is_no_session(fixed_store: Store, clock: FixedClock, anonymous: Context, cookie: str):
+    found = signed_in(fixed_store, clock, anonymous, cookie)
+    assert found is not None
+    sign_out(fixed_store, clock, found)
+
+    assert signed_in(fixed_store, clock, anonymous, cookie) is None

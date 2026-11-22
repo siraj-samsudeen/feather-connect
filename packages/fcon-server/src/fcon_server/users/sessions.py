@@ -8,8 +8,10 @@ bytes, of which the database keeps the SHA-256. It ends after 12 hours idle
 or 7 days at most, and when its user is disabled. "Last seen" is written at
 most once a minute. The role is read fresh with every request.
 
+Signing out ends every session of the user, on every computer.
+
 Not yet here, each with the step that needs it: the slowing of repeated
-failures, the clean-up of old attempts, signing out, choosing a password."""
+failures, the clean-up of old attempts."""
 
 import contextlib
 import hashlib
@@ -22,7 +24,7 @@ from fcon_server.store.clock import Clock
 from fcon_server.store.context import Context
 from fcon_server.store.errors import ChangedBySomeoneElseError
 from fcon_server.store.tables import SESSION, SIGN_IN_ATTEMPT, USER
-from fcon_server.store.transaction import Store
+from fcon_server.store.transaction import Store, Transaction
 from fcon_server.users.accounts import ACTIVE
 from fcon_server.users.passwords import hash_password, needs_rehash, password_matches
 from fcon_server.users.rights import Caller, Role
@@ -149,23 +151,25 @@ def _has_ended(session: _Session, now: datetime) -> bool:
 
 def signed_in(store: Store, clock: Clock, context: Context, session_id: str) -> SignedIn | None:
     """The session the cookie names, if it goes on; one that has run out, or
-    whose user is disabled, is ended here."""
+    whose user is disabled, is ended here. What is written about the session
+    is written by its user."""
     now = clock.now()
     with store.transaction(context) as tx:
         session = tx.fetch_one(_Session, _SESSION_BY_ID_HASH, {"id_hash": _id_hash(session_id)})
-        if session is None:
-            return None
-        key = {"id": session.id}
-        if _has_ended(session, now):
-            with contextlib.suppress(ChangedBySomeoneElseError):  # another request ended it first
-                tx.update(SESSION, key, {"ended_at": now}, session.row_version)
-            return None
-        if now - session.last_seen_at >= SEEN_EVERY:
-            with contextlib.suppress(ChangedBySomeoneElseError):  # another request wrote it first
-                tx.update(SESSION, key, {"last_seen_at": now}, session.row_version)
+    if session is None:
+        return None
+    as_user = _as_user(context, session.user_id)
+    key = {"id": session.id}
+    if _has_ended(session, now):
+        with store.transaction(as_user) as tx, contextlib.suppress(ChangedBySomeoneElseError):
+            tx.update(SESSION, key, {"ended_at": now}, session.row_version)  # unless another request ended it first
+        return None
+    if now - session.last_seen_at >= SEEN_EVERY:
+        with store.transaction(as_user) as tx, contextlib.suppress(ChangedBySomeoneElseError):
+            tx.update(SESSION, key, {"last_seen_at": now}, session.row_version)  # unless another wrote it first
     role = Role(session.role)
     return SignedIn(
-        caller=Caller(_as_user(context, session.user_id), role),
+        caller=Caller(as_user, role),
         session_id=session.id,
         user_id=session.user_id,
         name=session.name,
@@ -174,3 +178,42 @@ def signed_in(store: Store, clock: Clock, context: Context, session_id: str) -> 
         must_choose_password=session.must_choose_password,
         form_token=session.form_token,
     )
+
+
+@dataclass(frozen=True)
+class _Open:
+    id: UUID
+    row_version: int
+
+
+_OPEN_SESSIONS = """
+    SELECT id, row_version FROM fcon.session
+    WHERE tenant_id = %(tenant_id)s AND user_id = %(user_id)s AND ended_at IS NULL
+    ORDER BY id
+    FOR UPDATE
+"""
+
+
+def end_sessions(tx: Transaction, user_id: UUID, now: datetime, keep: UUID | None = None) -> None:
+    """Ends every open session of the user but `keep`, in the caller's
+    transaction, each through the store, so each is audited."""
+    for session in tx.fetch_all(_Open, _OPEN_SESSIONS, {"user_id": user_id}):
+        if session.id != keep:
+            tx.update(SESSION, {"id": session.id}, {"ended_at": now}, session.row_version)
+
+
+def sign_out(store: Store, clock: Clock, signed_in: SignedIn) -> None:
+    """Ends every session of that user, on every computer (design point 4)."""
+    with store.transaction(signed_in.caller.context) as tx:
+        end_sessions(tx, signed_in.user_id, clock.now())
+
+
+FOREIGN_ORIGIN = "the form came from another site"
+WRONG_FORM_TOKEN = "the form's token is not the session's"  # noqa: S105 - a reason, not a secret
+
+
+def refuse_form(store: Store, context: Context, session_id: UUID | None, reason: str) -> None:
+    """A form refused as expired (design point 5), audited against its
+    session, or the tenant when it came with none (decision 3)."""
+    with store.transaction(context) as tx:
+        tx.refuse(SESSION, "" if session_id is None else str(session_id), reason)

@@ -5,6 +5,7 @@ cookie, the gate in front of every route, and the overview."""
 from collections.abc import Iterator
 
 import httpx2 as httpx
+import psycopg
 import pytest
 from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
@@ -317,3 +318,135 @@ def test_a_database_out_of_reach_gives_the_error_page_to_a_signed_in_visitor():
         500,
         "Something went wrong",
     )
+
+
+# -- signing out, and forms checked against their session ------------------------
+
+
+def form_token(client: TestClient) -> str:
+    field = parse(client.get("/").text).find("input", attrs={"name": "csrf_token"})
+    assert isinstance(field, Tag), "no form token on the overview"
+    return str(field["value"])
+
+
+def signed_in_still(client: TestClient) -> bool:
+    return client.get("/", follow_redirects=False).status_code == 200
+
+
+def refusals(database_url: str) -> list[tuple[str, str, str | None]]:
+    with psycopg.connect(database_url) as connection:
+        found = connection.execute(
+            "SELECT table_name, row_key, reason FROM fcon.audit WHERE action = 'refused' ORDER BY id"
+        ).fetchall()
+    return [(str(table), str(key), None if reason is None else str(reason)) for table, key, reason in found]
+
+
+def test_signing_out_leads_to_sign_in(client: TestClient):
+    sign_in(client)
+
+    response = client.post("/sign-out", data={"csrf_token": form_token(client)}, follow_redirects=False)
+
+    assert (response.status_code, response.headers["location"]) == (303, "/sign-in")
+
+
+def test_signed_out_the_dashboard_asks_to_sign_in_again(client: TestClient):
+    sign_in(client)
+    kept = client.cookies.get("fcon_session")
+    client.post("/sign-out", data={"csrf_token": form_token(client)})
+    client.cookies.set("fcon_session", str(kept))
+
+    assert not signed_in_still(client)
+
+
+def test_signing_out_ends_the_session_cookie(client: TestClient):
+    sign_in(client)
+
+    client.post("/sign-out", data={"csrf_token": form_token(client)})
+
+    assert client.cookies.get("fcon_session") is None
+
+
+def test_a_form_without_its_token_is_refused_as_expired(client: TestClient):
+    sign_in(client)
+
+    response = client.post("/sign-out")
+
+    assert (response.status_code, heading(response.text), signed_in_still(client)) == (
+        403,
+        "This form has expired",
+        True,
+    )
+
+
+def test_a_form_with_another_token_is_refused_as_expired(client: TestClient):
+    sign_in(client)
+
+    response = client.post("/sign-out", data={"csrf_token": "not-the-sessions"})
+
+    assert (response.status_code, signed_in_still(client)) == (403, True)
+
+
+def test_a_refused_form_is_audited_against_its_session(client: TestClient, site_database: str):
+    sign_in(client)
+    with psycopg.connect(site_database) as connection:
+        row = connection.execute("SELECT id FROM fcon.session WHERE ended_at IS NULL").fetchone()
+    assert row is not None
+
+    client.post("/sign-out", data={"csrf_token": "not-the-sessions"})
+
+    assert refusals(site_database) == [("fcon.session", str(row[0]), "the form's token is not the session's")]
+
+
+def test_the_form_token_may_come_in_a_header(client: TestClient):
+    sign_in(client)
+
+    response = client.post("/sign-out", headers={"X-CSRF-Token": form_token(client)}, follow_redirects=False)
+
+    assert response.status_code == 303
+
+
+def test_a_form_from_this_site_is_accepted(client: TestClient):
+    sign_in(client)
+
+    response = client.post(
+        "/sign-out",
+        data={"csrf_token": form_token(client)},
+        headers={"Origin": "http://testserver"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+
+
+@pytest.mark.parametrize("origin", ["https://elsewhere.example", "null"])
+def test_a_form_from_another_site_is_refused_even_with_the_token(client: TestClient, origin: str):
+    sign_in(client)
+
+    response = client.post("/sign-out", data={"csrf_token": form_token(client)}, headers={"Origin": origin})
+
+    assert (response.status_code, heading(response.text), signed_in_still(client)) == (
+        403,
+        "This form has expired",
+        True,
+    )
+
+
+def test_a_form_from_another_site_is_refused_without_a_session_too(client: TestClient, site_database: str):
+    response = client.post("/sign-out", headers={"Origin": "https://elsewhere.example"}, follow_redirects=False)
+
+    assert (response.status_code, refusals(site_database)) == (
+        403,
+        [("fcon.session", "default", "the form came from another site")],
+    )
+
+
+def test_a_sign_in_from_another_site_is_refused(client: TestClient):
+    token = sign_in_token(client)
+
+    response = client.post(
+        "/sign-in",
+        data={"username": "ann", "password": PASSWORD, "sign_in_token": token},
+        headers={"Origin": "https://elsewhere.example"},
+    )
+
+    assert response.status_code == 403

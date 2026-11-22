@@ -20,13 +20,13 @@ from jinja2.runtime import Context as TemplateContext
 from markupsafe import Markup
 from starlette.exceptions import HTTPException
 
-from fcon_server.gate import SESSION_COOKIE
+from fcon_server.gate import FORM_TOKEN_FIELD, SESSION_COOKIE
 from fcon_server.signing import SIGN_IN_TOKEN_LIFE, SecretKeys, make_sign_in_token, sign_in_token_valid
 from fcon_server.store.clock import Clock
 from fcon_server.store.context import Context
 from fcon_server.store.transaction import Store
 from fcon_server.users.rights import Action, require
-from fcon_server.users.sessions import LONGEST_SESSION, Attempt, SignedIn, sign_in
+from fcon_server.users.sessions import LONGEST_SESSION, Attempt, SignedIn, sign_in, sign_out
 
 PRODUCT = "Feather Connect"
 OVERVIEW_PATH = "/"
@@ -41,7 +41,6 @@ OPEN_PREFIXES = (f"{STATIC_PATH}/",)
 
 SIGN_IN_COOKIE = "fcon_sign_in"
 SIGN_IN_TOKEN_FIELD = "sign_in_token"  # noqa: S105 - a field name, not a secret
-FORM_TOKEN_FIELD = "csrf_token"  # noqa: S105 - a field name, not a secret
 
 REFUSAL = "The user name or password is wrong."
 REFUSAL_ID = "sign-in-refused"
@@ -206,6 +205,10 @@ def error_page() -> HTMLResponse:
     return render("message.html", error_view(), status_code=500)
 
 
+def form_expired_page() -> HTMLResponse:
+    return render("message.html", form_expired_view(), status_code=403)
+
+
 async def http_error(request: Request, exc: Exception) -> Response:
     """An unknown address gets the not-found page; other refusals (405) keep
     FastAPI's own answer."""
@@ -304,7 +307,7 @@ def router() -> APIRouter:
         site, clock = _site(request), _clock(request)
         kept = request.cookies.get(SIGN_IN_COOKIE, "")
         if not (_same(sign_in_token, kept) and sign_in_token_valid(site.keys, sign_in_token, clock.now())):
-            return render("message.html", form_expired_view(), status_code=403)
+            return form_expired_page()
         address = request.client.host if request.client else ""
         attempt = Attempt(username, password, address, request.headers.get("user-agent"))
         session_id = sign_in(_store(request), clock, _context(request), attempt)
@@ -313,6 +316,14 @@ def router() -> APIRouter:
         response = RedirectResponse(OVERVIEW_PATH, status_code=303)
         response.set_cookie(SESSION_COOKIE, session_id, **_cookie_options(request, "/", LONGEST_SESSION))
         response.delete_cookie(SIGN_IN_COOKIE, path=SIGN_IN_PATH)
+        return response
+
+    @routes.post(SIGN_OUT_PATH)
+    def sign_out_form(request: Request) -> Response:
+        """Ends every session of the user; the gate has checked the form's token."""
+        sign_out(_store(request), _clock(request), _signed_in(request))
+        response = RedirectResponse(SIGN_IN_PATH, status_code=303)
+        response.delete_cookie(SESSION_COOKIE, path="/")
         return response
 
     return routes
