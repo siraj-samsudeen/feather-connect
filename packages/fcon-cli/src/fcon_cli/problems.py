@@ -9,6 +9,8 @@ from enum import StrEnum
 from fcon_server import database
 from fcon_server.database import ICU_COLLATION, DatabaseAddress, DatabaseCheck
 from fcon_server.store.migrate import MigrationStatus
+from fcon_server.users import rules
+from fcon_server.users.rules import PasswordProblem
 
 THIS_MACHINE = {"127.0.0.1", "localhost", "::1"}
 SET_THE_ADDRESS = "Set it to your Postgres 18 address: postgresql://user:password@host:5432/feather"
@@ -204,12 +206,16 @@ def _not_ready(check: DatabaseCheck) -> tuple[str, tuple[str, ...]]:
             return _unusable(check, "FCON_DATABASE_URL")
 
 
-def database_problem(check: DatabaseCheck) -> Problem:
-    """The server's message for a database that is not usable (check.problem is set)."""
+def _database_problem(check: DatabaseCheck, level: Level, after: str) -> Problem:
     if check.problem is database.Problem.CHANGED:
         return upgrade_changed((check.migrations or _NO_STATUS).changed[0].name)
     what, todo = _not_ready(check)
-    return Problem(Level.WARNING, f"{what} Not ready.", todo)
+    return Problem(level, f"{what}{after}", todo)
+
+
+def database_problem(check: DatabaseCheck) -> Problem:
+    """The server's message for a database that is not usable (check.problem is set)."""
+    return _database_problem(check, Level.WARNING, " Not ready.")
 
 
 def database_notes(check: DatabaseCheck) -> tuple[Problem, ...]:
@@ -237,6 +243,11 @@ def database_notes(check: DatabaseCheck) -> tuple[Problem, ...]:
     return tuple(notes)
 
 
+def database_not_ready_for_command(check: DatabaseCheck) -> Problem:
+    """A command's error for a database it cannot use (check.problem is set)."""
+    return _database_problem(check, Level.ERROR, "")
+
+
 def database_unusable(check: DatabaseCheck, setting: str) -> Problem:
     """A command's error for a database that is not usable, whose address it
     read from `setting`."""
@@ -259,3 +270,37 @@ def database_usable(check: DatabaseCheck, again: bool = False) -> str:
     """Not a problem: the line that says the database is ready."""
     address = check.address
     return f"the database {address.dbname} at {_where(address)} is usable{' again' if again else ''}. Ready."
+
+
+# -- users ---------------------------------------------------------------
+
+_PASSWORD_TODO = {
+    PasswordProblem.TOO_SHORT: f"Use at least {rules.SHORTEST} characters.",
+    PasswordProblem.TOO_LONG: f"Use at most {rules.LONGEST} characters.",
+    PasswordProblem.TOO_COMMON: "Choose one that is not among the most common passwords.",
+    PasswordProblem.OWN_NAME: "Choose one that is not the user name.",
+}
+
+
+def user_name_not_allowed(name: str) -> Problem:
+    return Problem(
+        Level.ERROR,
+        f"the user name {name!r} is not allowed.",
+        ("Use 1 to 64 lowercase letters, digits and . _ - @ +; an email address works.",),
+    )
+
+
+def user_name_taken(name: str) -> Problem:
+    return Problem(Level.ERROR, f"the user name {name} is taken.", ("Pick another name.",))
+
+
+def weak_password(problem: PasswordProblem) -> Problem:
+    return Problem(Level.ERROR, f"the password is {problem}.", (_PASSWORD_TODO[problem],))
+
+
+def no_password() -> Problem:
+    return Problem(Level.ERROR, "no password was given.", ("Type it when asked, or give it as one line on stdin.",))
+
+
+def passwords_differ() -> Problem:
+    return Problem(Level.ERROR, "the two passwords typed differ.", ("Type the same password twice.",))
