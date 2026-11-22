@@ -10,10 +10,12 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 from fcon_cli import problems
+from fcon_cli.db import show_status, upgrade_database
 from fcon_cli.logs import configure_logging
 from fcon_cli.problems import ProblemError
 from fcon_cli.server import run_server
-from fcon_cli.settings import Settings, load_settings
+from fcon_cli.settings import Settings, load_database_settings, load_settings
+from fcon_server.store.clock import Clock, SystemClock
 
 PROBLEM_EXIT = 2  # a mistake only a person can fix
 BUG_EXIT = 1
@@ -47,13 +49,33 @@ def _parser() -> argparse.ArgumentParser:
     server = commands.add_parser("server", help="start the server")
     server.add_argument("--host", help="the address to listen on (FCON_HOST, default 127.0.0.1)")
     server.add_argument("--port", type=int, help="the port to listen on (FCON_PORT, else PORT, default 8080)")
+    db = commands.add_parser("db", help="upgrade the database, or see what has been applied")
+    db_commands = db.add_subparsers(dest="db_command", required=True, metavar="command")
+    db_commands.add_parser(
+        "upgrade", help="apply every waiting upgrade (FCON_MIGRATION_DATABASE_URL, else FCON_DATABASE_URL)"
+    )
+    db_commands.add_parser("status", help="list the upgrades applied, with when they ran, and those waiting")
     return parser
 
 
-def main(argv: Sequence[str] | None = None, serve: Callable[[Settings], None] = run_server) -> int:
-    """`serve` starts the server once the settings are read (a test gives its own)."""
+def _database_command(command: str, clock: Clock) -> None:
+    settings = load_database_settings(os.environ, Path.cwd())
+    if command == "upgrade":
+        upgrade_database(settings, clock, sys.stdout, sys.stderr)
+    else:
+        show_status(settings, sys.stdout)
+
+
+def main(
+    argv: Sequence[str] | None = None, serve: Callable[[Settings], None] = run_server, clock: Clock | None = None
+) -> int:
+    """`serve` starts the server once the settings are read, and `clock` says
+    when upgrades ran (a test gives its own of each)."""
     try:
         args = _parser().parse_args(argv)
+        if args.command == "db":
+            _database_command(args.db_command, clock or SystemClock())
+            return 0
         settings = load_settings(os.environ, Path.cwd(), host=args.host, port=args.port)
         configure_logging(settings.log_format, sys.stderr)
         serve(settings)

@@ -1,9 +1,13 @@
 """The database check: usable, or which problem, against a real Postgres 18."""
 
+import uuid
+from datetime import UTC, datetime
+
 import psycopg
 import pytest
 from psycopg import conninfo
 
+from fcon_server import database
 from fcon_server.database import (
     DatabaseAddress,
     Problem,
@@ -13,6 +17,8 @@ from fcon_server.database import (
     open_connection,
     port_refuses,
 )
+from fcon_server.store.clock import FixedClock, SystemClock
+from fcon_server.store.migrate import MIGRATIONS, upgrade
 
 
 @pytest.mark.database
@@ -110,3 +116,111 @@ def check_database_result(url: str, reason: str):
     from fcon_server.database import DatabaseCheck
 
     return DatabaseCheck(address=address_of(url), problem=Problem.UNREACHABLE, reason=reason, detail="")
+
+
+# -- readiness: the encoding, the collation, the upgrades, the audit months --
+
+
+def upgraded(url: str) -> str:
+    upgrade(url, SystemClock())
+    return url
+
+
+def execute(url: str, text: str) -> None:
+    with psycopg.connect(url, autocommit=True) as connection:
+        connection.execute(text.encode())
+
+
+@pytest.mark.database
+def test_the_check_finds_the_databases_encoding(database_url: str):
+    assert check_database(database_url).encoding == "UTF8"
+
+
+@pytest.mark.database
+def test_the_check_finds_the_icu_collation(database_url: str):
+    assert check_database(database_url).icu
+
+
+@pytest.mark.database
+def test_a_database_without_icu_collation_is_still_usable(database_url: str, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(database, "ICU_COLLATION", "no-such-collation")
+
+    check = check_database(database_url)
+
+    assert (check.icu, check.problem) == (False, None)
+
+
+@pytest.mark.database
+def test_a_database_not_in_utf8_is_not_ready(database_url: str):
+    name = f"feather_test_{uuid.uuid4().hex[:8]}"
+    execute(database_url, f"CREATE DATABASE {name} ENCODING 'SQL_ASCII' LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0")
+    try:
+        check = check_database(conninfo.make_conninfo(database_url, dbname=name))
+    finally:
+        execute(database_url, f"DROP DATABASE {name} WITH (FORCE)")
+
+    assert (check.problem, check.encoding) == (Problem.NOT_UTF8, "SQL_ASCII")
+
+
+@pytest.mark.database
+def test_a_database_with_upgrades_waiting_is_behind(empty_database_url: str):
+    check = check_database(empty_database_url)
+
+    assert check.problem is Problem.BEHIND
+
+
+@pytest.mark.database
+def test_the_check_carries_the_upgrades_waiting(empty_database_url: str):
+    check = check_database(empty_database_url)
+
+    assert check.migrations is not None and check.migrations.waiting == tuple(
+        path.name for path in sorted(MIGRATIONS.glob("*.sql"))
+    )
+
+
+@pytest.mark.database
+def test_a_database_with_an_applied_upgrade_edited_is_changed(empty_database_url: str):
+    url = upgraded(empty_database_url)
+    execute(url, "UPDATE fcon.migration SET checksum = repeat('0', 64)")
+
+    assert check_database(url).problem is Problem.CHANGED
+
+
+@pytest.mark.database
+def test_a_database_with_an_upgrade_from_a_newer_version_is_usable(empty_database_url: str):
+    url = upgraded(empty_database_url)
+    execute(
+        url,
+        "INSERT INTO fcon.migration (name, checksum, created_at, created_by)"
+        " VALUES ('29991231T2359Z_newer.sql', repeat('0', 64), now(), 'system:migration')",
+    )
+
+    check = check_database(url)
+
+    assert (check.problem, check.migrations and check.migrations.newer) == (None, ("29991231T2359Z_newer.sql",))
+
+
+@pytest.mark.database
+def test_an_upgraded_database_has_24_audit_months_ahead(database_url: str):
+    assert check_database(database_url).months_ahead == 24
+
+
+@pytest.mark.database
+def test_a_database_with_no_audit_month_for_now_is_not_ready(database_url: str):
+    past_the_last_month = FixedClock(first_of_month_after(datetime.now(UTC), months=25))
+
+    assert check_database(database_url, clock=past_the_last_month).problem is Problem.AUDIT_MONTH_MISSING
+
+
+@pytest.mark.database
+def test_a_database_with_few_audit_months_ahead_is_still_usable(database_url: str):
+    a_month_before_the_last = FixedClock(first_of_month_after(datetime.now(UTC), months=23))
+
+    check = check_database(database_url, clock=a_month_before_the_last)
+
+    assert (check.problem, check.months_ahead) == (None, 1)
+
+
+def first_of_month_after(now: datetime, months: int) -> datetime:
+    month = now.month - 1 + months
+    return datetime(now.year + month // 12, month % 12 + 1, 1, 12, tzinfo=UTC)

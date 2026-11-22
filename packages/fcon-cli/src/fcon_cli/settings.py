@@ -1,7 +1,8 @@
-"""The settings of `fcon server`: FCON_* environment variables only, and
+"""The settings of the commands: FCON_* environment variables only, and
 in development a git-ignored .env file in the current directory, which fills
-in only what the environment leaves unset. --host and --port win for one run.
-A mistake raises SettingsError, with the error helper's words for it."""
+in only what the environment leaves unset. --host and --port win for one run
+of `fcon server`. A mistake raises SettingsError, with the error helper's
+words for it."""
 
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -17,6 +18,8 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
 ENV_FILE = ".env"
 LOG_FORMATS = ("text", "json")  # unset: text on a terminal, json elsewhere
+DEFAULT_POOL_SIZE = 5
+PREPARE = {"on": True, "off": False}  # off: for a connection pooler in front of Postgres
 
 
 class SettingsError(ProblemError):
@@ -29,6 +32,17 @@ class Settings:
     port: int
     database_url: str
     log_format: str = ""
+    pool_size: int = DEFAULT_POOL_SIZE
+    prepare: bool = True
+
+
+@dataclass(frozen=True)
+class DatabaseSettings:
+    """`fcon db`: the app's address, and the owner's for upgrades
+    (FCON_MIGRATION_DATABASE_URL, else the app's)."""
+
+    database_url: str
+    migration_database_url: str
 
 
 def read_env_file(path: Path) -> dict[str, str]:
@@ -57,19 +71,23 @@ def _port(variables: Mapping[str, str], option: int | None) -> int:
     return _checked_port(name, variables.get(name, str(DEFAULT_PORT)))
 
 
-def _database_url(variables: Mapping[str, str]) -> str:
+def _checked_database_url(name: str, url: str) -> str:
     """An address psycopg reads, as it takes it: a postgresql:// or postgres://
     URL, or libpq's key=value form. Never repeated: it may hold a password."""
-    url = variables.get("FCON_DATABASE_URL", "")
-    if not url:
-        raise SettingsError(problems.database_url_missing())
     try:
         port = str(conninfo.conninfo_to_dict(url).get("port") or "5432")
     except psycopg.ProgrammingError:
         port = ""
     if not port.isdigit():
-        raise SettingsError(problems.database_url_not_postgres())
+        raise SettingsError(problems.database_url_not_postgres(name))
     return url
+
+
+def _database_url(variables: Mapping[str, str]) -> str:
+    url = variables.get("FCON_DATABASE_URL", "")
+    if not url:
+        raise SettingsError(problems.database_url_missing())
+    return _checked_database_url("FCON_DATABASE_URL", url)
 
 
 def _log_format(variables: Mapping[str, str]) -> str:
@@ -77,6 +95,22 @@ def _log_format(variables: Mapping[str, str]) -> str:
     if chosen and chosen not in LOG_FORMATS:
         raise SettingsError(problems.log_format_unknown(chosen))
     return chosen
+
+
+def _pool_size(variables: Mapping[str, str]) -> int:
+    text = variables.get("FCON_DATABASE_POOL_SIZE", "")
+    if not text:
+        return DEFAULT_POOL_SIZE
+    if not text.isdigit() or int(text) < 1:
+        raise SettingsError(problems.pool_size_not_a_number(text))
+    return int(text)
+
+
+def _prepare(variables: Mapping[str, str]) -> bool:
+    text = variables.get("FCON_DATABASE_PREPARE", "") or "on"
+    if text not in PREPARE:
+        raise SettingsError(problems.prepare_unknown(text))
+    return PREPARE[text]
 
 
 def load_settings(
@@ -88,4 +122,18 @@ def load_settings(
         host=host or variables.get("FCON_HOST", DEFAULT_HOST),
         port=_port(variables, port),
         log_format=_log_format(variables),
+        pool_size=_pool_size(variables),
+        prepare=_prepare(variables),
+    )
+
+
+def load_database_settings(environ: Mapping[str, str], directory: Path) -> DatabaseSettings:
+    variables = {**read_env_file(directory / ENV_FILE), **environ}
+    database_url = _database_url(variables)
+    owner_url = variables.get("FCON_MIGRATION_DATABASE_URL", "")
+    return DatabaseSettings(
+        database_url=database_url,
+        migration_database_url=_checked_database_url("FCON_MIGRATION_DATABASE_URL", owner_url)
+        if owner_url
+        else database_url,
     )

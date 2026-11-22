@@ -1,7 +1,9 @@
 """The database watch (design decision 1): fcon-server's check, every few
 seconds in a background thread, with the port probe that names the cause. It logs through the error helper when a
 problem starts, once a minute while it lasts, and when it ends, so a person
-reading the log knows why the server is not ready, and when it is again."""
+reading the log knows why the server is not ready, and when it is again.
+What is worth knowing about a usable database (an upgrade from a newer
+version, no ICU collation, few audit months ahead) it says once."""
 
 import logging
 import threading
@@ -35,6 +37,7 @@ class DatabaseWatch:
         self._seen = False  # whether any look has answered yet
         self._problem: Problem | None = None  # the problem it last said, while it lasts
         self._said_at = 0.0
+        self._noted: set[Problem] = set()  # the notes said already: each once
         self._stopped = threading.Event()
         self._thread: threading.Thread | None = None
 
@@ -49,6 +52,10 @@ class DatabaseWatch:
             if self._problem is not None or not self._seen:
                 log.info(problems.database_usable(check, again=self._problem is not None))
             self._problem = None
+            for note in problems.database_notes(check):
+                if note not in self._noted:
+                    log_problem(log, note)
+                    self._noted.add(note)
         else:
             self._say(problems.database_problem(check))
         self._seen = True
