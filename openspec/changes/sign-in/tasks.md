@@ -7,15 +7,15 @@
 
 ### Users and access: a refused sign-in gives no hint
 
-- [x] 2.1 users-and-access: Given "ann" is an administrator with the password "blue-harbour-lamp" — red → green → commit
-- [x] 2.2 users-and-access: the existing refusal steps, now against a real user, and "A name nobody has is refused in the same words" — red → green → commit
+- [ ] 2.1 users-and-access: Given "ann" is an administrator with the password "blue-harbour-lamp" — red → green → commit
+- [ ] 2.2 users-and-access: the existing refusal steps, now against a real user, and "A name nobody has is refused in the same words" — red → green → commit
 
 ### Users and access: the first administrator
 
-- [x] 2.3 users-and-access: Given a new install with no users — red → green → commit
-- [x] 2.4 users-and-access: When the operator adds the user "ann" from the command line, with the password "blue-harbour-lamp" — red → green → commit
-- [x] 2.5 users-and-access: Then the user sees the overview — red → green → commit
-- [x] 2.6 users-and-access: And the user is shown as "ann", an administrator — red → green → commit
+- [ ] 2.3 users-and-access: Given a new install with no users — red → green → commit
+- [ ] 2.4 users-and-access: When the operator adds the user "ann" from the command line, with the password "blue-harbour-lamp" — red → green → commit
+- [ ] 2.5 users-and-access: Then the user sees the overview — red → green → commit
+- [ ] 2.6 users-and-access: And the user is shown as "ann", an administrator — red → green → commit
 - [ ] 2.7 users-and-access: And the product's settings name "ann" as the first administrator — red → green → commit
 - [ ] 2.8 users-and-access: When the operator starts the product — red → green → commit
 - [ ] 2.9 users-and-access: Then its log gives a one-time password for "ann", and says to sign in and choose a new one — red → green → commit
