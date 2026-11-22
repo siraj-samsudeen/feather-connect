@@ -37,10 +37,14 @@ CREATE DATABASE fcon OWNER fcon;
 - Postgres lets every user connect to a new database. If your server has taken that right away
   from everyone (`REVOKE CONNECT ... FROM PUBLIC`), also run
   `GRANT CONNECT ON DATABASE fcon TO fcon_app;`.
+- An administrator who is not a superuser (often so on a managed Postgres) must be a member of
+  `fcon` to make it the database's owner: run `GRANT fcon TO <administrator>;` before
+  `CREATE DATABASE`.
 
 Passwords: long and random. Hex is suggested, for example `openssl rand -hex 32`, because it can
 go into a database address as it is. Any other password must be percent-escaped in an address
-(`@` becomes `%40`, `/` becomes `%2F`, and so on).
+(`@` becomes `%40`, `/` becomes `%2F`, and so on). In `deploy/.env`, Docker Compose also reads `$`
+as the start of a variable: write a `$` in a password as `$$`.
 
 The two database addresses are then:
 
