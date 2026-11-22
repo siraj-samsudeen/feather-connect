@@ -45,7 +45,7 @@ def run(capsys: pytest.CaptureFixture[str], *argv: str) -> tuple[int, list[str],
 def test_an_upgrade_names_each_file_it_applied_then_how_many(database: str, capsys: pytest.CaptureFixture[str]):
     assert run(capsys, "db", "upgrade") == (
         0,
-        [*(f"applied {name}" for name in FILES), f"the database is up to date: {len(FILES)} upgrade applied."],
+        [*(f"applied {name}" for name in FILES), f"the database is up to date: {len(FILES)} upgrades applied."],
         "",
     )
 
