@@ -10,7 +10,7 @@ It returns facts; the command line words them.
 - Each file runs in its own transaction, with `fcon.now` set from the clock,
   unless its first line is `-- fcon: no-transaction`: such a file holds one
   statement, since Postgres runs several sent together in one transaction.
-- Then the audit log's months, through six ahead of the clock's (UTC).
+- Then the audit log's months, through 24 ahead of the clock's (UTC).
 - Then the rights (design point 17): an app user other than the owner reads
   and writes every `fcon` table, and only reads and adds to `fcon.audit`
   and its months.
@@ -31,7 +31,7 @@ from fcon_server.store.clock import Clock
 MIGRATIONS = Path(__file__).parent / "migrations"
 NO_TRANSACTION = "-- fcon: no-transaction"
 ACTOR = "system:migration"
-MONTHS_AHEAD = 6
+MONTHS_AHEAD = 24
 # A literal, a quoted name or a comment: a `;` inside one ends no statement.
 _NOISE = re.compile(r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|--[^\n]*|/\*.*?\*/|\$(\w*)\$.*?\$\1\$""", re.DOTALL)
 LOCK_KEY = 0x66636F6E_6462  # "fcondb": the one upgrade at a time
@@ -164,7 +164,7 @@ def _next_month(month: date) -> date:
 
 
 def audit_months(now: datetime) -> tuple[date, ...]:
-    """The first day of the clock's month in UTC and of each of the six after it."""
+    """The first day of the clock's month in UTC and of each of the 24 after it."""
     month = now.astimezone(UTC).date().replace(day=1)
     months = [month]
     for _ in range(MONTHS_AHEAD):

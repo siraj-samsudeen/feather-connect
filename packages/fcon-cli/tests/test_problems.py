@@ -322,16 +322,16 @@ def test_a_database_without_icu_is_warned_that_lists_sort_by_character_code():
     ]
 
 
-def test_fewer_than_two_audit_months_ahead_is_warned():
-    check = DatabaseCheck(address=LOCAL, migrations=status(), months_ahead=1)
+def test_fewer_than_three_audit_months_ahead_is_warned():
+    check = DatabaseCheck(address=LOCAL, migrations=status(), months_ahead=2)
 
     assert [note.text() for note in problems.database_notes(check)] == [
-        "warning: the audit log has partitions for only 1 month after this one.\n  Run: fcon db upgrade"
+        "warning: the audit log has partitions for only 2 months after this one.\n  Run: fcon db upgrade"
     ]
 
 
-def test_two_audit_months_ahead_are_enough():
-    check = DatabaseCheck(address=LOCAL, migrations=status(), months_ahead=2)
+def test_three_audit_months_ahead_are_enough():
+    check = DatabaseCheck(address=LOCAL, migrations=status(), months_ahead=3)
 
     assert problems.database_notes(check) == ()
 

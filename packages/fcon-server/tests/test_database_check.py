@@ -1,7 +1,7 @@
 """The database check: usable, or which problem, against a real Postgres 18."""
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 import psycopg
 import pytest
@@ -18,7 +18,7 @@ from fcon_server.database import (
     port_refuses,
 )
 from fcon_server.store.clock import FixedClock, SystemClock
-from fcon_server.store.migrate import MIGRATIONS, MONTHS_AHEAD, upgrade
+from fcon_server.store.migrate import MIGRATIONS, upgrade
 
 
 @pytest.mark.database
@@ -201,22 +201,22 @@ def test_a_database_with_an_upgrade_from_a_newer_version_is_usable(empty_databas
 
 
 @pytest.mark.database
-def test_an_upgraded_database_has_six_audit_months_ahead(database_url: str):
-    assert check_database(database_url).months_ahead == MONTHS_AHEAD
+def test_an_upgraded_database_has_24_audit_months_ahead(database_url: str):
+    assert check_database(database_url).months_ahead == 24
 
 
 @pytest.mark.database
 def test_a_database_with_no_audit_month_for_now_is_not_ready(database_url: str):
-    a_year_on = FixedClock(datetime.now(UTC) + timedelta(days=366))
+    past_the_last_month = FixedClock(first_of_month_after(datetime.now(UTC), months=25))
 
-    assert check_database(database_url, clock=a_year_on).problem is Problem.AUDIT_MONTH_MISSING
+    assert check_database(database_url, clock=past_the_last_month).problem is Problem.AUDIT_MONTH_MISSING
 
 
 @pytest.mark.database
 def test_a_database_with_few_audit_months_ahead_is_still_usable(database_url: str):
-    five_months_on = FixedClock(first_of_month_after(datetime.now(UTC), months=5))
+    a_month_before_the_last = FixedClock(first_of_month_after(datetime.now(UTC), months=23))
 
-    check = check_database(database_url, clock=five_months_on)
+    check = check_database(database_url, clock=a_month_before_the_last)
 
     assert (check.problem, check.months_ahead) == (None, 1)
 

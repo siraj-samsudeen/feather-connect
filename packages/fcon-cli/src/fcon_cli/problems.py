@@ -14,7 +14,7 @@ THIS_MACHINE = {"127.0.0.1", "localhost", "::1"}
 SET_THE_ADDRESS = "Set it to your Postgres 18 address: postgresql://user:password@host:5432/feather"
 DEFAULT_PORT = 8080
 RUN_UPGRADE = "Run: fcon db upgrade"
-ENOUGH_MONTHS_AHEAD = 2  # fewer audit months after this one: a warning (design decision 4)
+ENOUGH_MONTHS_AHEAD = 3  # fewer audit months after this one: a warning (design decision 4)
 _NO_STATUS = MigrationStatus(applied=(), waiting=(), newer=(), changed=())
 
 

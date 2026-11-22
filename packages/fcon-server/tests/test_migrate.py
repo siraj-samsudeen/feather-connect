@@ -268,17 +268,13 @@ AUDIT_PARTITIONS = """
 """
 
 
-def test_an_upgrade_makes_the_audit_months_through_six_ahead(empty_database_url: str, folder: Path):
+def test_an_upgrade_makes_the_audit_months_through_24_ahead(empty_database_url: str, folder: Path):
     upgrade(empty_database_url, FixedClock(NOW), directory=folder)
 
     assert [name for (name,) in query(empty_database_url, AUDIT_PARTITIONS)] == [
-        "audit_2026_11",
-        "audit_2026_12",
-        "audit_2027_01",
-        "audit_2027_02",
-        "audit_2027_03",
-        "audit_2027_04",
-        "audit_2027_05",
+        *(f"audit_2026_{month:02}" for month in (11, 12)),
+        *(f"audit_2027_{month:02}" for month in range(1, 13)),
+        *(f"audit_2028_{month:02}" for month in range(1, 12)),
     ]
 
 
@@ -287,7 +283,7 @@ def test_an_upgrade_with_nothing_waiting_still_makes_the_months_ahead(empty_data
 
     upgrade(empty_database_url, FixedClock(datetime(2027, 1, 1, tzinfo=UTC)), directory=folder)
 
-    assert [name for (name,) in query(empty_database_url, AUDIT_PARTITIONS)][-2:] == ["audit_2027_06", "audit_2027_07"]
+    assert [name for (name,) in query(empty_database_url, AUDIT_PARTITIONS)][-2:] == ["audit_2028_12", "audit_2029_01"]
 
 
 def test_an_audit_month_runs_from_its_first_instant_in_utc(empty_database_url: str, folder: Path):
