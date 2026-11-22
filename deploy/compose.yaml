@@ -41,6 +41,7 @@ services:
     command: ["server"]
     environment:
       FCON_DATABASE_URL: ${FCON_DATABASE_URL:?set FCON_DATABASE_URL in deploy/.env, the app user's database address (see deploy/.env.example)}
+      FCON_SECRET_KEY: ${FCON_SECRET_KEY:?set FCON_SECRET_KEY in deploy/.env, at least 32 random characters (see deploy/.env.example)}
     depends_on:
       migrate:
         condition: service_completed_successfully

@@ -56,7 +56,7 @@ docker run --rm --network host -e FCON_DATABASE_URL="$database_url" "$image" db 
 
 echo "== the server on port ${port}"
 docker run -d --name "$container" --network host \
-    -e FCON_DATABASE_URL="$database_url" -e PORT="$port" "$image" >/dev/null
+    -e FCON_DATABASE_URL="$database_url" -e FCON_SECRET_KEY="$(openssl rand -hex 32)" -e PORT="$port" "$image" >/dev/null
 
 health=starting
 for _ in $(seq 1 60); do

@@ -7,6 +7,7 @@ words for it."""
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import NoReturn
 
 import psycopg
 from psycopg import conninfo
@@ -20,6 +21,8 @@ ENV_FILE = ".env"
 LOG_FORMATS = ("text", "json")  # unset: text on a terminal, json elsewhere
 DEFAULT_POOL_SIZE = 5
 PREPARE = {"on": True, "off": False}  # off: for a connection pooler in front of Postgres
+SHORTEST_SECRET_KEY = 32  # characters
+DEFAULT_ENVIRONMENT = "development"
 
 
 class SettingsError(ProblemError):
@@ -31,9 +34,12 @@ class Settings:
     host: str
     port: int
     database_url: str
+    secret_key: str
     log_format: str = ""
     pool_size: int = DEFAULT_POOL_SIZE
     prepare: bool = True
+    previous_secret_key: str | None = None
+    environment: str = DEFAULT_ENVIRONMENT
 
 
 @dataclass(frozen=True)
@@ -113,6 +119,18 @@ def _prepare(variables: Mapping[str, str]) -> bool:
     return PREPARE[text]
 
 
+def _secret_key(variables: Mapping[str, str], name: str) -> str | None:
+    """At least SHORTEST_SECRET_KEY characters, when set. Never repeated: it is a secret."""
+    key = variables.get(name, "")
+    if key and len(key) < SHORTEST_SECRET_KEY:
+        raise SettingsError(problems.secret_key_too_short(name))
+    return key or None
+
+
+def _no_secret_key() -> NoReturn:
+    raise SettingsError(problems.secret_key_missing())
+
+
 def load_settings(
     environ: Mapping[str, str], directory: Path, host: str | None = None, port: int | None = None
 ) -> Settings:
@@ -124,6 +142,9 @@ def load_settings(
         log_format=_log_format(variables),
         pool_size=_pool_size(variables),
         prepare=_prepare(variables),
+        secret_key=_secret_key(variables, "FCON_SECRET_KEY") or _no_secret_key(),
+        previous_secret_key=_secret_key(variables, "FCON_SECRET_KEY_PREVIOUS"),
+        environment=variables.get("FCON_ENVIRONMENT", "").strip() or DEFAULT_ENVIRONMENT,
     )
 
 

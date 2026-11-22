@@ -20,6 +20,7 @@ from fcon_cli.main import main
 from fcon_cli.settings import Settings
 
 START_TIMEOUT_S = 30
+SECRET_KEY = "a-test-secret-key-of-32-characters-or-more"
 
 
 @dataclass
@@ -54,6 +55,7 @@ def running(tmp_path: Path, free_port: int) -> Iterator[Running]:
         **os.environ,
         "FCON_DATABASE_URL": "postgresql://feather:feather@127.0.0.1:9/feather",
         "FCON_LOG_FORMAT": "json",
+        "FCON_SECRET_KEY": SECRET_KEY,
     }
     with log.open("wb") as output:
         process = subprocess.Popen(
@@ -148,6 +150,7 @@ def test_a_taken_port_stops_it_with_exit_code_2(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ):
     monkeypatch.setenv("FCON_DATABASE_URL", "postgresql://feather@127.0.0.1:9/feather")
+    monkeypatch.setenv("FCON_SECRET_KEY", SECRET_KEY)
     monkeypatch.chdir(tmp_path)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as other:
         other.bind(("127.0.0.1", 0))
@@ -167,6 +170,7 @@ def test_a_bug_at_start_up_says_it_is_one_then_shows_the_traceback(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ):
     monkeypatch.setenv("FCON_DATABASE_URL", "postgresql://feather@127.0.0.1:9/feather")
+    monkeypatch.setenv("FCON_SECRET_KEY", SECRET_KEY)
     monkeypatch.chdir(tmp_path)
 
     code = main(["server"], serve=crash)
@@ -178,3 +182,15 @@ def test_a_bug_at_start_up_says_it_is_one_then_shows_the_traceback(
         "Traceback (most recent call last):",
         "RuntimeError: a bug at start-up",
     )
+
+
+def test_a_missing_secret_key_stops_it_with_exit_code_2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    monkeypatch.setenv("FCON_DATABASE_URL", "postgresql://feather@127.0.0.1:9/feather")
+    monkeypatch.delenv("FCON_SECRET_KEY", raising=False)
+    monkeypatch.chdir(tmp_path)
+
+    code = main(["server"])
+
+    assert (code, capsys.readouterr().err) == (2, problems.secret_key_missing().text() + "\n")

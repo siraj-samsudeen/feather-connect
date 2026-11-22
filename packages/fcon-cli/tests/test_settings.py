@@ -10,34 +10,36 @@ from fcon_cli import problems
 from fcon_cli.settings import DatabaseSettings, Settings, SettingsError, load_database_settings, load_settings
 
 URL = "postgresql://feather:feather@127.0.0.1:5442/feather"
+KEY = "k" * 32
+BASE = {"FCON_DATABASE_URL": URL, "FCON_SECRET_KEY": KEY}
 
 
 def test_it_listens_on_its_own_machine_at_8080_by_default(tmp_path: Path):
-    settings = load_settings({"FCON_DATABASE_URL": URL}, tmp_path)
+    settings = load_settings(BASE, tmp_path)
 
-    assert settings == Settings(host="127.0.0.1", port=8080, database_url=URL)
+    assert settings == Settings(host="127.0.0.1", port=8080, database_url=URL, secret_key=KEY)
 
 
 def test_the_hosts_port_is_used_when_fcon_port_is_not_set(tmp_path: Path):
-    settings = load_settings({"FCON_DATABASE_URL": URL, "PORT": "9000"}, tmp_path)
+    settings = load_settings({**BASE, "PORT": "9000"}, tmp_path)
 
     assert settings.port == 9000
 
 
 def test_fcon_port_wins_over_the_hosts_port(tmp_path: Path):
-    settings = load_settings({"FCON_DATABASE_URL": URL, "PORT": "9000", "FCON_PORT": "9100"}, tmp_path)
+    settings = load_settings({**BASE, "PORT": "9000", "FCON_PORT": "9100"}, tmp_path)
 
     assert settings.port == 9100
 
 
 def test_fcon_host_sets_where_it_listens(tmp_path: Path):
-    settings = load_settings({"FCON_DATABASE_URL": URL, "FCON_HOST": "0.0.0.0"}, tmp_path)  # noqa: S104
+    settings = load_settings({**BASE, "FCON_HOST": "0.0.0.0"}, tmp_path)  # noqa: S104
 
     assert settings.host == "0.0.0.0"  # noqa: S104
 
 
 def test_the_options_win_over_the_variables_for_one_run(tmp_path: Path):
-    environ = {"FCON_DATABASE_URL": URL, "FCON_HOST": "0.0.0.0", "FCON_PORT": "9100"}  # noqa: S104
+    environ = {**BASE, "FCON_HOST": "0.0.0.0", "FCON_PORT": "9100"}  # noqa: S104
 
     settings = load_settings(environ, tmp_path, host="127.0.0.2", port=9200)
 
@@ -50,7 +52,7 @@ def test_env_file_fills_in_only_what_the_environment_leaves_unset(tmp_path: Path
         encoding="utf-8",
     )
 
-    settings = load_settings({"FCON_DATABASE_URL": URL}, tmp_path)
+    settings = load_settings(BASE, tmp_path)
 
     assert (settings.port, settings.database_url) == (18004, URL)
 
@@ -82,7 +84,7 @@ def test_an_address_that_is_not_postgres_is_a_settings_mistake(tmp_path: Path, u
     "url", ["postgres://feather@db.internal/feather", "host=db.internal dbname=feather sslmode=require"]
 )
 def test_every_address_psycopg_reads_is_a_postgres_address(tmp_path: Path, url: str):
-    assert load_settings({"FCON_DATABASE_URL": url}, tmp_path).database_url == url
+    assert load_settings({**BASE, "FCON_DATABASE_URL": url}, tmp_path).database_url == url
 
 
 def test_a_port_that_is_not_a_number_is_a_settings_mistake(tmp_path: Path):
@@ -108,7 +110,7 @@ def test_a_port_option_of_0_is_a_settings_mistake(tmp_path: Path):
 
 
 def test_the_log_format_is_read_with_the_settings(tmp_path: Path):
-    settings = load_settings({"FCON_DATABASE_URL": URL, "FCON_LOG_FORMAT": "json"}, tmp_path)
+    settings = load_settings({**BASE, "FCON_LOG_FORMAT": "json"}, tmp_path)
 
     assert settings.log_format == "json"
 
@@ -120,11 +122,11 @@ def test_an_unknown_log_format_is_a_settings_mistake(tmp_path: Path):
 
 
 def test_the_pool_has_5_connections_when_its_size_is_unset(tmp_path: Path):
-    assert load_settings({"FCON_DATABASE_URL": URL}, tmp_path).pool_size == 5
+    assert load_settings(BASE, tmp_path).pool_size == 5
 
 
 def test_the_pool_size_is_read_with_the_settings(tmp_path: Path):
-    settings = load_settings({"FCON_DATABASE_URL": URL, "FCON_DATABASE_POOL_SIZE": "12"}, tmp_path)
+    settings = load_settings({**BASE, "FCON_DATABASE_POOL_SIZE": "12"}, tmp_path)
 
     assert settings.pool_size == 12
 
@@ -138,7 +140,7 @@ def test_a_pool_size_that_is_not_a_whole_number_from_1_is_a_settings_mistake(tmp
 
 @pytest.mark.parametrize(("text", "prepare"), [("", True), ("on", True), ("off", False)], ids=["unset", "on", "off"])
 def test_prepared_statements_are_turned_off_only_by_off(tmp_path: Path, text: str, prepare: bool):
-    environ = {"FCON_DATABASE_URL": URL} | ({"FCON_DATABASE_PREPARE": text} if text else {})
+    environ = BASE | ({"FCON_DATABASE_PREPARE": text} if text else {})
 
     assert load_settings(environ, tmp_path).prepare is prepare
 
@@ -184,3 +186,42 @@ def test_an_owner_address_that_is_not_postgres_is_a_settings_mistake(tmp_path: P
         load_database_settings({"FCON_DATABASE_URL": URL, "FCON_MIGRATION_DATABASE_URL": "feather"}, tmp_path)
 
     assert raised.value.problem == problems.database_url_not_postgres("FCON_MIGRATION_DATABASE_URL")
+
+
+# -- the secret key and the environment's name ------------------------------
+
+
+def test_the_secret_key_is_read_with_the_settings(tmp_path: Path):
+    assert load_settings(BASE, tmp_path).secret_key == KEY
+
+
+def test_a_missing_secret_key_is_a_settings_mistake(tmp_path: Path):
+    assert mistake({"FCON_DATABASE_URL": URL}, tmp_path) == problems.secret_key_missing()
+
+
+def test_a_secret_key_under_32_characters_is_a_settings_mistake(tmp_path: Path):
+    assert mistake({**BASE, "FCON_SECRET_KEY": "k" * 31}, tmp_path) == problems.secret_key_too_short("FCON_SECRET_KEY")
+
+
+def test_there_is_no_previous_secret_key_unless_one_is_set(tmp_path: Path):
+    assert load_settings(BASE, tmp_path).previous_secret_key is None
+
+
+def test_the_previous_secret_key_is_read_with_the_settings(tmp_path: Path):
+    settings = load_settings({**BASE, "FCON_SECRET_KEY_PREVIOUS": "p" * 32}, tmp_path)
+
+    assert settings.previous_secret_key == "p" * 32
+
+
+def test_a_previous_secret_key_under_32_characters_is_a_settings_mistake(tmp_path: Path):
+    assert mistake({**BASE, "FCON_SECRET_KEY_PREVIOUS": "p" * 31}, tmp_path) == problems.secret_key_too_short(
+        "FCON_SECRET_KEY_PREVIOUS"
+    )
+
+
+def test_the_environment_is_development_unless_named(tmp_path: Path):
+    assert load_settings(BASE, tmp_path).environment == "development"
+
+
+def test_the_environments_name_is_read_with_the_settings(tmp_path: Path):
+    assert load_settings({**BASE, "FCON_ENVIRONMENT": " staging "}, tmp_path).environment == "staging"

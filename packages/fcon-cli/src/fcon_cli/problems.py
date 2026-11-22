@@ -96,6 +96,22 @@ def prepare_unknown(text: str) -> Problem:
     )
 
 
+MAKE_A_KEY = 'python -c "import secrets; print(secrets.token_urlsafe(32))"'
+
+
+def secret_key_missing() -> Problem:
+    return Problem(
+        Level.ERROR,
+        "FCON_SECRET_KEY is not set.",
+        ("Every install needs one of at least 32 random characters. Make one with:", MAKE_A_KEY),
+    )
+
+
+def secret_key_too_short(name: str) -> Problem:
+    """Never repeats the key: it is a secret."""
+    return Problem(Level.ERROR, f"{name} is shorter than 32 characters.", ("Make a longer one with:", MAKE_A_KEY))
+
+
 def usage(message: str, usage_text: str) -> Problem:
     """A mistake on the command line, as argparse words it."""
     return Problem(Level.ERROR, f"{message}.", (usage_text.strip(), "For every option: fcon --help"))
