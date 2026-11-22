@@ -15,6 +15,11 @@ ADD = "add"
 ADMIN_FLAG = "--admin"
 ROLE_FLAG = "--role"
 DATABASE_SETTING = "FCON_DATABASE_URL"
+# What `fcon users add` says when the password it was given works only once.
+WORKS_ONCE = "Their password works for one sign-in; then they choose their own."
+# The first user's password is their own, so a user with a given password is
+# never the first: setup adds this administrator before them.
+SETUP_ADMIN = {"name": "setup-admin", "password": "setup-admin-password-0"}
 
 
 class UserCommands:
@@ -22,6 +27,7 @@ class UserCommands:
         self.world = world
         self.result = None
         self.results = []  # every command of the scenario, in order
+        self.given_passwords = {}  # user -> the password given them, that works once
 
     def _settings(self):
         return {DATABASE_SETTING: self.world.product_database_url()}
@@ -54,6 +60,26 @@ class UserCommands:
         if not result.ended_well():
             raise AssertionError("could not add the administrator %r; %r" % (name, result))
         return result
+
+    def add_with_given_password(self, name, role, password):
+        """As setup: a user of that role whose password, given from the command
+        line, works once (another administrator is added first when there are
+        no users); an AssertionError saying what the command answered."""
+        if run_database.user_count(self.world.product_database_url()) == 0:
+            self.add_administrator(SETUP_ADMIN["name"], SETUP_ADMIN["password"])
+        result = self.add(name, password, role=role)
+        if not result.ended_well():
+            raise AssertionError("could not add the %s %r; %r" % (role, name, result))
+        if WORKS_ONCE not in result.output:
+            raise AssertionError("`fcon users add` did not say the password works once (%r); %r" % (WORKS_ONCE, result))
+        self.given_passwords[name] = password
+        return result
+
+    def given_password(self, name):
+        """The password the scenario gave that user from the command line."""
+        if name not in self.given_passwords:
+            raise AssertionError("the scenario gave %r no password from the command line" % name)
+        return self.given_passwords[name]
 
     # -- what happened ---------------------------------------------------
 

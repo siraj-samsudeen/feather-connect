@@ -124,6 +124,8 @@ class World:
         self._servers = []  # servers started for this scenario alone
         self._database = None  # the scenario's own throwaway database (support/scenario_database.py)
         self.scenario_server = None  # the server started on it, whose log pages/server_log.py reads
+        self.product_settings = {}  # FCON_* settings for the product the scenario starts itself
+        self._own_product_starts = 0  # each start's log is a file of its own
         self.screen = Screen(self)  # VIDEO=1: what a scenario without a web page shows
 
     def _new_page(self, who, label, storage_state=None):
@@ -329,6 +331,38 @@ class World:
         if self._http is not None:
             self._http.dispose()
             self._http = None
+
+    def name_in_settings(self, name, value):
+        """A setting the product the scenario starts itself is given
+        (start_own_product), beside its database address and secret key."""
+        self.product_settings[name] = value
+        self.screen.note("%s=%s in the product's settings" % (name, value))
+
+    def start_own_product(self):
+        """From now on the scenario talks to a product of its own, started with
+        the settings it named, on its own upgraded database (made now, unless
+        it has one), and waited for until it is ready."""
+        if self._database is None:
+            self.own_database(upgraded=True)
+        self.screen.note("$ fcon server   (with the settings named, waited for until ready)")
+        self._own_product_starts += 1
+        name = "server-own-product-%d" % self._own_product_starts
+        base_url, process = stack.start_server(
+            name, self.own_database_state().url, ready_path="/readyz", settings=dict(self.product_settings)
+        )
+        self._servers.append(process)
+        self.scenario_server = process
+        self.use_product_at(base_url)
+
+    def restart_own_product(self):
+        """Stops the product the scenario started (start_own_product) and starts
+        it again, with the same settings and database; its log is a new one."""
+        if self.scenario_server is None:
+            raise RuntimeError("the scenario started no product of its own")
+        self._servers.remove(self.scenario_server)
+        stack.stop(self.scenario_server)
+        self.scenario_server = None
+        self.start_own_product()
 
     def scenario_server_still_running(self):
         """The server started on the scenario's own database has not stopped

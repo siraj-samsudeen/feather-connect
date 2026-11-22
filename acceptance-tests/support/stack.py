@@ -277,9 +277,10 @@ def free_port():
         return probe.getsockname()[1]
 
 
-def start_server(name, database_url, ready_path="/healthz"):
+def start_server(name, database_url, ready_path="/healthz", settings=None):
     """A second `fcon server` for one scenario, on a free port and the given
-    database address, waited on at `ready_path`. Returns (base URL, process);
+    database address (and any other FCON_* `settings`), waited on at
+    `ready_path`. Returns (base URL, process);
     give the process to stop() at the scenario's end (stop_all() takes any
     that are left)."""
     port = free_port()
@@ -287,7 +288,7 @@ def start_server(name, database_url, ready_path="/healthz"):
     service = {
         "name": name,
         "command": ["uv", "run", "fcon", "server", "--host", "127.0.0.1", "--port", str(port)],
-        "env": {"FCON_DATABASE_URL": database_url, SECRET_KEY_SETTING: SECRET_KEY},
+        "env": {"FCON_DATABASE_URL": database_url, SECRET_KEY_SETTING: SECRET_KEY, **(settings or {})},
         "ready_url": base_url + ready_path,
     }
     process, log_path = _start(service)

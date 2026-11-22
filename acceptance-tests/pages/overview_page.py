@@ -12,7 +12,10 @@ from urllib.parse import urlparse
 
 from playwright.sync_api import Page
 
+from support.auth import SIGN_IN_PATH
+
 PATH = "/"
+SIGN_OUT = "Sign out"
 PRODUCT_NAME = "Feather Connect"
 HEADING = "Overview"
 NOTHING_YET = "Nothing to watch yet. Flows appear here once they exist."
@@ -45,7 +48,10 @@ class OverviewPage:
         """Why this is not the overview: not at its address, no heading
         "Overview", no word that nothing is there yet, or no header naming the product."""
         problems = []
-        if urlparse(self.page.url).path != PATH:
+        at = urlparse(self.page.url)
+        if at.netloc != urlparse(self.world.base_url).netloc:
+            problems.append("not on the product's own site")
+        if at.path != PATH:
             problems.append("not at %s" % PATH)
         heading = self.page.get_by_role("heading", name=HEADING, exact=True)
         if heading.count() != 1 or not heading.is_visible():
@@ -58,6 +64,21 @@ class OverviewPage:
         if problems:
             problems.append("at %s" % self.where())
         return problems
+
+    def open(self):
+        """The dashboard's address typed again, in the same browser."""
+        self.page.goto(PATH)
+
+    def sign_out(self):
+        """Presses Sign out in the header, as a person does; an AssertionError
+        unless it leads to the sign-in page."""
+        button = self.page.get_by_role("banner").get_by_role("button", name=SIGN_OUT, exact=True)
+        if button.count() != 1:
+            raise AssertionError("no %r button in the page header at %s" % (SIGN_OUT, self.where()))
+        with self.page.expect_navigation():
+            button.click()
+        if urlparse(self.page.url).path != SIGN_IN_PATH:
+            raise AssertionError("signing out did not lead to %s: at %s" % (SIGN_IN_PATH, self.where()))
 
     def shown_as(self, name, role):
         """(yes?, why): the header says who is signed in, "<name> · <role>"."""

@@ -6,13 +6,17 @@ Lookups go by role, label and visible text, as a person (or a screen reader)
 finds things, so the checks hold whatever the markup's classes are."""
 
 import re
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 from playwright.sync_api import Page
 
 from support.auth import PASSWORD_FIELD, SIGN_IN_PATH, USER_FIELD
 
 DASHBOARD_PATH = "/"
+# Where a sign-in link says to go on to: `/sign-in?next=<address>`. This one
+# is another site's, written as a browser reads `//host/path`: not a path here.
+NEXT_PARAMETER = "next"
+ANOTHER_SITE = "//elsewhere.example/runs/42"
 
 PRODUCT_NAME = "Feather Connect"
 USER_LABEL = "User name"
@@ -82,6 +86,11 @@ class SignInPage:
     def open(self):
         self.response = self.page.goto(SIGN_IN_PATH)
 
+    def follow_link_to_another_site(self):
+        """A sign-in link, as someone could send it, that names another site as
+        the page to go on to."""
+        self.response = self.page.goto("%s?%s=%s" % (SIGN_IN_PATH, NEXT_PARAMETER, quote(ANOTHER_SITE, safe="")))
+
     def sign_in(self, user, password):
         """Types the form and presses the button, as a person does (with
         scripts off too: the browser posts the form itself)."""
@@ -103,6 +112,10 @@ class SignInPage:
             self.response.status if self.response else "nothing",
             self.page.title(),
         )
+
+    def signed_in(self):
+        """(yes?, why): the last sign-in left the sign-in page."""
+        return not self.is_at_sign_in(), "still at the sign-in page: %s" % self.where()
 
     def is_at_sign_in(self):
         return urlparse(self.page.url).path == SIGN_IN_PATH
