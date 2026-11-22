@@ -227,6 +227,9 @@ dropping arm64: Q-12 asks for both families, and it costs nothing on PRs.
   start-up, with its two-part message.
 - [A Postgres on the same machine listens on 127.0.0.1 only, which containers cannot reach] → the
   guide says to let it listen on Docker's bridge too, and to allow that network in `pg_hba.conf`.
+- [On a new version, `docker compose up -d` stops the old server before the upgrade runs, so a
+  failed upgrade takes the site down] → the guide upgrades first with `run --rm migrate`, while the
+  old server keeps serving; upgrades only add, so it keeps working.
 - [HSTS (telling browsers to use https only) is not sent] → it belongs to the server, which can
   send it on a cloud host too, once it trusts its proxy's headers (with real sign-in, #16).
 
