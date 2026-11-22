@@ -78,6 +78,22 @@ def log_format_unknown(text: str) -> Problem:
     )
 
 
+def pool_size_not_a_number(text: str) -> Problem:
+    return Problem(
+        Level.ERROR,
+        f"FCON_DATABASE_POOL_SIZE is not a number of connections: {text}.",
+        ("Use a whole number from 1 up, or leave it unset for 5.",),
+    )
+
+
+def prepare_unknown(text: str) -> Problem:
+    return Problem(
+        Level.ERROR,
+        f"FCON_DATABASE_PREPARE is not on or off: {text}.",
+        ("Set it to off when a connection pooler sits in front of Postgres; leave it unset otherwise.",),
+    )
+
+
 def usage(message: str, usage_text: str) -> Problem:
     """A mistake on the command line, as argparse words it."""
     return Problem(Level.ERROR, f"{message}.", (usage_text.strip(), "For every option: fcon --help"))

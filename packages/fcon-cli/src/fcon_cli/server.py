@@ -90,7 +90,7 @@ def run_server(settings: Settings) -> None:
     for sig in _STOP_SIGNALS:
         signal.signal(sig, _stop)
     config = uvicorn.Config(
-        create_app(settings.database_url),
+        create_app(settings.database_url, pool_size=settings.pool_size, prepare=settings.prepare),
         log_config=None,  # its lines go through the one logger
         proxy_headers=False,  # trusting a proxy's headers comes with real sign-in
         server_header=False,  # no server name or version for visitors

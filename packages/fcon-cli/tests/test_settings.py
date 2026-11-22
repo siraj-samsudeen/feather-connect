@@ -119,6 +119,36 @@ def test_an_unknown_log_format_is_a_settings_mistake(tmp_path: Path):
     assert problem == problems.log_format_unknown("yaml")
 
 
+def test_the_pool_has_5_connections_when_its_size_is_unset(tmp_path: Path):
+    assert load_settings({"FCON_DATABASE_URL": URL}, tmp_path).pool_size == 5
+
+
+def test_the_pool_size_is_read_with_the_settings(tmp_path: Path):
+    settings = load_settings({"FCON_DATABASE_URL": URL, "FCON_DATABASE_POOL_SIZE": "12"}, tmp_path)
+
+    assert settings.pool_size == 12
+
+
+@pytest.mark.parametrize("text", ["0", "five", "-3"], ids=["zero", "a-word", "negative"])
+def test_a_pool_size_that_is_not_a_whole_number_from_1_is_a_settings_mistake(tmp_path: Path, text: str):
+    problem = mistake({"FCON_DATABASE_URL": URL, "FCON_DATABASE_POOL_SIZE": text}, tmp_path)
+
+    assert problem == problems.pool_size_not_a_number(text)
+
+
+@pytest.mark.parametrize(("text", "prepare"), [("", True), ("on", True), ("off", False)], ids=["unset", "on", "off"])
+def test_prepared_statements_are_turned_off_only_by_off(tmp_path: Path, text: str, prepare: bool):
+    environ = {"FCON_DATABASE_URL": URL} | ({"FCON_DATABASE_PREPARE": text} if text else {})
+
+    assert load_settings(environ, tmp_path).prepare is prepare
+
+
+def test_a_prepare_setting_other_than_on_or_off_is_a_settings_mistake(tmp_path: Path):
+    problem = mistake({"FCON_DATABASE_URL": URL, "FCON_DATABASE_PREPARE": "no"}, tmp_path)
+
+    assert problem == problems.prepare_unknown("no")
+
+
 OWNER_URL = "postgresql://owner:secret@127.0.0.1:5442/feather"
 
 

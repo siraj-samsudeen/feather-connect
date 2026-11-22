@@ -129,6 +129,20 @@ def test_an_unknown_log_format():
     )
 
 
+def test_a_pool_size_that_is_not_a_number():
+    assert problems.pool_size_not_a_number("many").text() == (
+        "error: FCON_DATABASE_POOL_SIZE is not a number of connections: many.\n"
+        "  Use a whole number from 1 up, or leave it unset for 5."
+    )
+
+
+def test_an_unknown_prepare_setting():
+    assert problems.prepare_unknown("no").text() == (
+        "error: FCON_DATABASE_PREPARE is not on or off: no.\n"
+        "  Set it to off when a connection pooler sits in front of Postgres; leave it unset otherwise."
+    )
+
+
 def test_a_port_this_machine_does_not_allow():
     assert problems.port_not_allowed("0.0.0.0", 80).text() == (  # noqa: S104
         "error: this machine does not allow listening on port 80 on 0.0.0.0.\n"

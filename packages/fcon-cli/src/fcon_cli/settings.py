@@ -18,6 +18,8 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
 ENV_FILE = ".env"
 LOG_FORMATS = ("text", "json")  # unset: text on a terminal, json elsewhere
+DEFAULT_POOL_SIZE = 5
+PREPARE = {"on": True, "off": False}  # off: for a connection pooler in front of Postgres
 
 
 class SettingsError(ProblemError):
@@ -30,6 +32,8 @@ class Settings:
     port: int
     database_url: str
     log_format: str = ""
+    pool_size: int = DEFAULT_POOL_SIZE
+    prepare: bool = True
 
 
 @dataclass(frozen=True)
@@ -93,6 +97,22 @@ def _log_format(variables: Mapping[str, str]) -> str:
     return chosen
 
 
+def _pool_size(variables: Mapping[str, str]) -> int:
+    text = variables.get("FCON_DATABASE_POOL_SIZE", "")
+    if not text:
+        return DEFAULT_POOL_SIZE
+    if not text.isdigit() or int(text) < 1:
+        raise SettingsError(problems.pool_size_not_a_number(text))
+    return int(text)
+
+
+def _prepare(variables: Mapping[str, str]) -> bool:
+    text = variables.get("FCON_DATABASE_PREPARE", "") or "on"
+    if text not in PREPARE:
+        raise SettingsError(problems.prepare_unknown(text))
+    return PREPARE[text]
+
+
 def load_settings(
     environ: Mapping[str, str], directory: Path, host: str | None = None, port: int | None = None
 ) -> Settings:
@@ -102,6 +122,8 @@ def load_settings(
         host=host or variables.get("FCON_HOST", DEFAULT_HOST),
         port=_port(variables, port),
         log_format=_log_format(variables),
+        pool_size=_pool_size(variables),
+        prepare=_prepare(variables),
     )
 
 
