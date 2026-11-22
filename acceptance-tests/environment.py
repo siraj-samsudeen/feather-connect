@@ -5,13 +5,14 @@ import base64
 import os
 
 from pages.accessibility import AccessibilityCheck
+from pages.container_host import ContainerHost
 from pages.database_commands import DatabaseCommands
 from pages.monitor import Monitor
 from pages.not_found_page import NotFoundPage
 from pages.server_log import ServerLog
 from pages.sign_in_page import SignInPage
 from pages.terminal import Terminal
-from support import captions, stack, world
+from support import captions, docker, stack, world
 
 
 # Capabilities whose scenarios open no web page: with VIDEO=1 they are shown on
@@ -35,7 +36,10 @@ def after_all(context):
         if suite is not None:
             suite.close()
     finally:
-        stack.stop_all()  # whatever closing the browser did, the app does not outlive the run
+        try:
+            docker.stop_all()  # the run's containers, networks and image
+        finally:
+            stack.stop_all()  # whatever closing the browser did, the app does not outlive the run
 
 
 def before_scenario(context, scenario):
@@ -48,6 +52,7 @@ def before_scenario(context, scenario):
     context.terminal = Terminal(context.world)
     context.database_commands = DatabaseCommands(context.world)
     context.server_log = ServerLog(context.world)
+    context.container_host = ContainerHost(context.world)
     if scenario.feature.name in SCREEN_FEATURES:
         context.world.screen.open()  # VIDEO=1 only: these scenarios open no web page
 
@@ -56,6 +61,9 @@ def after_scenario(context, scenario):
     terminal = getattr(context, "terminal", None)
     if terminal is not None:
         terminal.close()  # the other program lets go of its port
+    container_host = getattr(context, "container_host", None)
+    if container_host is not None:
+        container_host.close()  # the scenario's containers and network, their logs kept
     scenario_world = getattr(context, "world", None)
     if scenario_world is None:
         return

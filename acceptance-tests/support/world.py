@@ -128,7 +128,7 @@ class World:
     def _new_page(self, who, label, storage_state=None):
         """A browser context for one of the scenario's people: traced, and recorded with VIDEO=1."""
         options = {
-            "base_url": BASE_URL,
+            "base_url": self.base_url,
             "viewport": self.viewport,
             "java_script_enabled": self.javascript,
             "color_scheme": self.color_scheme,
@@ -244,6 +244,14 @@ class World:
         if self._http is None:
             self._http = self.run.playwright.request.new_context(base_url=self.base_url)
         return self._http
+
+    def use_product_at(self, base_url):
+        """From now on the scenario talks to the product at base_url (one it
+        started itself, such as a container of the product's image)."""
+        self.base_url = base_url
+        if self._http is not None:
+            self._http.dispose()
+            self._http = None
 
     def product_without_database(self):
         """From now on the scenario talks to a product of its own whose

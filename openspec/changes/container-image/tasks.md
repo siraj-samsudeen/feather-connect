@@ -1,7 +1,7 @@
 ## 1. First-time setup — `acceptance-tests/` already exists; this change only adds to it
 
 - [ ] 1.1 Merge `origin/main` into the branch (PR #15: `fcon db upgrade`, the two roles, ADRs 0009 to 0014); `uv lock` and `uv lock --project acceptance-tests` rather than merging the lock files by hand
-- [ ] 1.2 The suite's Docker support, delivered by the red/green of the first step that needs it: build the image once per run, containers and networks named after the run's port and a random part, a Postgres 18 container standing in for the administrator's, everything removed at the end, and a clear failure (never a skip) when Docker is not running (design, decision 3)
+- [x] 1.2 The suite's Docker support, delivered by the red/green of the first step that needs it: build the image once per run, containers and networks named after the run's port and a random part, a Postgres 18 container standing in for the administrator's, everything removed at the end, and a clear failure (never a skip) when Docker is not running (design, decision 3)
 
 ## 2. Step definitions — one task per pending step; each = fails for the right reason → implement → passes → commit
 
