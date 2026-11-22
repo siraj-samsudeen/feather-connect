@@ -163,7 +163,9 @@ flowchart LR
   calls `now()`.
 - **The first migration** creates the schema `fcon`, `fcon.migration`, `fcon.tenant` with the
   `default` production tenant, and `fcon.audit` partitioned by month with the trigger that
-  refuses `UPDATE` and `DELETE`. Keys and indexes follow point 15; text keys use
+  refuses `UPDATE` and `DELETE`. A second migration adds a statement trigger that refuses
+  `TRUNCATE` too, so the log stays whole when the app runs as the owner (one address);
+  dropping or detaching an old month stays possible. Keys and indexes follow point 15; text keys use
   `collate pg_c_utf8`; the tenant id is checked by `^[a-z][a-z0-9-]{0,39}$`.
 - **The store.** `Store(pool, clock, new_id)`; `with store.transaction(ctx) as tx:` and
   `store.run(ctx, work)` (decision 2). `tx.execute`, `tx.fetch_one(Row, sql, params)` and
@@ -190,7 +192,7 @@ flowchart LR
   database's encoding (not UTF-8: not ready), whether `und-x-icu` exists (no: one warning, lists
   sort by character code), the upgrade record compared with the files (behind or changed: not
   ready; ahead: ready, with the `info` line), and the audit partitions (current month missing:
-  not ready; fewer than 2 months ahead: a warning). The watch logs each with the texts of
+  not ready; fewer than 3 months ahead: a warning). The watch logs each with the texts of
   point 9, through the error helper.
 - **Settings.** `FCON_MIGRATION_DATABASE_URL` (else `FCON_DATABASE_URL`) for `fcon db upgrade`;
   `FCON_DATABASE_POOL_SIZE` and `FCON_DATABASE_PREPARE` for the server. `fcon db status` reads
@@ -241,18 +243,22 @@ Rejected: readiness through the pool. A pool that cannot connect says only "no c
 time", where the log needs the cause (refused, missing, login refused), and readiness would say
 not ready whenever the store's connections are busy.
 
-### 4. Audit partitions six months ahead, a warning, and no default partition
+### 4. Audit partitions 24 months ahead, a warning, and no default partition
 
-Every `fcon db upgrade` makes the monthly partitions of `fcon.audit` through six months ahead.
-When fewer than two months remain, readiness logs a warning to run `fcon db upgrade`; when the
+Every `fcon db upgrade` makes the monthly partitions of `fcon.audit` through 24 months ahead.
+When fewer than three months remain, readiness logs a warning to run `fcon db upgrade`; when the
 current month has none, the server is not ready, with a two-part message. There is no default
-partition.
+partition. Empty partitions cost next to nothing. The worker issue takes over making months
+with its maintenance job, so an install nobody upgrades keeps its months. (The owner first chose
+six months ahead with a warning at two, and raised it to 24 and three during the build,
+22-Nov-2026.)
 
 Rejected: a default partition as a safety net. Adding a month later fails while rows for it sit
 in the default, and moving them out needs a delete the audit trigger refuses; a way around the
 trigger would weaken point 16, and rows left there break retention by month (R15.10). Also
 rejected: three months with no warning, which stops every write after three months without a
-deploy, with nothing said beforehand; and twelve months, more than needed with the warning.
+deploy, with nothing said beforehand; and six months, which still stops every write of an
+install left without an upgrade for half a year.
 
 ### 5. The context passed by hand; the log reads it from a context variable
 
