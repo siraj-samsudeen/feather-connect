@@ -7,17 +7,17 @@
 
 ### Deployment: runs from its image
 
-- [ ] 2.1 deployment: Given a new, empty Postgres 18 database — red → green → commit
-- [ ] 2.2 deployment: When the operator upgrades the database with the product's image — red → green → commit
-- [ ] 2.3 deployment: And starts the product's image, giving it only the database's address — red → green → commit
-- [ ] 2.4 deployment: Then the product answers that it is ready to take work (the logs-and-health step, now against the product the scenario started) — red → green → commit
-- [ ] 2.5 deployment: And it shows the sign-in page — red → green → commit
+- [x] 2.1 deployment: Given a new, empty Postgres 18 database — red → green → commit
+- [x] 2.2 deployment: When the operator upgrades the database with the product's image — red → green → commit
+- [x] 2.3 deployment: And starts the product's image, giving it only the database's address — red → green → commit
+- [x] 2.4 deployment: Then the product answers that it is ready to take work (the logs-and-health step, now against the product the scenario started) — red → green → commit
+- [x] 2.5 deployment: And it shows the sign-in page — red → green → commit
 
 ### Deployment: follows the host's port
 
-- [ ] 2.6 deployment: And a host that gives the product the port 9090 — red → green → commit
-- [ ] 2.7 deployment: Then the product answers on port 9090 that it is running — red → green → commit
-- [ ] 2.8 deployment: And the container runtime reports the product as healthy — red → green → commit
+- [x] 2.6 deployment: And a host that gives the product the port 9090 — red → green → commit
+- [x] 2.7 deployment: Then the product answers on port 9090 that it is running — red → green → commit
+- [x] 2.8 deployment: And the container runtime reports the product as healthy — red → green → commit
 
 ### Deployment: upgrades its database by itself
 

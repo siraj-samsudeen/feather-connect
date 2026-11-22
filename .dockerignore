@@ -1,0 +1,16 @@
+# An allowlist: only what the image is built from reaches the build, so
+# .env, .git, tests, the acceptance suite, the docs and the skills never do,
+# whatever is added to the repo later.
+*
+!pyproject.toml
+!uv.lock
+!packages/*/pyproject.toml
+!packages/*/README.md
+!packages/*/src/
+
+# Caches, inside what is allowed
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/*.egg-info
