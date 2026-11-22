@@ -8,7 +8,8 @@ It returns facts; the command line words them.
   nothing. A recorded name with no file is newer than this version.
 - One upgrade at a time: a session advisory lock on a connection of its own.
 - Each file runs in its own transaction, with `fcon.now` set from the clock,
-  unless its first line is `-- fcon: no-transaction`.
+  unless its first line is `-- fcon: no-transaction`: such a file holds one
+  statement, since Postgres runs several sent together in one transaction.
 - Then the audit log's months, through six ahead of the clock's (UTC).
 - Then the rights (design point 17): an app user other than the owner reads
   and writes every `fcon` table, and only reads and adds to `fcon.audit`
@@ -16,6 +17,7 @@ It returns facts; the command line words them.
 """
 
 import hashlib
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -30,6 +32,8 @@ MIGRATIONS = Path(__file__).parent / "migrations"
 NO_TRANSACTION = "-- fcon: no-transaction"
 ACTOR = "system:migration"
 MONTHS_AHEAD = 6
+# A literal, a quoted name or a comment: a `;` inside one ends no statement.
+_NOISE = re.compile(r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|--[^\n]*|/\*.*?\*/|\$(\w*)\$.*?\$\1\$""", re.DOTALL)
 LOCK_KEY = 0x66636F6E_6462  # "fcondb": the one upgrade at a time
 _OPTIONS = "-c TimeZone=UTC -c application_name=fcon-migration"
 
@@ -51,11 +55,18 @@ class Migration:
     def in_transaction(self) -> bool:
         return self.text.split("\n", 1)[0].strip() != NO_TRANSACTION
 
+    @property
+    def statements(self) -> int:
+        """How many statements the file holds, comments and literals aside."""
+        code = _NOISE.sub(" ", self.text)
+        return sum(1 for part in code.split(";") if part.strip())
+
 
 def read_migrations(directory: Path = MIGRATIONS) -> tuple[Migration, ...]:
-    """The files, in name order, with their line endings made `\\n`."""
+    """The files, in name order, with their line endings made `\\n` and any
+    byte order mark an editor saved left out."""
     paths = sorted(directory.glob("*.sql"), key=lambda path: path.name)
-    return tuple(Migration(path.name, path.read_bytes().decode().replace("\r\n", "\n")) for path in paths)
+    return tuple(Migration(path.name, path.read_bytes().decode("utf-8-sig").replace("\r\n", "\n")) for path in paths)
 
 
 @dataclass(frozen=True)
@@ -202,8 +213,15 @@ def upgrade(
     is called once when another upgrade holds the lock, before waiting for it.
     `app_user`, when it is not the owner `url` signs in as, is granted the
     app's rights. A file that fails raises the driver's error; the ones before
-    it stay."""
+    it stay. A file outside a transaction holding more than one statement
+    raises `ValueError` before anything is applied."""
     migrations = read_migrations(directory)
+    for migration in migrations:
+        if not migration.in_transaction and migration.statements > 1:
+            raise ValueError(
+                f"upgrade {migration.name} runs outside a transaction, so it must hold one statement,"
+                f" not {migration.statements}"
+            )
     with _connect(url) as lock, _connect(url) as connection:
         _lock(lock, on_wait)
         status = read_status(connection, migrations)

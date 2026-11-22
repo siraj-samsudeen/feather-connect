@@ -186,6 +186,47 @@ def test_a_no_transaction_file_runs_outside_a_transaction(empty_database_url: st
     assert upgrade(empty_database_url, FixedClock(NOW), directory=folder).applied[-1] == index
 
 
+def test_a_no_transaction_file_of_two_statements_is_refused_before_anything_is_applied(
+    empty_database_url: str, folder: Path
+):
+    add(folder, "20261201T0000Z_table.sql", "CREATE TABLE fcon.big (n int);")
+    two = add(
+        folder,
+        "20261202T0000Z_two.sql",
+        "-- fcon: no-transaction\nCREATE INDEX CONCURRENTLY big_n ON fcon.big (n);\nDROP TABLE fcon.big;\n",
+    )
+
+    with pytest.raises(ValueError, match=two):
+        upgrade(empty_database_url, FixedClock(NOW), directory=folder)
+
+    assert migration_status(empty_database_url, folder).applied == ()
+
+
+def test_a_comment_or_a_literal_is_not_a_second_statement(empty_database_url: str, folder: Path):
+    add(folder, "20261201T0000Z_table.sql", "CREATE TABLE fcon.big (n int);")
+    index = add(
+        folder,
+        "20261202T0000Z_index.sql",
+        "-- fcon: no-transaction\n-- outside a transaction; on a big table\n"
+        "CREATE INDEX CONCURRENTLY big_n ON fcon.big (n) WHERE n::text <> ';'; /* one; statement */\n",
+    )
+
+    assert upgrade(empty_database_url, FixedClock(NOW), directory=folder).applied[-1] == index
+
+
+def test_a_no_transaction_file_saved_with_a_byte_order_mark_runs_outside_a_transaction(
+    empty_database_url: str, folder: Path
+):
+    add(folder, "20261201T0000Z_table.sql", "CREATE TABLE fcon.big (n int);")
+    index = add(
+        folder,
+        "20261202T0000Z_index.sql",
+        "﻿-- fcon: no-transaction\nCREATE INDEX CONCURRENTLY big_n ON fcon.big (n);\n",
+    )
+
+    assert upgrade(empty_database_url, FixedClock(NOW), directory=folder).applied[-1] == index
+
+
 def test_a_no_transaction_file_reads_the_runners_clock_too(empty_database_url: str, folder: Path):
     add(
         folder,
