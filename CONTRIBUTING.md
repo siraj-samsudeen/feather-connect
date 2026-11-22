@@ -2,7 +2,8 @@
 
 How a developer sets up a machine and takes up work, alone or beside others. The process itself
 lives in [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md) and the skills under
-[`.agents/skills/`](.agents/skills/); this page is the way in.
+[`.agents/skills/`](.agents/skills/); this page is the way in. How a change moves from issue to
+merge, and who does what, mapped to the roles of a usual team: [`docs/process.md`](docs/process.md).
 
 ## Set up your machine, once
 
@@ -112,6 +113,7 @@ are generic, never a real organisation, customer, vendor system or site. Never c
 | What the product must do, by milestone | [`docs/requirements.md`](docs/requirements.md) |
 | What it does today | [`openspec/specs/`](openspec/specs/) |
 | Why it is built this way | [`adr/`](adr/) |
+| How a change moves, step by step and role by role | [`docs/process.md`](docs/process.md) |
 | How the team works | [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md), [`.agents/skills/`](.agents/skills/) |
 | The acceptance suite | [`acceptance-tests/README.md`](acceptance-tests/README.md) |
 
