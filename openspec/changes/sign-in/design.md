@@ -154,8 +154,8 @@ flowchart LR
   the time and an HMAC-SHA-256 of both under `FCON_SECRET_KEY`, valid 2 hours; the form carries the
   same value. The check accepts a signature by `FCON_SECRET_KEY` or `FCON_SECRET_KEY_PREVIOUS`.
   The standard library's `hmac` does this; no new dependency.
-- **Passwords**: `argon2-cffi`'s `PasswordHasher` with the RFC 9106 low-memory profile OWASP
-  recommends (19 MiB, 2 passes, 1 lane); `check_needs_rehash` after a good sign-in. The list of
+- **Passwords**: `argon2-cffi`'s `PasswordHasher` with OWASP's recommended settings (19 MiB, 2 passes,
+  1 lane), set explicitly rather than from one of RFC 9106's profiles; `check_needs_rehash` after a good sign-in. The list of
   common passwords is a text file in the package: the 10,000 most common from a public list under
   an open licence, keeping those of 12 characters or more (the shorter ones are refused anyway).
   A name is compared lowercased, and so is the password against it.
