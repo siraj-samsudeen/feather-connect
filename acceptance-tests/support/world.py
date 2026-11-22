@@ -118,6 +118,7 @@ class World:
         self.contexts = []  # (who, label, browser context, page), in the order opened
         self.caption = None  # VIDEO=1: the step being run, as written
         self.base_url = BASE_URL  # the product the scenario talks to: the run's server, unless replaced
+        self.ignore_https_errors = False  # True once the scenario has verified the site's encryption itself
         self.database = None  # the database address that product was given, when the scenario chose it
         self._http = None  # the scenario's plain HTTP client, opened on first use
         self._servers = []  # servers started for this scenario alone
@@ -132,6 +133,7 @@ class World:
             "viewport": self.viewport,
             "java_script_enabled": self.javascript,
             "color_scheme": self.color_scheme,
+            "ignore_https_errors": self.ignore_https_errors,
         }
         if storage_state is not None:
             options["storage_state"] = storage_state
@@ -242,13 +244,18 @@ class World:
         """A plain HTTP client for the scenario's product, for what a monitor
         or another program asks for without a browser."""
         if self._http is None:
-            self._http = self.run.playwright.request.new_context(base_url=self.base_url)
+            self._http = self.run.playwright.request.new_context(
+                base_url=self.base_url, ignore_https_errors=self.ignore_https_errors
+            )
         return self._http
 
-    def use_product_at(self, base_url):
+    def use_product_at(self, base_url, ignore_https_errors=False):
         """From now on the scenario talks to the product at base_url (one it
-        started itself, such as a container of the product's image)."""
+        started itself, such as a container of the product's image). With
+        ignore_https_errors, the browser takes the site's certificate as it
+        is: only for a site whose encryption the scenario verifies itself."""
         self.base_url = base_url
+        self.ignore_https_errors = ignore_https_errors
         if self._http is not None:
             self._http.dispose()
             self._http = None

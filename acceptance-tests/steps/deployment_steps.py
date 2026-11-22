@@ -50,3 +50,62 @@ def step_answers_running_on_port(context, port):
 def step_reported_healthy(context):
     healthy, why = context.container_host.becomes_healthy()
     assert healthy, why
+
+
+# --- the standard setup on one machine (pages/standard_setup.py) ---------------
+
+
+@given("the standard setup on one machine, with a new, empty database")
+@given("the standard setup on one machine, with its site's name but no certificate")
+def step_standard_setup(context):
+    context.standard_setup.prepare()
+
+
+@given("the standard setup is running on one machine")
+def step_standard_setup_running(context):
+    context.standard_setup.run()
+
+
+@when("the operator starts it")
+def step_operator_starts_setup(context):
+    context.standard_setup.start()
+
+
+@then("the product answers that it is ready to take work, with no upgrade run by hand")
+def step_ready_without_hand_upgrade(context):
+    ready, answer = context.standard_setup.becomes_ready()
+    assert ready, "expected it to say, through the proxy, that it is ready; got %r" % (answer,)
+    problems = context.standard_setup.upgraded_by_itself_problems()
+    assert not problems, "; ".join(problems)
+
+
+@then("the upgrade had finished before the product started")
+def step_upgrade_before_product(context):
+    problems = context.standard_setup.upgrade_order_problems()
+    assert not problems, "; ".join(problems)
+
+
+@then("the sign-in page is served over an encrypted connection")
+def step_sign_in_encrypted(context):
+    problems = context.standard_setup.sign_in_encrypted_problems()
+    assert not problems, "; ".join(problems)
+    context.sign_in_page.open()
+    named, why = context.sign_in_page.names_the_product()
+    assert named, why
+
+
+@then("no other part of the setup can be reached from outside the machine")
+def step_only_proxy_reachable(context):
+    problems = context.standard_setup.reachable_from_outside_problems()
+    assert not problems, "; ".join(problems)
+
+
+@when("the operator opens the site's plain, unencrypted address")
+def step_open_plain_address(context):
+    context.standard_setup.open_plain_address()
+
+
+@then("the operator is sent on to the site's encrypted address")
+def step_sent_to_encrypted(context):
+    problems = context.standard_setup.sent_to_encrypted_problems()
+    assert not problems, "; ".join(problems)

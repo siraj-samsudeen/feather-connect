@@ -65,6 +65,10 @@ class ContainerHost:
             self._scenario = docker.Scenario()
         return self._scenario
 
+    def network(self):
+        """The scenario's own network, where its Postgres is reached by its container name."""
+        return self._containers().network
+
     def close(self):
         """Removes the scenario's containers and network (environment.py, after the scenario)."""
         if self._scenario is not None:
