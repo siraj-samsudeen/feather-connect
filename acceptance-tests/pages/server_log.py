@@ -41,6 +41,7 @@ class ServerLog:
             lines = self.lines()
             missing = [text for text in texts if not any(text in line for line in lines)]
             if not missing or time.monotonic() >= deadline:
+                self.world.screen.log(texts, lines)
                 return not missing, "missing %r; the log ends:\n%s" % (missing, "\n".join(lines[-40:]))
             time.sleep(POLL_S)
 

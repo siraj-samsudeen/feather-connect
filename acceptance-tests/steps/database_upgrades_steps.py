@@ -16,7 +16,7 @@ def step_upgraded_database(context):
 
 @given("one of its applied upgrades has been edited since it ran")
 def step_applied_upgrade_edited(context):
-    context.world.own_database_state().edit_an_applied_upgrade()
+    context.world.edit_an_applied_upgrade()
 
 
 @when("the operator asks for the database's status")

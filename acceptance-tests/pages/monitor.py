@@ -50,6 +50,8 @@ class Monitor:
         http = self.world.http()
         response = http.head(path) if method == "HEAD" else http.get(path)
         self.answers[path] = Answer(method, path, response)
+        answer = self.answers[path]
+        self.world.screen.request(method, path, answer.status, answer.text)
         return self.answers[path]
 
     def check(self):

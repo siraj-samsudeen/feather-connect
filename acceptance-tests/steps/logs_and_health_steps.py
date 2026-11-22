@@ -58,7 +58,7 @@ def step_running_on_upgraded_database(context):
 
 @given("the database has one more upgrade, from a newer version")
 def step_newer_upgrade(context):
-    context.world.own_database_state().add_newer_upgrade()
+    context.world.add_newer_upgrade()
 
 
 @then("it answers that it is ready to take work")

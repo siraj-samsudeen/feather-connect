@@ -13,6 +13,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 from support import auth, captions, stack
+from support.screen import Screen
 from support.scenario_database import ScenarioDatabase
 from support.stack import BASE_URL
 
@@ -122,6 +123,7 @@ class World:
         self._servers = []  # servers started for this scenario alone
         self._database = None  # the scenario's own throwaway database (support/scenario_database.py)
         self.scenario_server = None  # the server started on it, whose log pages/server_log.py reads
+        self.screen = Screen(self)  # VIDEO=1: what a scenario without a web page shows
 
     def _new_page(self, who, label, storage_state=None):
         """A browser context for one of the scenario's people: traced, and recorded with VIDEO=1."""
@@ -256,6 +258,7 @@ class World:
             "dbname": "outage_probe_db",
         }
         address = "postgresql://{user}:{password}@{host}:{port}/{dbname}".format(**self.database)
+        self.screen.note("a product of its own, started with a database address where nothing listens")
         base_url, process = stack.start_server("server-without-database", address)
         self._servers.append(process)
         self.base_url = base_url
@@ -274,9 +277,20 @@ class World:
         if self._database is not None:
             raise RuntimeError("the scenario already has a database of its own")
         self._database = ScenarioDatabase()
+        self.screen.note("a new, empty database of the scenario's own")
         if upgraded:
             self._database.upgrade()
+            self.screen.note("that database upgraded (fcon db upgrade, as setup)")
         return self._database
+
+    def edit_an_applied_upgrade(self):
+        name = self.own_database_state().edit_an_applied_upgrade()
+        self.screen.note("an applied upgrade (%s) edited since it ran" % self.own_database_state().edited_upgrade)
+        return name
+
+    def add_newer_upgrade(self):
+        self.own_database_state().add_newer_upgrade()
+        self.screen.note("one more upgrade recorded as applied, from a newer version")
 
     def own_database_state(self):
         if self._database is None:
@@ -287,6 +301,7 @@ class World:
         """From now on the scenario talks to a product of its own, started on
         its own database, and waited for until it answers that it runs (it
         may not be ready)."""
+        self.screen.note("$ fcon server   (on that database, waited for until it answers)")
         base_url, process = stack.start_server("server-on-scenario-database", self.own_database_state().url)
         self._servers.append(process)
         self.scenario_server = process

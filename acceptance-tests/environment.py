@@ -14,6 +14,11 @@ from pages.terminal import Terminal
 from support import captions, stack, world
 
 
+# Capabilities whose scenarios open no web page: with VIDEO=1 they are shown on
+# a terminal-like page of the test's own (support/screen.py).
+SCREEN_FEATURES = ("Database upgrades", "Logs and health")
+
+
 def before_all(context):
     if not os.environ.get("OPENSPEC_ACCEPTANCE"):
         raise RuntimeError(
@@ -43,6 +48,8 @@ def before_scenario(context, scenario):
     context.terminal = Terminal(context.world)
     context.database_commands = DatabaseCommands(context.world)
     context.server_log = ServerLog(context.world)
+    if scenario.feature.name in SCREEN_FEATURES:
+        context.world.screen.open()  # VIDEO=1 only: these scenarios open no web page
 
 
 def after_scenario(context, scenario):

@@ -102,6 +102,7 @@ class DatabaseCommands:
     def _finish(self, command, process):
         code, out, err, timed_out = stack.finish_fcon(process)
         result = Result(command, code, out, err, timed_out)
+        self.world.screen.command("fcon " + command, out + err, code)
         self.results.append(result)
         self.result = result
         return result
