@@ -46,6 +46,7 @@ SLOW_AFTER = 1.0  # seconds
 RETRIES = 2
 SECRET = "(secret changed)"  # noqa: S105 - what the audit log shows instead of a secret
 _WITHOUT_TENANT = frozenset({"migration"})
+_FILLED = ("created_at", "created_by", "updated_at", "updated_by", "row_version")
 _TABLE = re.compile(r"\bfcon\.(\w+)")
 _SCOPE = re.compile(r"\btenant_id\s*=\s*%\(tenant_id\)s")
 
@@ -103,6 +104,15 @@ def _hide_secrets(table: Table, changed: _Changed) -> tuple[Row | None, Row]:
     return before, after
 
 
+def _refuse_filled(values: Params) -> None:
+    """The tenant, the who-and-when columns and the row version are the
+    store's to fill: a caller's value for one is a bug, never written."""
+    if "tenant_id" in values:
+        raise UnscopedQueryError("the tenant comes from the context, never from the values")
+    if given := [column for column in _FILLED if column in values]:
+        raise ValueError(f"the store fills {', '.join(given)}")
+
+
 def _table(table: Table) -> sql.Identifier:
     return sql.Identifier(*table.name.split("."))
 
@@ -146,6 +156,7 @@ class Transaction:
     def insert(self, table: Table, values: Params) -> Row:
         """Adds one row and its audit record; gives the row's key besides the
         tenant, with the `id` made by `new_id()` when the key has one."""
+        _refuse_filled(values)
         now = self._clock.now()
         filled: Row = {**values, "tenant_id": self._context.tenant_id, "created_at": now}
         filled["created_by"] = self._context.actor
@@ -173,6 +184,9 @@ class Transaction:
         besides the tenant."""
         if not table.changes:
             raise ValueError(f"the rows of {table.name} are only added")
+        _refuse_filled(values)
+        if "tenant_id" in key:
+            raise UnscopedQueryError("the tenant comes from the context, never from the key")
         sets: Row = {**values, "updated_at": self._clock.now(), "updated_by": self._context.actor}
         where = sql.SQL(" AND ").join([sql.SQL("tenant_id = %(tenant_id)s"), *_equal(list(key), "key_")])
         params: Row = {f"set_{column}": value for column, value in sets.items()}

@@ -13,7 +13,13 @@ import pytest
 
 from fcon_server.store.clock import FixedClock
 from fcon_server.store.context import Context
-from fcon_server.store.errors import AlreadyExistsError, ChangedBySomeoneElseError, NotFoundError, StoreError
+from fcon_server.store.errors import (
+    AlreadyExistsError,
+    ChangedBySomeoneElseError,
+    NotFoundError,
+    StoreError,
+    UnscopedQueryError,
+)
 from fcon_server.store.ids import new_id
 from fcon_server.store.tables import Table
 from fcon_server.store.transaction import ConnectionSource, Store
@@ -361,3 +367,37 @@ def test_another_tenant_cannot_read_a_tenants_audit_records(
     insert_thing(fixed_store, tenant)
 
     assert audits(fixed_store, new_tenant()) == []
+
+
+FILLED_BY_THE_STORE = ["created_at", "created_by", "updated_at", "updated_by", "row_version"]
+
+
+def test_an_insert_never_takes_the_tenant_from_the_callers_values(fixed_store: Store, tenant: Context):
+    with pytest.raises(UnscopedQueryError), fixed_store.transaction(tenant) as tx:
+        tx.insert(THING, {"name": "first", "tenant_id": "default"})
+
+
+@pytest.mark.parametrize("column", FILLED_BY_THE_STORE)
+def test_an_insert_refuses_a_column_the_store_fills(fixed_store: Store, tenant: Context, column: str):
+    with pytest.raises(ValueError, match=column), fixed_store.transaction(tenant) as tx:
+        tx.insert(THING, {"name": "first", column: "caller"})
+
+
+def test_an_update_never_moves_a_row_to_another_tenant(fixed_store: Store, tenant: Context):
+    thing_id = insert_thing(fixed_store, tenant)
+
+    with pytest.raises(UnscopedQueryError), fixed_store.transaction(tenant) as tx:
+        tx.update(THING, {"id": thing_id}, {"tenant_id": "default"}, row_version=1)
+
+
+def test_an_update_never_takes_the_tenant_from_the_callers_key(fixed_store: Store, tenant: Context):
+    with pytest.raises(UnscopedQueryError), fixed_store.transaction(tenant) as tx:
+        tx.update(THING, {"id": FIXED_ID, "tenant_id": "default"}, {"name": "second"}, row_version=1)
+
+
+@pytest.mark.parametrize("column", FILLED_BY_THE_STORE)
+def test_an_update_refuses_a_column_the_store_fills(fixed_store: Store, tenant: Context, column: str):
+    thing_id = insert_thing(fixed_store, tenant)
+
+    with pytest.raises(ValueError, match=column), fixed_store.transaction(tenant) as tx:
+        tx.update(THING, {"id": thing_id}, {column: "caller"}, row_version=1)
