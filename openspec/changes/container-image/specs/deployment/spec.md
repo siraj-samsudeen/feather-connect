@@ -5,11 +5,12 @@
 The operator (the person who runs the product on a host) runs it from its container image: a
 packaged copy of the product, with all it needs, that a container runtime such as Docker starts.
 The image runs on a cloud host that runs containers, or on one machine in the standard setup,
-which adds the database and a proxy: a program in front of the product that encrypts its traffic,
-at the site's name the operator chooses (such as connect.example.com). Before a version of the
-product starts, its database is upgraded: given the changes that version needs. The image is
-built for both common kinds of processor, and holds no secret: each place it runs gives it its
-own settings.
+which adds a proxy: a program in front of the product that encrypts its traffic, at the site's
+name the operator chooses (such as connect.example.com). Either way the database is a Postgres 18
+server run outside the product, often shared with other apps, where an administrator has made the
+product its own database. Before a version of the product starts, its database is upgraded:
+given the changes that version needs. The image is built for both common kinds of processor, and
+holds no secret: each place it runs gives it its own settings.
 
 ## ADDED Requirements
 
@@ -70,15 +71,4 @@ And no other part of the setup can be reached from outside the machine
 Given the standard setup is running on one machine
 When the operator opens the site's plain, unencrypted address
 Then the operator is sent on to the site's encrypted address
-```
-
-### Requirement: Keeps its data
-The standard setup SHALL keep its database's data when its containers are removed and started again, as on an upgrade of the product.
-
-#### Scenario: The data outlives the containers
-
-```gherkin
-Given the standard setup has been running on one machine
-When the operator removes its containers and starts it again
-Then the setup's upgrade says the database was already up to date
 ```
