@@ -3,7 +3,10 @@ opened by `Store.transaction`, carrying the context's tenant and actor.
 
 - `tx.execute`, `tx.fetch_one` and `tx.fetch_all` take plain SQL, bind
   `%(tenant_id)s` from the context, and refuse SQL that names an `fcon` table
-  with a tenant without `tenant_id = %(tenant_id)s` for each of them.
+  with a tenant without `tenant_id = %(tenant_id)s` for each of them, outside
+  comments and literals. The check counts text, it does not parse SQL: a
+  guardrail against a forgotten tenant, not a proof. Each test's own tenant
+  is what shows that no query reaches another tenant's rows.
 - `tx.insert` and `tx.update` write one row: they fill the tenant, the
   who-and-when columns and the row version, and write its audit record in the
   same transaction.
@@ -47,8 +50,11 @@ RETRIES = 2
 SECRET = "(secret changed)"  # noqa: S105 - what the audit log shows instead of a secret
 _WITHOUT_TENANT = frozenset({"migration"})
 _FILLED = ("created_at", "created_by", "updated_at", "updated_by", "row_version")
-_TABLE = re.compile(r"\bfcon\.(\w+)")
-_SCOPE = re.compile(r"\btenant_id\s*=\s*%\(tenant_id\)s")
+# A quoted name is kept; a literal or a comment is blanked, so text inside one
+# neither names a table nor scopes it.
+_NOISE = re.compile(r"""("(?:[^"]|"")*")|'(?:[^']|'')*'|--[^\n]*|/\*.*?\*/""", re.DOTALL)
+_TABLE = re.compile(r'(?<![\w"$])"?fcon"?\s*\.\s*"?(\w+)"?', re.IGNORECASE)
+_SCOPE = re.compile(r'(?<![\w$])"?tenant_id"?\s*=\s*%\(tenant_id\)s', re.IGNORECASE)
 
 type Params = Mapping[str, object]
 type Row = dict[str, object]
@@ -233,8 +239,9 @@ class Transaction:
     def _scoped(self, query: LiteralString, params: Params | None) -> Row:
         if params and "tenant_id" in params:
             raise UnscopedQueryError("the tenant comes from the context, never from the values")
-        with_tenant = [name for name in _TABLE.findall(query) if name not in _WITHOUT_TENANT]
-        if len(_SCOPE.findall(query)) < len(with_tenant):
+        code = _NOISE.sub(lambda found: found[1] or " ", query)
+        with_tenant = [name for name in _TABLE.findall(code) if name.lower() not in _WITHOUT_TENANT]
+        if len(_SCOPE.findall(code)) < len(with_tenant):
             raise UnscopedQueryError(f"each fcon table with a tenant needs tenant_id = %(tenant_id)s: {query}")
         return {**(params or {}), "tenant_id": self._context.tenant_id}
 

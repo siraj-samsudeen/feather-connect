@@ -87,12 +87,38 @@ def test_the_record_of_upgrades_has_no_tenant_to_scope(store: Store, tenant: Con
             "SELECT t.kind FROM fcon.tenant t JOIN fcon.audit a ON a.tenant_id = t.tenant_id"
             " WHERE t.tenant_id = %(tenant_id)s"
         ),
+        "SELECT kind FROM fcon.tenant -- WHERE tenant_id = %(tenant_id)s",
+        "SELECT kind FROM fcon.tenant /* WHERE tenant_id = %(tenant_id)s */",
+        "SELECT kind FROM fcon.tenant WHERE kind <> 'tenant_id = %(tenant_id)s'",
+        'SELECT kind FROM "fcon"."tenant"',
+        "SELECT kind FROM FCON.Tenant",
+        "SELECT kind FROM fcon . tenant",
     ],
-    ids=["no-tenant", "tenant-written-in", "one-table-of-a-join"],
+    ids=[
+        "no-tenant",
+        "tenant-written-in",
+        "one-table-of-a-join",
+        "predicate-in-a-line-comment",
+        "predicate-in-a-block-comment",
+        "predicate-in-a-literal",
+        "quoted-names",
+        "upper-case-names",
+        "spaced-names",
+    ],
 )
 def test_a_read_that_forgets_the_tenant_is_refused(store: Store, tenant: Context, query: LiteralString):
     with store.transaction(tenant) as tx, pytest.raises(UnscopedQueryError):
         tx.fetch_all(Kind, query)
+
+
+def test_a_table_named_in_a_literal_needs_no_tenant(store: Store, tenant: Context):
+    with store.transaction(tenant) as tx:
+        row = tx.fetch_one(
+            Kind,
+            "SELECT current_setting('fcon.now', true) AS kind FROM fcon.tenant WHERE tenant_id = %(tenant_id)s",
+        )
+
+    assert row is not None
 
 
 def test_a_statement_that_forgets_the_tenant_is_refused(store: Store, tenant: Context):
