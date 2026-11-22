@@ -33,3 +33,15 @@ Examples:
   | light |
   | dark |
 ```
+
+### Requirement: A missing page says so
+The system SHALL answer a signed-in user who opens an address it does not have with a page that says the page was not found, and offers the way back to the overview. Someone not signed in is asked to sign in first, so the dashboard never tells a stranger which addresses exist.
+
+#### Scenario: A missing page says it was not found
+
+```gherkin
+Given the user is signed in as "ann", an administrator
+When the user opens the address of run 42, which the dashboard does not have
+Then the user is told the page was not found
+And the user can go on to the overview from there
+```
