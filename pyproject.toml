@@ -94,6 +94,7 @@ ignore_names = [
     "format",  # logging.Formatter.format, called by the logging module
     "formatTime",  # logging.Formatter.formatTime, likewise; its datefmt is unused (always UTC ISO 8601)
     "datefmt",
+    "formatMessage",  # logging.Formatter.formatMessage, likewise
     "dbname",  # DatabaseAddress: read by the database watch's messages
     "detail",  # DatabaseCheck: the driver's own line, for the server's log
     "lead",  # the page views' fields that only a template prints

@@ -10,6 +10,7 @@ from typing import TextIO
 
 from fcon_cli.problems import Level, Problem
 from fcon_server.health import LIVENESS_PATH, READINESS_PATH
+from fcon_server.store.context import bound
 
 HEALTH_PATHS = {LIVENESS_PATH, READINESS_PATH}
 TEXT_FORMAT = "%(asctime)s %(levelname)s %(message)s"
@@ -21,6 +22,13 @@ def log_problem(logger: logging.Logger, problem: Problem, exc_info: bool = False
     """The error helper's whole text, as one record at its level; with
     exc_info, the exception being handled (a bug) goes with it."""
     logger.log(_LEVELS[problem.level], problem.text(), exc_info=exc_info, extra={_PROBLEM: True})
+
+
+def _context_fields() -> dict[str, str]:
+    """The tenant and request id of the request or job being served, if any
+    (design decision 5): on every line, Uvicorn's included."""
+    context = bound()
+    return {} if context is None else {"tenant": context.tenant_id, "request_id": context.request_id}
 
 
 def time_of(record: logging.LogRecord) -> str:
@@ -39,9 +47,10 @@ class Text(logging.Formatter):
         return time_of(record)
 
     def formatMessage(self, record: logging.LogRecord) -> str:
+        fields = "".join(f"{name}={value} " for name, value in _context_fields().items())
         if getattr(record, _PROBLEM, False):
-            return f"{record.asctime} {record.message}"
-        return super().formatMessage(record)
+            return f"{record.asctime} {fields}{record.message}"
+        return f"{record.asctime} {record.levelname} {fields}{record.message}"
 
 
 class JsonLines(logging.Formatter):
@@ -50,6 +59,7 @@ class JsonLines(logging.Formatter):
             "time": time_of(record),
             "level": record.levelname.lower(),
             "logger": record.name,
+            **_context_fields(),
             "message": record.getMessage(),
         }
         if record.exc_info:
