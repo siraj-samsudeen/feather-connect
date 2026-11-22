@@ -7,7 +7,7 @@ import pytest
 from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
-from fcon_server.app import build_app, create_app, with_middleware
+from fcon_server.app import build_app, with_middleware
 from fcon_server.pages import error_view, not_found_view
 from fcon_server.signing import SecretKeys
 
@@ -19,7 +19,9 @@ FAILURE = "a made-up failure inside the server"
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(create_app(NO_DATABASE, keys=KEYS))
+    """The routes without the gate, as a signed-in user reaches them: the gate
+    sends anyone else to sign-in (test_signing_in.py)."""
+    return TestClient(with_middleware(build_app(NO_DATABASE, keys=KEYS)))
 
 
 @pytest.fixture
@@ -58,11 +60,11 @@ def test_no_api_description_is_served_until_there_is_an_api(client: TestClient, 
     assert client.get(path).status_code == 404
 
 
-def test_the_not_found_page_leads_on_to_sign_in(client: TestClient):
+def test_the_not_found_page_leads_on_to_the_overview(client: TestClient):
     page = BeautifulSoup(client.get(MISSING).text, "html.parser")
 
     links = [(link["href"], link.get_text(strip=True).lower()) for link in page.find_all("a")]
-    assert links == [("/sign-in", "go to sign in")]
+    assert links == [("/", "go to the overview")]
 
 
 def test_the_not_found_page_never_repeats_the_address(client: TestClient):

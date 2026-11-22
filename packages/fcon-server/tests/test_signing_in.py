@@ -293,6 +293,13 @@ def test_the_header_signs_out_with_a_form_carrying_the_sessions_token(client: Te
 
 def test_a_signed_in_user_is_shown_with_their_own_role(client: TestClient):
     sign_in(client, name="ben", password="given-once-0001")
+    token = parse(client.get("/choose-password").text).find("input", attrs={"name": "csrf_token"})
+    assert isinstance(token, Tag)
+    chosen = "ben-own-password-1"
+    client.post(
+        "/choose-password",
+        data={"csrf_token": str(token["value"]), "new_password": chosen, "password_again": chosen},
+    )
 
     who = banner(client).select_one(".who")
 
@@ -304,8 +311,74 @@ def test_the_open_pages_need_no_sign_in(client: TestClient, path: str):
     assert client.get(path, follow_redirects=False).status_code == 200
 
 
-def test_an_address_with_no_page_is_not_found_signed_in_or_not(client: TestClient):
-    assert client.get("/runs/42", follow_redirects=False).status_code == 404
+def test_a_signed_in_user_at_an_address_with_no_page_is_told_it_is_not_found(client: TestClient):
+    sign_in(client)
+
+    response = client.get("/runs/42", follow_redirects=False)
+
+    assert (response.status_code, heading(response.text)) == (404, "Page not found")
+
+
+def test_a_visitor_not_signed_in_at_an_address_with_no_page_is_sent_to_sign_in(client: TestClient):
+    response = client.get("/runs/42", follow_redirects=False)
+
+    assert (response.status_code, response.headers["location"]) == (303, "/sign-in?next=%2Fruns%2F42")
+
+
+# -- back to the page asked for --------------------------------------------------
+
+
+def test_the_page_asked_for_goes_to_sign_in_with_its_query(client: TestClient):
+    response = client.get("/runs?page=2", follow_redirects=False)
+
+    assert response.headers["location"] == "/sign-in?next=%2Fruns%3Fpage%3D2"
+
+
+def test_a_form_sent_without_a_session_is_sent_to_sign_in_alone(client: TestClient):
+    response = client.post("/sign-out", follow_redirects=False)
+
+    assert response.headers["location"] == "/sign-in"
+
+
+def test_the_sign_in_form_carries_the_page_asked_for(client: TestClient):
+    field = parse(client.get("/sign-in?next=/runs/42").text).find("input", attrs={"name": "next"})
+
+    assert isinstance(field, Tag) and (field["type"], field["value"]) == ("hidden", "/runs/42")
+
+
+def test_the_sign_in_form_leaves_out_a_page_on_another_site(client: TestClient):
+    field = parse(client.get("/sign-in?next=//elsewhere.example/runs/42").text).find("input", attrs={"name": "next"})
+
+    assert isinstance(field, Tag) and field["value"] == ""
+
+
+def sign_in_to(client: TestClient, next_path: str, password: str = PASSWORD):
+    token = sign_in_token(client)
+    return client.post(
+        "/sign-in",
+        data={"username": "ann", "password": password, "sign_in_token": token, "next": next_path},
+        follow_redirects=False,
+    )
+
+
+def test_a_sign_in_goes_back_to_the_page_asked_for(client: TestClient):
+    assert sign_in_to(client, "/runs/42?tab=log").headers["location"] == "/runs/42?tab=log"
+
+
+@pytest.mark.parametrize(
+    "next_path",
+    ["//elsewhere.example/runs/42", "https://elsewhere.example/", "/\\elsewhere.example", "/\t/elsewhere.example", ""],
+    ids=["two-slashes", "full-address", "backslash", "control-character", "empty"],
+)
+def test_a_sign_in_to_a_page_not_on_this_site_goes_to_the_overview(client: TestClient, next_path: str):
+    assert sign_in_to(client, next_path).headers["location"] == "/"
+
+
+def test_a_refused_sign_in_keeps_the_page_asked_for(client: TestClient):
+    page = parse(sign_in_to(client, "/runs/42", password="letmein").text)
+
+    field = page.find("input", attrs={"name": "next"})
+    assert isinstance(field, Tag) and field["value"] == "/runs/42"
 
 
 def test_a_database_out_of_reach_gives_the_error_page_to_a_signed_in_visitor():

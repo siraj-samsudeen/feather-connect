@@ -52,6 +52,8 @@ def create_app(
         sign_in_path=pages.SIGN_IN_PATH,
         error_page=pages.error_page,
         form_expired_page=pages.form_expired_page,
+        choose_password_path=pages.CHOOSE_PASSWORD_PATH,
+        while_choosing=pages.WHILE_CHOOSING,
     )
     return with_middleware(gate)
 

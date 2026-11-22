@@ -77,3 +77,11 @@ def test_it_stops_trying_when_asked():
     tries = database.tries
 
     assert not first.running() and database.tries == tries
+
+
+def test_stopping_before_it_started_does_nothing():
+    first = FirstAdministrator("ann", Database().make)
+
+    first.stop()
+
+    assert not first.running()

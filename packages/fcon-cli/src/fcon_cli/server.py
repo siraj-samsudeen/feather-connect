@@ -6,6 +6,7 @@ import ipaddress
 import logging
 import signal
 import socket
+from contextlib import ExitStack
 from types import FrameType
 from typing import NoReturn
 
@@ -120,15 +121,14 @@ def run_server(settings: Settings) -> None:
         proxy_headers=False,  # trusting a proxy's headers comes with real sign-in
         server_header=False,  # no server name or version for visitors
     )
-    watch = DatabaseWatch(settings.database_url)
-    watch.start()
-    first = first_administrator(settings.database_url, settings.first_admin) if settings.first_admin else None
-    if first is not None:
-        first.start()
-    announce(host, port)
-    try:
+    # In the background while the server runs: the database watch, and the
+    # first administrator when FCON_FIRST_ADMIN names one.
+    background: list[DatabaseWatch | FirstAdministrator] = [DatabaseWatch(settings.database_url)]
+    if settings.first_admin:
+        background.append(first_administrator(settings.database_url, settings.first_admin))
+    with ExitStack() as running:
+        for work in background:
+            work.start()
+            running.callback(work.stop)
+        announce(host, port)
         uvicorn.Server(config).run(sockets=[sock])
-    finally:
-        watch.stop()
-        if first is not None:
-            first.stop()

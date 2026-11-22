@@ -23,23 +23,23 @@
 
 ### Users and access: sign in, and back to the page asked for
 
-- [ ] 2.11 users-and-access: And the user is still signed in when they open the dashboard again — red → green → commit
+- [x] 2.11 users-and-access: And the user is still signed in when they open the dashboard again — red → green → commit
 - [ ] 2.12 users-and-access: When the user opens the address of run 42 / And signs in as … — red → green → commit
 - [ ] 2.13 users-and-access: Then the user is at the address of run 42 — red → green → commit
-- [ ] 2.14 users-and-access: When the user follows a sign-in link that would send them on to another site — red → green → commit
+- [x] 2.14 users-and-access: When the user follows a sign-in link that would send them on to another site — red → green → commit
 
 ### Users and access: a given password works once; passwords hard to guess
 
-- [ ] 2.15 users-and-access: Given "ben@example.com" was added as an operator with the first password "given-once-0001" — red → green → commit
-- [ ] 2.16 users-and-access: Then the user is asked to choose their own password before going on — red → green → commit
-- [ ] 2.17 users-and-access: And the user sees the overview once they have chosen "ben-own-password-1" — red → green → commit
-- [ ] 2.18 users-and-access: And the user has signed in as "ben@example.com" with the password "given-once-0001" — red → green → commit
-- [ ] 2.19 users-and-access: When the user opens the dashboard without choosing a password — red → green → commit
-- [ ] 2.20 users-and-access: And the user has signed in as "ben@example.com" and chosen the password "ben-own-password-1" — red → green → commit
-- [ ] 2.21 users-and-access: When the user signs out, and signs in as "ben@example.com" with the password "given-once-0001" — red → green → commit
-- [ ] 2.22 users-and-access: When the user chooses the password "<password>" — red → green → commit
-- [ ] 2.23 users-and-access: Then the password is refused, because it is <reason> (too short, too common, the user's own name) — red → green → commit
-- [ ] 2.24 users-and-access: And the user is still asked to choose their own password — red → green → commit
+- [x] 2.15 users-and-access: Given "ben@example.com" was added as an operator with the first password "given-once-0001" — red → green → commit
+- [x] 2.16 users-and-access: Then the user is asked to choose their own password before going on — red → green → commit
+- [x] 2.17 users-and-access: And the user sees the overview once they have chosen "ben-own-password-1" — red → green → commit
+- [x] 2.18 users-and-access: And the user has signed in as "ben@example.com" with the password "given-once-0001" — red → green → commit
+- [x] 2.19 users-and-access: When the user opens the dashboard without choosing a password — red → green → commit
+- [x] 2.20 users-and-access: And the user has signed in as "ben@example.com" and chosen the password "ben-own-password-1" — red → green → commit
+- [x] 2.21 users-and-access: When the user signs out, and signs in as "ben@example.com" with the password "given-once-0001" — red → green → commit
+- [x] 2.22 users-and-access: When the user chooses the password "<password>" — red → green → commit
+- [x] 2.23 users-and-access: Then the password is refused, because it is <reason> (too short, too common, the user's own name) — red → green → commit
+- [x] 2.24 users-and-access: And the user is still asked to choose their own password — red → green → commit
 
 ### Users and access: sessions end, and run out
 

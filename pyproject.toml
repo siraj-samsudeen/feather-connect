@@ -104,6 +104,10 @@ ignore_names = [
     "link_text",
     "link_href",
     "sign_out_path",
+    "next_field",
+    "new_field",
+    "again_field",
+    "hint_id",
     "pytestmark",  # pytest reads a test module's marks from it
     "total_tokens",  # anyio's thread limit, set by a test that fills every worker thread
 ]

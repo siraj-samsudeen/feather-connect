@@ -5,7 +5,7 @@ import pytest
 from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
-from fcon_server.app import create_app
+from fcon_server.app import build_app, create_app, with_middleware
 from fcon_server.signing import SecretKeys
 
 KEYS = SecretKeys("a-test-secret-key-of-32-characters-or-more")
@@ -18,7 +18,8 @@ def client() -> TestClient:
 
 
 @pytest.mark.parametrize("path", ["/sign-in", "/runs/42"], ids=["sign-in", "not-found"])
-def test_every_page_links_a_stylesheet_the_app_serves(client: TestClient, path: str):
+def test_every_page_links_a_stylesheet_the_app_serves(path: str):
+    client = TestClient(with_middleware(build_app(NO_DATABASE, keys=KEYS)))  # past the gate
     page = BeautifulSoup(client.get(path).text, "html.parser")
     hrefs = [str(link["href"]) for link in page.select('link[rel="stylesheet"]')]
 

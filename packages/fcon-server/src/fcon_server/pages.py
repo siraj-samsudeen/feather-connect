@@ -25,13 +25,18 @@ from fcon_server.signing import SIGN_IN_TOKEN_LIFE, SecretKeys, make_sign_in_tok
 from fcon_server.store.clock import Clock
 from fcon_server.store.context import Context
 from fcon_server.store.transaction import Store
+from fcon_server.users.choosing import ChoiceProblem, choose_password
 from fcon_server.users.rights import Action, require
+from fcon_server.users.rules import LONGEST, SHORTEST, PasswordProblem
 from fcon_server.users.sessions import LONGEST_SESSION, Attempt, SignedIn, sign_in, sign_out
 
 PRODUCT = "Feather Connect"
 OVERVIEW_PATH = "/"
 SIGN_IN_PATH = "/sign-in"
 SIGN_OUT_PATH = "/sign-out"
+CHOOSE_PASSWORD_PATH = "/choose-password"  # noqa: S105 - an address, not a secret
+# What a user who must choose a password may open meanwhile.
+WHILE_CHOOSING = frozenset({CHOOSE_PASSWORD_PATH, SIGN_OUT_PATH})
 STATIC_PATH = "/static"
 STATIC_DIRECTORY = Path(__file__).parent / "static"
 STYLESHEET_PATH = f"{STATIC_PATH}/fcon.css"
@@ -41,6 +46,8 @@ OPEN_PREFIXES = (f"{STATIC_PATH}/",)
 
 SIGN_IN_COOKIE = "fcon_sign_in"
 SIGN_IN_TOKEN_FIELD = "sign_in_token"  # noqa: S105 - a field name, not a secret
+BACKSLASH = chr(0x5C)  # read by browsers as a slash in an address
+NEXT_FIELD = "next"  # the page to go on to after signing in, as the gate names it
 
 REFUSAL = "The user name or password is wrong."
 REFUSAL_ID = "sign-in-refused"
@@ -92,18 +99,31 @@ class SignInView:
     user_field: Attributes
     password_field: Attributes
     token_field: Attributes
+    next_field: Attributes
     alerts: tuple[Alert, ...] = field(default=())
     product: str = PRODUCT
     stylesheet: str = STYLESHEET_PATH
+
+
+def page_on_this_site(asked: str) -> str:
+    """The page asked for, when it is a path on this site: one `/`, not two
+    (or a backslash, which browsers read as one), and no space or control
+    character, which browsers drop; otherwise "" (design point 9)."""
+    if not asked.startswith("/") or asked.startswith("//"):
+        return ""
+    if any(ord(c) <= 0x20 or ord(c) == 0x7F or c == BACKSLASH for c in asked):
+        return ""
+    return asked
 
 
 def page_title(name: str) -> str:
     return f"{name} – {PRODUCT}"
 
 
-def sign_in_view(user_name: str = "", *, refused: bool = False, token: str = "") -> SignInView:
+def sign_in_view(user_name: str = "", *, refused: bool = False, token: str = "", next_page: str = "") -> SignInView:
     """The sign-in page, fresh or after a refused sign-in. The password is never
-    put back; the user name is, so it need not be typed again."""
+    put back; the user name is, so it need not be typed again. The page to go
+    on to is kept only when it is on this site."""
     alerts = (Alert(REFUSAL_ID, REFUSAL),) if refused else ()
     invalid = "true" if refused else None
     return SignInView(
@@ -128,6 +148,7 @@ def sign_in_view(user_name: str = "", *, refused: bool = False, token: str = "")
             "aria-invalid": invalid,
         },
         token_field={"type": "hidden", "name": SIGN_IN_TOKEN_FIELD, "value": token},
+        next_field={"type": "hidden", "name": NEXT_FIELD, "value": page_on_this_site(next_page)},
         alerts=alerts,
     )
 
@@ -155,6 +176,57 @@ def overview_view(signed_in: SignedIn, environment: str) -> OverviewView:
     )
 
 
+CHOICE_REFUSED_ID = "choice-refused"
+PASSWORD_HINT_ID = "password-hint"  # noqa: S105 - an element's id, not a secret
+CHOICE_REFUSALS: dict[PasswordProblem | ChoiceProblem, str] = {
+    PasswordProblem.TOO_SHORT: f"The password is too short: use at least {SHORTEST} characters.",
+    PasswordProblem.TOO_LONG: f"The password is too long: use at most {LONGEST} characters.",
+    PasswordProblem.TOO_COMMON: "The password is too common: it is one of the most used.",
+    PasswordProblem.OWN_NAME: "The password is the user's own name: choose another.",
+    ChoiceProblem.DIFFERENT: "The two entries are not the same: type the password twice.",
+}
+
+
+@dataclass(frozen=True)
+class ChoosePasswordView:
+    """The card of the sign-in page, asking for the user's own password, twice."""
+
+    title: str
+    lead: str
+    hint: str
+    form: Attributes
+    new_field: Attributes
+    again_field: Attributes
+    alerts: tuple[Alert, ...] = field(default=())
+    hint_id: str = PASSWORD_HINT_ID
+    heading: str = "Choose your password"
+    product: str = PRODUCT
+    stylesheet: str = STYLESHEET_PATH
+
+
+def choose_password_view(problem: PasswordProblem | ChoiceProblem | None = None) -> ChoosePasswordView:
+    """Fresh, or after a refused password, saying which rule it broke; what
+    was typed is never put back."""
+    refused = problem is not None
+    alerts = () if problem is None else (Alert(CHOICE_REFUSED_ID, CHOICE_REFUSALS[problem]),)
+    described = f"{PASSWORD_HINT_ID} {CHOICE_REFUSED_ID}" if refused else PASSWORD_HINT_ID
+    password: Attributes = {
+        "type": "password",
+        "autocomplete": "new-password",
+        "required": "required",
+        "aria-invalid": "true" if refused else None,
+    }
+    return ChoosePasswordView(
+        title=page_title("Choose your password"),
+        lead="The one you were given works only once.",
+        hint=f"At least {SHORTEST} characters.",
+        form={"method": "post", "action": CHOOSE_PASSWORD_PATH},
+        new_field={"id": "new-password", "name": "new_password", "aria-describedby": described, **password},
+        again_field={"id": "password-again", "name": "password_again", **password},
+        alerts=alerts,
+    )
+
+
 @dataclass(frozen=True)
 class MessageView:
     """A page that says one thing and leads on: not found, an error, an expired form."""
@@ -174,6 +246,8 @@ def not_found_view() -> MessageView:
         title=page_title("Page not found"),
         heading="Page not found",
         text="There is no page at this address.",
+        link_text="Go to the overview",
+        link_href=OVERVIEW_PATH,
     )
 
 
@@ -292,7 +366,8 @@ def router() -> APIRouter:
 
     @routes.get(SIGN_IN_PATH)
     def sign_in_page(request: Request) -> HTMLResponse:
-        return _sign_in_form(request, sign_in_view(token=_sign_in_token(request)))
+        next_page = request.query_params.get(NEXT_FIELD, "")
+        return _sign_in_form(request, sign_in_view(token=_sign_in_token(request), next_page=next_page))
 
     @routes.post(SIGN_IN_PATH)
     def sign_in_form(
@@ -300,6 +375,7 @@ def router() -> APIRouter:
         username: Annotated[str, Form()] = "",
         password: Annotated[str, Form()] = "",
         sign_in_token: Annotated[str, Form()] = "",
+        next_page: Annotated[str, Form(alias=NEXT_FIELD)] = "",
     ) -> Response:
         """A form without the token of the visitor's own sign-in cookie is
         refused as expired (login CSRF). A refused sign-in gets the form
@@ -312,11 +388,35 @@ def router() -> APIRouter:
         attempt = Attempt(username, password, address, request.headers.get("user-agent"))
         session_id = sign_in(_store(request), clock, _context(request), attempt)
         if session_id is None:
-            return _sign_in_form(request, sign_in_view(username, refused=True, token=sign_in_token))
-        response = RedirectResponse(OVERVIEW_PATH, status_code=303)
+            return _sign_in_form(
+                request, sign_in_view(username, refused=True, token=sign_in_token, next_page=next_page)
+            )
+        response = RedirectResponse(page_on_this_site(next_page) or OVERVIEW_PATH, status_code=303)
         response.set_cookie(SESSION_COOKIE, session_id, **_cookie_options(request, "/", LONGEST_SESSION))
         response.delete_cookie(SIGN_IN_COOKIE, path=SIGN_IN_PATH)
         return response
+
+    @routes.get(CHOOSE_PASSWORD_PATH)
+    def choose_password_page(request: Request) -> Response:
+        """Only while the user must choose one: changing one's own password
+        later asks for the old one, on a page of its own."""
+        if not _signed_in(request).must_choose_password:
+            return RedirectResponse(OVERVIEW_PATH, status_code=303)
+        return render("choose_password.html", choose_password_view(), request=request)
+
+    @routes.post(CHOOSE_PASSWORD_PATH)
+    def choose_password_form(
+        request: Request,
+        new_password: Annotated[str, Form()] = "",
+        password_again: Annotated[str, Form()] = "",
+    ) -> Response:
+        signed_in = _signed_in(request)
+        if not signed_in.must_choose_password:
+            return RedirectResponse(OVERVIEW_PATH, status_code=303)
+        problem = choose_password(_store(request), _clock(request), signed_in, new_password, password_again)
+        if problem is not None:
+            return render("choose_password.html", choose_password_view(problem), request=request)
+        return RedirectResponse(OVERVIEW_PATH, status_code=303)
 
     @routes.post(SIGN_OUT_PATH)
     def sign_out_form(request: Request) -> Response:

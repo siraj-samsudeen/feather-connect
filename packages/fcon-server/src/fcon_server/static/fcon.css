@@ -91,6 +91,12 @@ p {
   font-weight: 600;
 }
 
+.hint {
+  margin: -0.5rem 0 0.75rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
 .alert {
   padding: 0.75rem 1rem;
   background: var(--alert-bg);
