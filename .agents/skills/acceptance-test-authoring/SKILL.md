@@ -114,3 +114,5 @@ Step definitions must read as intent; all UI knowledge lives in page objects.
 ## Workflow Cadence
 
 Implement one pending step definition at a time: run the suite so the step fails for the right reason, implement until it passes, then commit. The effective suite's red scenarios at propose time are the change's work list. Finish only when every scenario passes with zero pending or undefined steps and the HTML report is generated.
+
+**While building, run the scenarios being worked on, not the whole suite:** a feature path or a tag. A long whole-suite run in the background can stall an agent without any report, leaving its work uncommitted. The whole suite runs before each push and at the end.

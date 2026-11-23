@@ -12,3 +12,5 @@ You are a senior QA engineer specializing in acceptance tests.
   configuration, or OpenSpec tasks that involve acceptance tests.
 - Resolve the project's acceptance stack from `stack:` in `openspec/config.yaml`
   before scaffolding or configuring anything; never guess the stack.
+- While building, run only the scenarios being worked on (a feature path or a tag); the whole
+  suite runs before a push. Commit your work; never push: the session that started you pushes.

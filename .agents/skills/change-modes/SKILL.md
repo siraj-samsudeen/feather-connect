@@ -23,7 +23,31 @@ per-mode schema or task list: the human switches mode whenever they like ("go au
 here"), and a switch changes no file. A session that resumes a change without being told the
 mode uses build and says so, so the human can switch.
 
-In every mode the human reviews the planning artifacts (grill-me still applies).
+In every mode the planning artifacts are reviewed by whoever decides them (§ Who decides;
+grill-me still applies).
+
+## Who decides
+
+The owner makes the product decisions; developers build, each with their own agent. A
+developer's agent sees only the repo and GitHub, so every decision it needs is in the issue,
+the specs, an ADR or `AGENTS.md`.
+
+| Decision | Who | Recorded in |
+|---|---|---|
+| Scope, what comes next, milestones | Owner | The issue and its rating |
+| The design: behaviour, screens, security choices | Owner, point by point | The issue's agreed design |
+| The proposal and specs: what the change does | Owner | The change's first commits |
+| A lasting technical choice: a new dependency, pattern or data layout | Developer proposes, owner decides | An ADR |
+| The technical design inside the agreed design | The developer running the build | `design.md`, `tasks.md` |
+| Code, tests, refactoring | The developer and their agent | Commits |
+| The merge | Owner | A merge commit |
+
+When the owner runs the build, the owner approves `design.md` and `tasks.md` too.
+
+**A product question goes to the owner on the issue.** When the agreed design does not say what
+should happen in a case the build finds, the agent stops that task and asks the owner in a
+comment on the issue; it never decides it in code. The answer is added to the issue's agreed
+design, so the next agent sees it. Technical questions are the developer's.
 
 Changes created before this version of the template (schema `intent-driven-with-human-control`,
 or a `**Mode:**` line in the proposal) keep their files; finish them in whatever mode the session
@@ -39,6 +63,16 @@ Formatting and tooling choices are not questions for the human:
   numbered after the highest existing one. An accepted ADR is never edited; a new ADR supersedes
   it.
 - Acceptance-test stack: `stack:` in `openspec/config.yaml` (`acceptance_stack` in the answers).
+- Simplicity limits: a complexity limit per function (ruff `C90`, eslint `complexity`, both at
+  10), a length limit per function and per file set from the project's own code, and a soft
+  limit of about 600 changed lines of code per PR, tests, specs and migrations aside. An
+  exception is marked in the code with its reason.
+- Supply chain: CI audits the locked dependencies (`pip-audit`, `npm audit`), and GitHub's
+  dependency review and secret scanning are on. A new dependency comes with an ADR saying why,
+  and that the package is real and maintained: agents sometimes suggest packages that do not
+  exist, and attackers register those names.
+- Traceability: when the project keeps a requirements catalogue, a spec names the catalogue
+  IDs it covers, and `scripts/trace_requirements.py` lists the IDs no spec names.
 
 ## Continuing — overrides the openspec-* skills
 
@@ -58,7 +92,11 @@ proposal to archive:
    worktrees.
 1. **Planning**: the planning artifacts (proposal, specs, design, adr, tasks), one commit each.
    When the last is approved, push the branch and open the PR; it stays open.
-2. **Build**: the code, tests and `tasks.md` ticks, on the same branch.
+2. **Build**: the code, tests and `tasks.md` ticks, on the same branch. **Push at agreed
+   points**, two or three per change, named in the build brief: for example when the
+   foundation passes, after the riskiest batch, and before the verifier and the review. Not
+   after every commit: CI runs a few times per change, and each run tells something. In
+   autopilot the subagents commit and never push; the session pushes.
 3. **Review videos**: the acceptance suite's review videos are recorded (the
    `acceptance-test-authoring` skill) and the owner watches them.
 4. **Archive**: after the owner has watched the videos, sync the specs and archive the change,
