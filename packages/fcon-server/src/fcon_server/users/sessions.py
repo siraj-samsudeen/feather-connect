@@ -156,26 +156,37 @@ def _waiting(failures: list[_Failure], now: datetime) -> bool:
     return any(ends is not None and now < ends for ends in (by_name, by_address))
 
 
+# Attempts for one name, or from one address, go one at a time across every
+# copy of the server: each takes these locks, the name's then the address's,
+# until its transaction ends, so none counts the failures before the one
+# ahead of it has recorded its own.
+_LOCK_NAME = "SELECT pg_advisory_xact_lock(hashtextextended('sign-in name ' || %(tenant_id)s || ' ' || %(name)s, 0))"
+_LOCK_ADDRESS = (
+    "SELECT pg_advisory_xact_lock(hashtextextended('sign-in address ' || %(tenant_id)s || ' ' || %(address)s, 0))"
+)
+
+
 def sign_in(store: Store, clock: Clock, context: Context, attempt: Attempt) -> str | None:
     """The new session's id for the cookie, or None when refused."""
     name = normal_name(attempt.name)[:NAME_KEPT]
     tried = {"name": name, "address": attempt.address}
     now = clock.now()
+    # A password longer than any allowed can match none; cut there so a huge
+    # one costs no more to check than a long one.
+    password = attempt.password[: LONGEST + 1]
     with store.transaction(context) as tx:
+        tx.execute(_LOCK_NAME, {"name": name})
+        tx.execute(_LOCK_ADDRESS, {"address": attempt.address})
         tx.execute(_REMOVE_OLD, {"before": now - KEPT_FOR, "at_most": REMOVED_AT_ONCE})
         failures = tx.fetch_all(_Failure, _FAILURES, {**tried, "since": now - COUNTED_FOR})
         if _waiting(failures, now):
             tx.insert(SIGN_IN_ATTEMPT, {**tried, "outcome": WAITED})
             return None
         user = tx.fetch_one(_User, _USER_BY_NAME, {"name": name})
-    # A password longer than any allowed can match none; cut there so a huge
-    # one costs no more to check than a long one.
-    password = attempt.password[: LONGEST + 1]
-    matches = password_matches(user.password_hash if user else None, password)
-    if user is None or not matches or user.state != ACTIVE:
-        with store.transaction(context) as tx:
+        matches = password_matches(user.password_hash if user else None, password)
+        if user is None or not matches or user.state != ACTIVE:
             tx.insert(SIGN_IN_ATTEMPT, {**tried, "outcome": REFUSED})
-        return None
+            return None
     new_hash = hash_password(password) if needs_rehash(user.password_hash) else None
     session_id = secrets.token_urlsafe(32)
     with store.transaction(_as_user(context, user.id)) as tx:

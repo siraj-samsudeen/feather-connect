@@ -7,6 +7,8 @@ failure itself. A success clears that name's count. Every refusal checks one
 argon2id hash, a dummy one for a made-up name. Attempts older than a day go,
 at most 100 with each sign-in (decision 3)."""
 
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -252,6 +254,26 @@ def test_an_attempt_during_the_wait_checks_no_password(signing_in: SignIn, check
     signing_in()
 
     assert checks == []
+
+
+@pytest.mark.parametrize(
+    "names", [("ann",) * 8, ("alex", "sam", "kim", "lee", "max", "noa", "ray", "zoe")], ids=["one-name", "one-address"]
+)
+def test_attempts_at_the_same_time_check_3_passwords_before_the_wait(
+    signing_in: SignIn, checks: list[str], names: tuple[str, ...]
+):
+    """Counting, checking and recording go in one transaction, one attempt
+    at a time for a name or an address, so a burst cannot all count zero."""
+    start = threading.Barrier(len(names))
+
+    def attempt(name: str) -> bool:
+        start.wait()
+        return signing_in(name, WRONG)
+
+    with ThreadPoolExecutor(len(names)) as pool:
+        list(pool.map(attempt, names))
+
+    assert len(checks) == 3
 
 
 # -- old attempts go -------------------------------------------------------------
