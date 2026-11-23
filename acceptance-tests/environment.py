@@ -5,10 +5,12 @@ import base64
 import os
 
 from pages.accessibility import AccessibilityCheck
+from pages.another_site import AnotherSite
 from pages.choose_password_page import ChoosePasswordPage
 from pages.container_host import ContainerHost
 from pages.database_commands import DatabaseCommands
 from pages.first_admin import FirstAdministrator
+from pages.form_expired_page import FormExpiredPage
 from pages.monitor import Monitor
 from pages.not_found_page import NotFoundPage
 from pages.overview_page import OverviewPage
@@ -60,6 +62,8 @@ def before_scenario(context, scenario):
     context.not_found_page = NotFoundPage(context.world)
     context.overview = OverviewPage(context.world)
     context.choose_password = ChoosePasswordPage(context.world)
+    context.form_expired = FormExpiredPage(context.world)
+    context.another_site = AnotherSite(context.world)
     context.first_admin = FirstAdministrator(context.world)
     context.user_commands = UserCommands(context.world)
     context.accessibility = AccessibilityCheck()

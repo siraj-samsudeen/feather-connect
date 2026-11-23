@@ -12,6 +12,7 @@ from support import run_database, stack
 
 USERS = "users"
 ADD = "add"
+DISABLE = "disable"
 ADMIN_FLAG = "--admin"
 ROLE_FLAG = "--role"
 DATABASE_SETTING = "FCON_DATABASE_URL"
@@ -20,6 +21,11 @@ WORKS_ONCE = "Their password works for one sign-in; then they choose their own."
 # The first user's password is their own, so a user with a given password is
 # never the first: setup adds this administrator before them.
 SETUP_ADMIN = {"name": "setup-admin", "password": "setup-admin-password-0"}
+# A user a scenario is signed in as, when it said only their name.
+SAMPLE_ADMIN = "ann"
+SAMPLE_PASSWORD = "blue-harbour-lamp"  # noqa: S105 - a scenario's sample password
+# A user whose password was given them, for a scenario that only needs one.
+SAMPLE_NEW_USER = {"name": "ben@example.com", "role": "operator", "password": "given-once-0001"}
 
 
 class UserCommands:
@@ -28,6 +34,7 @@ class UserCommands:
         self.result = None
         self.results = []  # every command of the scenario, in order
         self.given_passwords = {}  # user -> the password given them, that works once
+        self.passwords = {}  # user -> the password they sign in with now
 
     def _settings(self):
         return {DATABASE_SETTING: self.world.product_database_url()}
@@ -51,7 +58,10 @@ class UserCommands:
             arguments.append(ADMIN_FLAG)
         if role is not None:
             arguments += [ROLE_FLAG, role]
-        return self._run(arguments, typed=password + "\n")
+        result = self._run(arguments, typed=password + "\n")
+        if result.ended_well():
+            self.passwords[name] = password
+        return result
 
     def add_administrator(self, name, password):
         """As setup: an administrator with that password, or an AssertionError
@@ -74,6 +84,40 @@ class UserCommands:
             raise AssertionError("`fcon users add` did not say the password works once (%r); %r" % (WORKS_ONCE, result))
         self.given_passwords[name] = password
         return result
+
+    def add_with_own_password(self, name, role, password):
+        """As setup: a user of that role who has already chosen `password`,
+        their own: given a password from the command line, then signed in
+        with it once to choose theirs."""
+        given = "given-%s" % password
+        self.add_with_given_password(name, role, given)
+        self.world.choose_own_password(name, given, password)
+        self.passwords[name] = password
+
+    def administrator(self, name=SAMPLE_ADMIN):
+        """(name, password) of an administrator the scenario can sign in as:
+        added now, with the sample password, unless the scenario added them."""
+        if name not in self.passwords:
+            self.add_administrator(name, SAMPLE_PASSWORD)
+        return name, self.passwords[name]
+
+    def new_user(self):
+        """(name, password) of a user whose password was given them and works
+        once: added now, unless the scenario added them."""
+        name = SAMPLE_NEW_USER["name"]
+        if name not in self.given_passwords:
+            self.add_with_given_password(name, SAMPLE_NEW_USER["role"], SAMPLE_NEW_USER["password"])
+        return name, self.given_passwords[name]
+
+    def password_of(self, name):
+        """The password the user signs in with now, as the scenario set it."""
+        if name not in self.passwords:
+            raise AssertionError("the scenario set no password for %r" % name)
+        return self.passwords[name]
+
+    def disable(self, name):
+        """`fcon users disable <name>`; what it answered is in `result`."""
+        return self._run([DISABLE, name])
 
     def given_password(self, name):
         """The password the scenario gave that user from the command line."""

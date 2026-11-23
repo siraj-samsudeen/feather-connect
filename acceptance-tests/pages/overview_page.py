@@ -8,6 +8,7 @@ It is the same browser page the sign-in form was typed on (pages/sign_in_page.py
 Lookups go by role and visible text, as a person (or a screen reader) finds things.
 """
 
+import re
 from urllib.parse import urlparse
 
 from playwright.sync_api import Page
@@ -21,6 +22,9 @@ HEADING = "Overview"
 NOTHING_YET = "Nothing to watch yet. Flows appear here once they exist."
 # Who is signed in, on the right of the header: "<name> · <role>".
 WHO_SEPARATOR = " · "
+# A page that leads on to the overview (not found, a form expired) has a link
+# whose name says so ("Go to the overview"), in any case.
+TO_THE_OVERVIEW = "overview"
 
 
 def _words(text):
@@ -69,16 +73,39 @@ class OverviewPage:
         """The dashboard's address typed again, in the same browser."""
         self.page.goto(PATH)
 
-    def sign_out(self):
-        """Presses Sign out in the header, as a person does; an AssertionError
-        unless it leads to the sign-in page."""
+    def press_sign_out(self):
+        """Presses Sign out in the header of the page as it is, as a person
+        does, wherever it leads."""
         button = self.page.get_by_role("banner").get_by_role("button", name=SIGN_OUT, exact=True)
         if button.count() != 1:
             raise AssertionError("no %r button in the page header at %s" % (SIGN_OUT, self.where()))
         with self.page.expect_navigation():
             button.click()
+
+    def sign_out(self):
+        """Presses Sign out in the header, as a person does; an AssertionError
+        unless it leads to the sign-in page."""
+        self.press_sign_out()
         if urlparse(self.page.url).path != SIGN_IN_PATH:
             raise AssertionError("signing out did not lead to %s: at %s" % (SIGN_IN_PATH, self.where()))
+
+    def go_on_from_link(self):
+        """Follows the page's one link to the overview, as a person would;
+        the problems of the page it led to (none when it is the overview)."""
+        link = self.page.get_by_role("link", name=re.compile(TO_THE_OVERVIEW, re.IGNORECASE))
+        if link.count() != 1:
+            return ["%d links named like %r (expected 1) at %s" % (link.count(), TO_THE_OVERVIEW, self.where())]
+        with self.page.expect_navigation():
+            link.click()
+        return self.problems()
+
+    def signed_in_problems(self):
+        """Why the user is not signed in: the dashboard's address, typed
+        again, does not show the overview."""
+        self.open()
+        if urlparse(self.page.url).path == SIGN_IN_PATH:
+            return ["the dashboard sent the user to sign in: %s" % self.where()]
+        return self.problems()
 
     def shown_as(self, name, role):
         """(yes?, why): the header says who is signed in, "<name> · <role>"."""

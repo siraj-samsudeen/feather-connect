@@ -2,6 +2,8 @@
 
 from behave import given, then, when
 
+from support.world import OTHER_COMPUTER, OTHER_TAB, THE_USER
+
 
 @given("the user is not signed in")
 def step_not_signed_in(context):
@@ -192,3 +194,197 @@ def step_choose_password(context, password):
 def step_password_refused(context, reason):
     refused, why = context.choose_password.refused_because(reason)
     assert refused, why
+
+
+# -- back to the page asked for ------------------------------------------------
+
+
+@when("the user opens the address of run 42")
+def step_open_run_42(context):
+    context.not_found_page.open_missing_run()
+
+
+@then("the user is at the address of run 42")
+def step_at_run_42(context):
+    there, why = context.not_found_page.at_missing_run()
+    assert there, why
+
+
+# -- signed in, as setup ----------------------------------------------------------
+
+
+def _signed_in(context, name, who=THE_USER):
+    """`who`'s browser, signed in as `name` with a session of its own; the
+    user is added as an administrator first unless the scenario added them."""
+    if name in context.user_commands.passwords:
+        password = context.user_commands.password_of(name)
+    else:
+        name, password = context.user_commands.administrator(name)
+    context.world.signed_in(who, name, password, fresh=True)
+    context.signed_in_as = (name, password)
+
+
+@given('the user is signed in as "{name}"')
+@given('the user is signed in as "{name}", an administrator')
+def step_signed_in_as(context, name):
+    _signed_in(context, name)
+
+
+@given('"{name}" is an operator with the password "{password}"')
+def step_operator_with_own_password(context, name, password):
+    context.user_commands.add_with_own_password(name, "operator", password)
+
+
+# -- signing out ends every session ---------------------------------------------
+
+
+@given('the user is signed in as "{name}" on two computers')
+def step_signed_in_on_two(context, name):
+    _signed_in(context, name)
+    _signed_in(context, name, OTHER_COMPUTER)
+
+
+@given('the user has signed in as "{user}" with the password "{password}" on two computers')
+def step_has_signed_in_on_two(context, user, password):
+    context.world.signed_in(THE_USER, user, password, fresh=True)
+    context.world.signed_in(OTHER_COMPUTER, user, password, fresh=True)
+
+
+@when("the user signs out on one of them")
+def step_sign_out_on_one(context):
+    context.overview.open()
+    context.overview.sign_out()
+
+
+@when('the user chooses the password "{password}" on one of them')
+def step_choose_on_one(context, password):
+    context.choose_password.open()
+    context.choose_password.choose(password)
+    problems = context.overview.problems()
+    assert not problems, "; ".join(problems)
+
+
+@then("the user is no longer signed in on the other")
+def step_signed_out_on_other(context):
+    with context.world.on(OTHER_COMPUTER):
+        context.sign_in_page.open_dashboard()
+        problems = context.sign_in_page.asked_to_sign_in_problems()
+    assert not problems, "; ".join(problems)
+
+
+@when('the operator disables "{name}" from the command line')
+def step_operator_disables(context, name):
+    context.user_commands.disable(name)
+
+
+@then("the user is no longer signed in")
+def step_no_longer_signed_in(context):
+    context.sign_in_page.open_dashboard()
+    problems = context.sign_in_page.asked_to_sign_in_problems()
+    assert not problems, "%s; the last command: %r" % ("; ".join(problems), context.user_commands.result)
+
+
+@then('signing in as "{user}" with the password "{password}" is refused')
+def step_signing_in_refused(context, user, password):
+    context.sign_in_page.sign_in(user, password)
+    problems = context.sign_in_page.refusal_problems()
+    assert not problems, "; ".join(problems)
+
+
+# -- sessions run out -----------------------------------------------------------
+
+
+@when("the user comes back after {hours:d} hours without using the dashboard")
+def step_back_after_hours(context, hours):
+    context.world.stay_away(hours)
+    context.sign_in_page.open_dashboard()
+
+
+@then("the user is asked to sign in again")
+def step_asked_to_sign_in_again(context):
+    problems = context.sign_in_page.asked_to_sign_in_problems()
+    assert not problems, "; ".join(problems)
+
+
+# -- guessing is slowed ---------------------------------------------------------
+
+
+@given('someone has failed to sign in as "{name}" {times:d} times in a row')
+def step_someone_failed(context, name, times):
+    context.sign_in_page.someone_fails_to_sign_in([name], times)
+
+
+@given("someone at the user's address has failed to sign in as {count:d} different names")
+def step_someone_failed_names(context, count):
+    context.sign_in_page.someone_fails_to_sign_in(context.sign_in_page.made_up_names(count))
+
+
+@when('the user signs in as "{user}" with the password "{password}" at once')
+def step_sign_in_at_once(context, user, password):
+    context.sign_in_page.sign_in(user, password)
+
+
+@then("the sign-in is refused, in the same words as a wrong password")
+def step_refused_same_words(context):
+    problems = context.sign_in_page.refusal_problems() + context.sign_in_page.message_problems()
+    assert not problems, "; ".join(problems)
+
+
+@then('signing in as "{user}" with the password "{password}" works once the wait has passed')
+def step_works_after_wait(context, user, password):
+    signed_in, why = context.sign_in_page.sign_in_once_the_wait_has_passed(user, password)
+    assert signed_in, why
+    problems = context.overview.problems()
+    assert not problems, "; ".join(problems)
+
+
+# -- forged forms are refused ---------------------------------------------------
+
+
+@given('the user is signed in as "{name}", with the overview open')
+def step_signed_in_overview_open(context, name):
+    _signed_in(context, name)
+    context.overview.open()
+    problems = context.overview.problems()
+    assert not problems, "; ".join(problems)
+
+
+@given("the user has since signed out and back in from another tab")
+def step_out_and_in_other_tab(context):
+    name, password = context.signed_in_as
+    context.world.new_tab(OTHER_TAB)
+    with context.world.on(OTHER_TAB):
+        context.overview.open()
+        context.overview.sign_out()
+        context.sign_in_page.sign_in(name, password)
+        problems = context.overview.problems()
+    assert not problems, "; ".join(problems)
+
+
+@when("the user signs out from the overview opened before")
+def step_sign_out_from_old_overview(context):
+    context.overview.press_sign_out()
+
+
+@then("the user is told the form has expired, and to reload the page")
+@then("the form is refused as expired")
+def step_form_expired(context):
+    problems = context.form_expired.problems()
+    assert not problems, "; ".join(problems)
+
+
+@then("the user can go on to the overview from there")
+def step_go_on_to_overview(context):
+    problems = context.overview.go_on_from_link()
+    assert not problems, "; ".join(problems)
+
+
+@then("the user is still signed in")
+def step_still_signed_in_now(context):
+    problems = context.overview.signed_in_problems()
+    assert not problems, "; ".join(problems)
+
+
+@when("a page on another site sends the dashboard a sign-out form")
+def step_forged_sign_out(context):
+    context.another_site.send_sign_out_form()

@@ -52,3 +52,24 @@ def user_count(database_url=None):
             raise AssertionError("the database has no %s table: the product keeps no users yet" % USER_TABLE)
         (count,) = connection.execute("SELECT count(*) FROM %s" % USER_TABLE).fetchone()
         return count
+
+
+SESSION_TABLE = "fcon.session"
+
+
+def move_sessions_back(hours, database_url=None):
+    """Every session of the database (the run's, or the one given) as if it
+    had been made, and last used, `hours` earlier: the time a user stays
+    away, without the scenario waiting for it. The product's clock is not
+    touched; only the times its sessions recorded move. Returns how many."""
+    with _connect(database_url or stack.run_database_url()) as connection:
+        if not _existing(connection, (SESSION_TABLE,)):
+            raise AssertionError("the database has no %s table: the product keeps no sessions yet" % SESSION_TABLE)
+        moved = connection.execute(
+            "UPDATE %s SET created_at = created_at - make_interval(hours => %%(h)s),"
+            " last_seen_at = last_seen_at - make_interval(hours => %%(h)s),"
+            " expires_at = expires_at - make_interval(hours => %%(h)s)"
+            " WHERE ended_at IS NULL" % SESSION_TABLE,
+            {"h": hours},
+        )
+        return moved.rowcount

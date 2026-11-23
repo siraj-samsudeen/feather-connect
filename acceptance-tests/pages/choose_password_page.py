@@ -10,6 +10,8 @@ finds things.
 
 from playwright.sync_api import Page
 
+from support.auth import CHOOSE_PASSWORD_PATH
+
 HEADING = "Choose your password"
 LEAD = "The one you were given works only once."
 NEW_LABEL = "New password"
@@ -33,6 +35,10 @@ class ChoosePasswordPage:
 
     def where(self):
         return "%s (title %r)" % (self.page.url, self.page.title())
+
+    def open(self):
+        """The page's address typed in the browser the user signed in on."""
+        self.page.goto(CHOOSE_PASSWORD_PATH)
 
     def problems(self):
         """Why this is not the page to choose a password: no heading, no word

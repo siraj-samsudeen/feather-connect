@@ -8,11 +8,12 @@ import json
 import os
 import re
 import shutil
+from contextlib import contextmanager
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-from support import auth, captions, stack
+from support import auth, captions, run_database, stack
 from support.screen import Screen
 from support.scenario_database import ScenarioDatabase
 from support.stack import BASE_URL
@@ -60,6 +61,13 @@ PHONE = {"width": 375, "height": 812}
 # opened, the steps check that status; for anything the page loads (a
 # stylesheet), the message stays and fails the scenario.
 FAILED_TO_LOAD = "Failed to load resource"
+
+# The user's own browser, the one every page object drives unless the
+# scenario turns to another (World.on): their other computer, or another tab
+# of the same browser.
+THE_USER = "visitor"
+OTHER_COMPUTER = "other computer"
+OTHER_TAB = "other tab"
 
 
 def slug(text):
@@ -115,6 +123,7 @@ class World:
         self.console_errors = []  # (who, text) of every browser console error and page error
         self._documents = set()  # URLs of the documents the scenario's pages opened
         self.pages = {}  # who ('the user', 'a colleague') -> page
+        self.current = THE_USER  # whose page the page objects drive (on())
         self.contexts = []  # (who, label, browser context, page), in the order opened
         self.caption = None  # VIDEO=1: the step being run, as written
         self.base_url = BASE_URL  # the product the scenario talks to: the run's server, unless replaced
@@ -191,19 +200,55 @@ class World:
         password = password or auth.ADMIN["password"]
         states = self.run.signed_in_states
         if fresh:
-            state = auth.signed_in_state(self.run.playwright, user, password)
+            state = auth.signed_in_state(self.run.playwright, user, password, self.base_url)
         else:
             if user not in states:
-                states[user] = auth.signed_in_state(self.run.playwright, user, password)
+                states[user] = auth.signed_in_state(self.run.playwright, user, password, self.base_url)
             state = states[user]
         self.pages[who] = self._new_page(slug(who), who, state)
         return self.pages[who]
 
-    def signed_out(self, who="visitor"):
-        """A page for someone not signed in: the only way a sign-in scenario starts."""
+    def signed_out(self, who=None):
+        """A page for someone not signed in: the only way a sign-in scenario
+        starts. Without `who`, the page the scenario is on now (on())."""
+        who = who or self.current
         if who not in self.pages:
             self.pages[who] = self._new_page(slug(who), who)
         return self.pages[who]
+
+    @contextmanager
+    def on(self, who):
+        """The page objects drive `who`'s page while inside: the user's other
+        computer, or another tab."""
+        previous, self.current = self.current, who
+        try:
+            yield
+        finally:
+            self.current = previous
+
+    def new_tab(self, who, of=THE_USER):
+        """Another tab of `of`'s browser: the same cookies, a page of its own."""
+        browser_context = self.signed_out(of).context
+        page = browser_context.new_page()
+        self._watch_console(who, page)
+        self.pages[who] = page
+        return page
+
+    def stay_away(self, hours):
+        """As if the scenario's users had not used the dashboard for `hours`:
+        their sessions' recorded times moved back (support/run_database.py)."""
+        moved = run_database.move_sessions_back(hours, self.product_database_url())
+        if not moved:
+            raise AssertionError("no session to move back: nobody is signed in")
+        self.screen.note("%d hours later (the sessions' times moved back)" % hours)
+
+    def fail_sign_in(self, user, password):
+        """Someone else's refused sign-in, from a session of their own."""
+        auth.refused_sign_in(self.run.playwright, user, password, self.base_url)
+
+    def choose_own_password(self, user, given, chosen):
+        """As setup: the user signs in with the given password and chooses their own."""
+        auth.choose_own_password(self.run.playwright, user, given, chosen, self.base_url)
 
     def open_pages(self):
         """The scenario's open pages (captions.py puts each step's caption on all of them)."""

@@ -28,6 +28,11 @@ class NotFoundPage:
     def open_missing_run(self):
         self.response = self.page.goto(MISSING_RUN_PATH)
 
+    def at_missing_run(self):
+        """(yes?, why): the browser is at the address of run 42."""
+        path = urlparse(self.page.url).path
+        return path == MISSING_RUN_PATH, "at %s, not %s" % (self.where(), MISSING_RUN_PATH)
+
     def where(self):
         return "%s (answered %s, title %r)" % (
             self.page.url,
