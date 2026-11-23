@@ -150,17 +150,31 @@ a {
 
 body.app {
   display: block;
+  place-items: normal; /* a block body would still centre its children */
   padding: 0;
 }
 
 .top {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+/* The header's content and the page share one column, at most 75rem wide. */
+.bar,
+.page {
+  max-width: 75rem;
+  margin: 0 auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem 1rem;
-  padding: 0.75rem 1.5rem;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
 }
 
 .top p {
@@ -195,7 +209,6 @@ body.app {
 }
 
 .page {
-  max-width: 64rem;
-  margin: 0 auto;
-  padding: 2rem 1.5rem;
+  padding-top: 2rem;
+  padding-bottom: 2rem;
 }
