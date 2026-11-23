@@ -9,6 +9,8 @@ from enum import StrEnum
 from fcon_server import database
 from fcon_server.database import ICU_COLLATION, DatabaseAddress, DatabaseCheck
 from fcon_server.store.migrate import MigrationStatus
+from fcon_server.users import rules
+from fcon_server.users.rules import PasswordProblem
 
 THIS_MACHINE = {"127.0.0.1", "localhost", "::1"}
 SET_THE_ADDRESS = "Set it to your Postgres 18 address: postgresql://user:password@host:5432/feather"
@@ -94,6 +96,39 @@ def prepare_unknown(text: str) -> Problem:
     )
 
 
+MAKE_A_KEY = 'python -c "import secrets; print(secrets.token_urlsafe(32))"'
+
+
+def secret_key_missing() -> Problem:
+    return Problem(
+        Level.ERROR,
+        "FCON_SECRET_KEY is not set.",
+        ("Every install needs one of at least 32 random characters. Make one with:", MAKE_A_KEY),
+    )
+
+
+def secret_key_too_short(name: str) -> Problem:
+    """Never repeats the key: it is a secret."""
+    return Problem(Level.ERROR, f"{name} is shorter than 32 characters.", ("Make a longer one with:", MAKE_A_KEY))
+
+
+def first_admin_not_allowed(name: str) -> Problem:
+    return Problem(
+        Level.ERROR,
+        f"FCON_FIRST_ADMIN is not an allowed user name: {name!r}.",
+        ("Use 1 to 64 lowercase letters, digits and . _ - @ +; an email address works.",),
+    )
+
+
+def first_admin_made(name: str, password: str) -> Problem:
+    """The one place a one-time password is written: the log, once (design point 1)."""
+    return Problem(
+        Level.WARNING,
+        f'no administrator yet; made "{name}" with a one-time password: {password}',
+        ("Sign in at /sign-in and choose your own password. Remove FCON_FIRST_ADMIN afterwards.",),
+    )
+
+
 def usage(message: str, usage_text: str) -> Problem:
     """A mistake on the command line, as argparse words it."""
     return Problem(Level.ERROR, f"{message}.", (usage_text.strip(), "For every option: fcon --help"))
@@ -136,6 +171,22 @@ def listening_beyond_machine(host: str, port: int) -> Problem:
         f"listening on {host}:{port} can be reached from other machines.",
         ("Put it behind the host's HTTPS proxy, or keep it on this machine: FCON_HOST=127.0.0.1",),
     )
+
+
+def trusted_proxies_not_addresses(item: str) -> Problem:
+    return Problem(
+        Level.ERROR,
+        f"FCON_TRUSTED_PROXIES is not a list of addresses or ranges: {item!r}.",
+        (
+            "Name the proxy's addresses or ranges, comma-separated, such as 172.16.0.0/12,10.0.0.5;",
+            "or * where only the proxy can reach the server (docs/deploy.md).",
+        ),
+    )
+
+
+def untrusted_forwarding() -> Problem:
+    """Logged once per process (design point 8)."""
+    return Problem(Level.WARNING, "requests carry X-Forwarded-For, but no proxy is trusted; set FCON_TRUSTED_PROXIES.")
 
 
 def bug() -> Problem:
@@ -204,12 +255,16 @@ def _not_ready(check: DatabaseCheck) -> tuple[str, tuple[str, ...]]:
             return _unusable(check, "FCON_DATABASE_URL")
 
 
-def database_problem(check: DatabaseCheck) -> Problem:
-    """The server's message for a database that is not usable (check.problem is set)."""
+def _database_problem(check: DatabaseCheck, level: Level, after: str) -> Problem:
     if check.problem is database.Problem.CHANGED:
         return upgrade_changed((check.migrations or _NO_STATUS).changed[0].name)
     what, todo = _not_ready(check)
-    return Problem(Level.WARNING, f"{what} Not ready.", todo)
+    return Problem(level, f"{what}{after}", todo)
+
+
+def database_problem(check: DatabaseCheck) -> Problem:
+    """The server's message for a database that is not usable (check.problem is set)."""
+    return _database_problem(check, Level.WARNING, " Not ready.")
 
 
 def database_notes(check: DatabaseCheck) -> tuple[Problem, ...]:
@@ -237,6 +292,11 @@ def database_notes(check: DatabaseCheck) -> tuple[Problem, ...]:
     return tuple(notes)
 
 
+def database_not_ready_for_command(check: DatabaseCheck) -> Problem:
+    """A command's error for a database it cannot use (check.problem is set)."""
+    return _database_problem(check, Level.ERROR, "")
+
+
 def database_unusable(check: DatabaseCheck, setting: str) -> Problem:
     """A command's error for a database that is not usable, whose address it
     read from `setting`."""
@@ -259,3 +319,47 @@ def database_usable(check: DatabaseCheck, again: bool = False) -> str:
     """Not a problem: the line that says the database is ready."""
     address = check.address
     return f"the database {address.dbname} at {_where(address)} is usable{' again' if again else ''}. Ready."
+
+
+# -- users ---------------------------------------------------------------
+
+_PASSWORD_TODO = {
+    PasswordProblem.TOO_SHORT: f"Use at least {rules.SHORTEST} characters.",
+    PasswordProblem.TOO_LONG: f"Use at most {rules.LONGEST} characters.",
+    PasswordProblem.TOO_COMMON: "Choose one that is not among the most common passwords.",
+    PasswordProblem.OWN_NAME: "Choose one that is not the user name.",
+}
+
+
+def user_name_not_allowed(name: str) -> Problem:
+    return Problem(
+        Level.ERROR,
+        f"the user name {name!r} is not allowed.",
+        ("Use 1 to 64 lowercase letters, digits and . _ - @ +; an email address works.",),
+    )
+
+
+def user_name_taken(name: str) -> Problem:
+    return Problem(Level.ERROR, f"the user name {name} is taken.", ("Pick another name.",))
+
+
+def weak_password(problem: PasswordProblem) -> Problem:
+    return Problem(Level.ERROR, f"the password is {problem}.", (_PASSWORD_TODO[problem],))
+
+
+def no_password() -> Problem:
+    return Problem(Level.ERROR, "no password was given.", ("Type it when asked, or give it as one line on stdin.",))
+
+
+def passwords_differ() -> Problem:
+    return Problem(Level.ERROR, "the two passwords typed differ.", ("Type the same password twice.",))
+
+
+def no_such_user(name: str) -> Problem:
+    return Problem(Level.ERROR, f"no user is named {name}.", ("See who there is: fcon users list",))
+
+
+def only_administrator(reason: str) -> Problem:
+    return Problem(
+        Level.ERROR, reason, ("Make another user an administrator: fcon users set-role <name> administrator",)
+    )

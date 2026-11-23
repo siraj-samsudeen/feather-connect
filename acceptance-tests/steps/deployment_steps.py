@@ -23,9 +23,73 @@ def step_upgrade_with_image(context):
     assert not problems, "; ".join(problems)
 
 
-@when("starts the product's image, giving it only the database's address")
+@when("starts the product's image, giving it only the database's address, and the secret key every install needs")
 def step_start_image(context):
     context.container_host.start_product()
+
+
+@when("starts the product's image, giving it only the database's address")
+def step_start_image_without_key(context):
+    context.container_host.start_product_without_secret_key()
+
+
+@then("the product does not start")
+def step_does_not_start(context):
+    problems = context.container_host.does_not_start_problems()
+    assert not problems, "; ".join(problems)
+
+
+@then("it says the secret key is missing, and how to make one")
+def step_says_key_missing(context):
+    problems = context.container_host.says_secret_key_missing_problems()
+    assert not problems, "; ".join(problems)
+
+
+# --- a new secret key (pages/own_product.py) ------------------------------------
+
+
+@given("the user has the sign-in page open")
+def step_sign_in_page_open(context):
+    context.own_product.start_with_a_secret_key()
+    context.sign_in_page.open()
+    problems = context.sign_in_page.form_problems()
+    assert not problems, "; ".join(problems)
+
+
+@when("the operator restarts the product with a new secret key, naming the old one as previous")
+def step_restart_with_new_key(context):
+    context.own_product.restart_with_a_new_secret_key()
+
+
+# --- the visitor's address behind a proxy ----------------------------------------
+
+
+@given("the product's image runs with no proxy trusted")
+def step_image_no_proxy_trusted(context):
+    context.container_host.runs_with_no_proxy_trusted()
+
+
+@when("a visitor opens two pages through a proxy that names the visitor's address")
+def step_two_pages_through_proxy(context):
+    context.container_host.open_pages_through_proxy()
+
+
+@then("its log warns once, not twice, that no proxy is trusted, and names the setting to trust one")
+def step_warns_once(context):
+    problems = context.container_host.untrusted_proxy_warning_problems()
+    assert not problems, "; ".join(problems)
+
+
+@when('the user signs in as "{user}" through the site\'s encrypted address')
+def step_sign_in_through_proxy(context, user):
+    context.sign_in_page.sign_in(user, context.user_commands.password_of(user))
+    context.signed_in_through_proxy = user
+
+
+@then("the audit log records the sign-in from the user's own address, not the proxy's")
+def step_audit_own_address(context):
+    problems = context.standard_setup.sign_in_address_problems(context.signed_in_through_proxy)
+    assert not problems, "; ".join(problems)
 
 
 @then("it shows the sign-in page")

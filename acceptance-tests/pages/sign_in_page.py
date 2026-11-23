@@ -6,13 +6,18 @@ Lookups go by role, label and visible text, as a person (or a screen reader)
 finds things, so the checks hold whatever the markup's classes are."""
 
 import re
-from urllib.parse import urlparse
+import time
+from urllib.parse import quote, urlparse
 
 from playwright.sync_api import Page
 
 from support.auth import PASSWORD_FIELD, SIGN_IN_PATH, USER_FIELD
 
 DASHBOARD_PATH = "/"
+# Where a sign-in link says to go on to: `/sign-in?next=<address>`. This one
+# is another site's, written as a browser reads `//host/path`: not a path here.
+NEXT_PARAMETER = "next"
+ANOTHER_SITE = "//elsewhere.example/runs/42"
 
 PRODUCT_NAME = "Feather Connect"
 USER_LABEL = "User name"
@@ -23,6 +28,15 @@ PASSWORD_AUTOCOMPLETE = "current-password"
 
 REFUSAL = "The user name or password is wrong."
 REFUSED_TITLE_START = "Sign-in failed"
+
+# Names someone guessing tries, none of them a user's.
+MADE_UP_NAMES = ("alex", "sam", "kim", "lee", "max")
+# What someone guessing types: never anyone's password.
+WRONG_PASSWORD = "not-the-password-0"  # noqa: S105 - a wrong password, on purpose
+# The slowing (design point 7): after 3 failures each attempt waits 1 s, then
+# 2 s, 4 s and so on after the last failure, a minute at most. Each wait here
+# is a little longer than the one it outlasts; their sum passes the longest.
+WAITS_S = (1.5, 2.5, 4.5, 8.5, 16.5, 32.5, 61.0)
 
 # Words that would tell which half of a sign-in was wrong.
 HINTS = (
@@ -68,6 +82,7 @@ class SignInPage:
     def __init__(self, world):
         self.world = world
         self.response = None  # the answer to the last navigation or form post
+        self.typed_passwords = []  # every password typed into the form, for checks that none is kept
 
     @property
     def page(self) -> Page:
@@ -82,6 +97,11 @@ class SignInPage:
     def open(self):
         self.response = self.page.goto(SIGN_IN_PATH)
 
+    def follow_link_to_another_site(self):
+        """A sign-in link, as someone could send it, that names another site as
+        the page to go on to."""
+        self.response = self.page.goto("%s?%s=%s" % (SIGN_IN_PATH, NEXT_PARAMETER, quote(ANOTHER_SITE, safe="")))
+
     def sign_in(self, user, password):
         """Types the form and presses the button, as a person does (with
         scripts off too: the browser posts the form itself)."""
@@ -91,9 +111,44 @@ class SignInPage:
             raise AssertionError("no sign-in form to type into: no field labelled %r at %s" % (USER_LABEL, self.where()))
         self.page.get_by_label(USER_LABEL, exact=True).fill(user)
         self.page.get_by_label(PASSWORD_LABEL, exact=True).fill(password)
+        self.typed_passwords.append(password)
         with self.page.expect_navigation() as navigation:
             self.page.get_by_role("button", name=BUTTON, exact=True).click()
         self.response = navigation.value
+
+    def someone_fails_to_sign_in(self, names, times=1):
+        """Someone else, from the user's address (every browser of the run is
+        on this machine), fails to sign in as each name, `times` times."""
+        for name in names:
+            for _ in range(times):
+                self.world.fail_sign_in(name, WRONG_PASSWORD)
+
+    def made_up_names(self, count):
+        """`count` different names nobody has."""
+        if count > len(MADE_UP_NAMES):
+            raise ValueError("only %d made-up names" % len(MADE_UP_NAMES))
+        return MADE_UP_NAMES[:count]
+
+    def sign_in_once_the_wait_has_passed(self, user, password):
+        """(yes?, why): waits out the slowing (1 s after the third failure,
+        twice as long after each one more, a minute at most), then signs in;
+        tries again after a longer wait if the attempt was still too early,
+        up to the longest wait there is."""
+        waited = 0.0
+        for wait in WAITS_S:
+            time.sleep(wait)
+            waited += wait
+            self.sign_in(user, password)
+            if not self.is_at_sign_in():
+                return True, ""
+        return False, "still refused after waiting %.0f s in all: %s" % (waited, self.where())
+
+    def asked_to_sign_in_problems(self):
+        """Why this is not the user being asked to sign in: not at the sign-in
+        page, or no form there."""
+        if not self.is_at_sign_in():
+            return ["not asked to sign in: %s" % self.where()]
+        return self.form_problems()
 
     # --- what the page says ------------------------------------------------
 
@@ -103,6 +158,10 @@ class SignInPage:
             self.response.status if self.response else "nothing",
             self.page.title(),
         )
+
+    def signed_in(self):
+        """(yes?, why): the last sign-in left the sign-in page."""
+        return not self.is_at_sign_in(), "still at the sign-in page: %s" % self.where()
 
     def is_at_sign_in(self):
         return urlparse(self.page.url).path == SIGN_IN_PATH

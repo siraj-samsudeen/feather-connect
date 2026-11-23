@@ -5,14 +5,17 @@ of `fcon server`. A mistake raises SettingsError, with the error helper's
 words for it."""
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import NoReturn
 
 import psycopg
 from psycopg import conninfo
 
 from fcon_cli import problems
 from fcon_cli.problems import ProblemError
+from fcon_server.proxies import NotAProxyError, TrustedProxies, trusted_proxies
+from fcon_server.users.rules import normal_name, user_name_problem
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8080
@@ -20,6 +23,8 @@ ENV_FILE = ".env"
 LOG_FORMATS = ("text", "json")  # unset: text on a terminal, json elsewhere
 DEFAULT_POOL_SIZE = 5
 PREPARE = {"on": True, "off": False}  # off: for a connection pooler in front of Postgres
+SHORTEST_SECRET_KEY = 32  # characters
+DEFAULT_ENVIRONMENT = "development"
 
 
 class SettingsError(ProblemError):
@@ -30,10 +35,15 @@ class SettingsError(ProblemError):
 class Settings:
     host: str
     port: int
-    database_url: str
+    database_url: str = field(repr=False)  # may hold a password
+    secret_key: str = field(repr=False)
     log_format: str = ""
     pool_size: int = DEFAULT_POOL_SIZE
     prepare: bool = True
+    previous_secret_key: str | None = field(default=None, repr=False)
+    environment: str = DEFAULT_ENVIRONMENT
+    first_admin: str | None = None
+    trusted_proxies: TrustedProxies | None = None
 
 
 @dataclass(frozen=True)
@@ -41,8 +51,8 @@ class DatabaseSettings:
     """`fcon db`: the app's address, and the owner's for upgrades
     (FCON_MIGRATION_DATABASE_URL, else the app's)."""
 
-    database_url: str
-    migration_database_url: str
+    database_url: str = field(repr=False)  # may hold a password
+    migration_database_url: str = field(repr=False)
 
 
 def read_env_file(path: Path) -> dict[str, str]:
@@ -113,6 +123,35 @@ def _prepare(variables: Mapping[str, str]) -> bool:
     return PREPARE[text]
 
 
+def _secret_key(variables: Mapping[str, str], name: str) -> str | None:
+    """At least SHORTEST_SECRET_KEY characters, when set. Never repeated: it is a secret."""
+    key = variables.get(name, "")
+    if key and len(key) < SHORTEST_SECRET_KEY:
+        raise SettingsError(problems.secret_key_too_short(name))
+    return key or None
+
+
+def _first_admin(variables: Mapping[str, str]) -> str | None:
+    """The user name, as it is stored, of the administrator to make on a start with no users."""
+    typed = variables.get("FCON_FIRST_ADMIN", "")
+    if not typed.strip():
+        return None
+    if user_name_problem(name := normal_name(typed)) is not None:
+        raise SettingsError(problems.first_admin_not_allowed(typed.strip()))
+    return name
+
+
+def _trusted_proxies(variables: Mapping[str, str]) -> TrustedProxies | None:
+    try:
+        return trusted_proxies(variables.get("FCON_TRUSTED_PROXIES", ""))
+    except NotAProxyError as err:
+        raise SettingsError(problems.trusted_proxies_not_addresses(err.item)) from None
+
+
+def _no_secret_key() -> NoReturn:
+    raise SettingsError(problems.secret_key_missing())
+
+
 def load_settings(
     environ: Mapping[str, str], directory: Path, host: str | None = None, port: int | None = None
 ) -> Settings:
@@ -124,6 +163,11 @@ def load_settings(
         log_format=_log_format(variables),
         pool_size=_pool_size(variables),
         prepare=_prepare(variables),
+        secret_key=_secret_key(variables, "FCON_SECRET_KEY") or _no_secret_key(),
+        previous_secret_key=_secret_key(variables, "FCON_SECRET_KEY_PREVIOUS"),
+        environment=variables.get("FCON_ENVIRONMENT", "").strip() or DEFAULT_ENVIRONMENT,
+        first_admin=_first_admin(variables),
+        trusted_proxies=_trusted_proxies(variables),
     )
 
 

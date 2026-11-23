@@ -18,8 +18,11 @@ import pytest
 from fcon_cli import problems
 from fcon_cli.main import main
 from fcon_cli.settings import Settings
+from fcon_server.store.clock import SystemClock
+from fcon_server.store.migrate import upgrade
 
 START_TIMEOUT_S = 30
+SECRET_KEY = "a-test-secret-key-of-32-characters-or-more"
 
 
 @dataclass
@@ -45,20 +48,20 @@ def _get(url: str) -> tuple[int, bytes]:
         return response.status, response.read()
 
 
-@pytest.fixture
-def running(tmp_path: Path, free_port: int) -> Iterator[Running]:
-    """`fcon server` on a free port, its database address pointing nowhere
-    (/healthz does not need it), in an empty directory (no .env)."""
-    log = tmp_path / "server.log"
+def start_server(directory: Path, port: int, database_url: str, **settings: str) -> Running:
+    """`fcon server` on `port`, logging JSON to a file, in `directory` (no .env)."""
+    log = directory / "server.log"
     env = {
         **os.environ,
-        "FCON_DATABASE_URL": "postgresql://feather:feather@127.0.0.1:9/feather",
+        "FCON_DATABASE_URL": database_url,
         "FCON_LOG_FORMAT": "json",
+        "FCON_SECRET_KEY": SECRET_KEY,
+        **settings,
     }
     with log.open("wb") as output:
         process = subprocess.Popen(
-            [sys.executable, "-m", "fcon_cli", "server", "--host", "127.0.0.1", "--port", str(free_port)],
-            cwd=tmp_path,
+            [sys.executable, "-m", "fcon_cli", "server", "--host", "127.0.0.1", "--port", str(port)],
+            cwd=directory,
             env=env,
             stdin=subprocess.DEVNULL,
             stdout=output,
@@ -67,7 +70,7 @@ def running(tmp_path: Path, free_port: int) -> Iterator[Running]:
             creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
             start_new_session=sys.platform != "win32",
         )
-    server = Running(process, f"http://127.0.0.1:{free_port}", log)
+    server = Running(process, f"http://127.0.0.1:{port}", log)
     deadline = time.monotonic() + START_TIMEOUT_S
     while time.monotonic() < deadline and process.poll() is None:
         try:
@@ -75,8 +78,16 @@ def running(tmp_path: Path, free_port: int) -> Iterator[Running]:
             break
         except urllib.error.URLError, OSError:
             time.sleep(0.2)
+    return server
+
+
+@pytest.fixture
+def running(tmp_path: Path, free_port: int) -> Iterator[Running]:
+    """`fcon server` on a free port, its database address pointing nowhere
+    (/healthz does not need it), in an empty directory (no .env)."""
+    server = start_server(tmp_path, free_port, "postgresql://feather:feather@127.0.0.1:9/feather")
     yield server
-    if process.poll() is None:
+    if server.process.poll() is None:
         server.stop()
 
 
@@ -92,6 +103,17 @@ def test_it_logs_where_it_listens(running: Running):
 
 def test_it_stops_cleanly_when_asked(running: Running):
     assert running.stop() == 0
+
+
+def test_with_no_proxy_trusted_a_forwarded_request_warns_once(running: Running):
+    forwarded = {"X-Forwarded-For": "203.0.113.7"}
+    for _ in range(2):
+        request = urllib.request.Request(running.base_url + "/healthz", headers=forwarded)  # noqa: S310 - our own server
+        urllib.request.urlopen(request, timeout=2).close()  # noqa: S310 - our own local server
+    running.stop()
+
+    warned = [line["message"] for line in running.lines() if "no proxy is trusted" in line["message"]]
+    assert warned == [problems.untrusted_forwarding().text()]
 
 
 def test_it_watches_the_database_in_the_background(running: Running):
@@ -148,6 +170,7 @@ def test_a_taken_port_stops_it_with_exit_code_2(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ):
     monkeypatch.setenv("FCON_DATABASE_URL", "postgresql://feather@127.0.0.1:9/feather")
+    monkeypatch.setenv("FCON_SECRET_KEY", SECRET_KEY)
     monkeypatch.chdir(tmp_path)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as other:
         other.bind(("127.0.0.1", 0))
@@ -167,6 +190,7 @@ def test_a_bug_at_start_up_says_it_is_one_then_shows_the_traceback(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ):
     monkeypatch.setenv("FCON_DATABASE_URL", "postgresql://feather@127.0.0.1:9/feather")
+    monkeypatch.setenv("FCON_SECRET_KEY", SECRET_KEY)
     monkeypatch.chdir(tmp_path)
 
     code = main(["server"], serve=crash)
@@ -178,3 +202,32 @@ def test_a_bug_at_start_up_says_it_is_one_then_shows_the_traceback(
         "Traceback (most recent call last):",
         "RuntimeError: a bug at start-up",
     )
+
+
+def test_a_missing_secret_key_stops_it_with_exit_code_2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+):
+    monkeypatch.setenv("FCON_DATABASE_URL", "postgresql://feather@127.0.0.1:9/feather")
+    monkeypatch.delenv("FCON_SECRET_KEY", raising=False)
+    monkeypatch.chdir(tmp_path)
+
+    code = main(["server"])
+
+    assert (code, capsys.readouterr().err) == (2, problems.secret_key_missing().text() + "\n")
+
+
+@pytest.mark.database
+def test_it_makes_the_first_administrator_named_in_its_settings(
+    tmp_path: Path, free_port: int, empty_database_url: str
+):
+    upgrade(empty_database_url, SystemClock())
+    server = start_server(tmp_path, free_port, empty_database_url, FCON_FIRST_ADMIN="ann")
+    expected = 'no administrator yet; made "ann" with a one-time password: '
+    try:
+        deadline = time.monotonic() + START_TIMEOUT_S
+        while time.monotonic() < deadline and not any(expected in line["message"] for line in server.lines()):
+            time.sleep(0.2)
+    finally:
+        server.stop()
+
+    assert [line["level"] for line in server.lines() if expected in line["message"]] == ["warning"]

@@ -340,3 +340,25 @@ def test_a_database_not_ready_has_no_notes():
     check = DatabaseCheck(address=LOCAL, problem=Kind.BEHIND, icu=False, migrations=status(waiting=1, newer=1))
 
     assert problems.database_notes(check) == ()
+
+
+def test_a_missing_secret_key_says_how_to_make_one():
+    assert problems.secret_key_missing().text() == (
+        "error: FCON_SECRET_KEY is not set.\n"
+        "  Every install needs one of at least 32 random characters. Make one with:\n"
+        '  python -c "import secrets; print(secrets.token_urlsafe(32))"'
+    )
+
+
+def test_a_short_secret_key_never_shows_the_key():
+    assert problems.secret_key_too_short("FCON_SECRET_KEY").text() == (
+        "error: FCON_SECRET_KEY is shorter than 32 characters.\n"
+        "  Make a longer one with:\n"
+        '  python -c "import secrets; print(secrets.token_urlsafe(32))"'
+    )
+
+
+def test_a_forwarded_request_with_no_proxy_trusted_names_the_setting():
+    assert problems.untrusted_forwarding().text() == (
+        "warning: requests carry X-Forwarded-For, but no proxy is trusted; set FCON_TRUSTED_PROXIES."
+    )

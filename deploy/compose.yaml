@@ -41,6 +41,16 @@ services:
     command: ["server"]
     environment:
       FCON_DATABASE_URL: ${FCON_DATABASE_URL:?set FCON_DATABASE_URL in deploy/.env, the app user's database address (see deploy/.env.example)}
+      FCON_SECRET_KEY: ${FCON_SECRET_KEY:?set FCON_SECRET_KEY in deploy/.env, at least 32 random characters (see deploy/.env.example)}
+      FCON_SECRET_KEY_PREVIOUS: ${FCON_SECRET_KEY_PREVIOUS:-}
+      FCON_FIRST_ADMIN: ${FCON_FIRST_ADMIN:-}
+      FCON_ENVIRONMENT: ${FCON_ENVIRONMENT:-}
+      # Caddy is the only proxy, and the server believes the visitor's address only from it. Its
+      # address on the setup's network is not fixed, so the private ranges Docker gives its
+      # networks are trusted. That is safe here: the server opens no port on the machine, so only
+      # the setup's containers and the machine itself reach it, and Caddy replaces any
+      # X-Forwarded-For a visitor sends with the one address it saw (docs/deploy.md).
+      FCON_TRUSTED_PROXIES: ${FCON_TRUSTED_PROXIES:-172.16.0.0/12,192.168.0.0/16,10.0.0.0/8}
     depends_on:
       migrate:
         condition: service_completed_successfully

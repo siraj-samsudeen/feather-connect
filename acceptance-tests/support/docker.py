@@ -55,12 +55,14 @@ def _tail(text, lines=LOG_TAIL):
     return "\n".join(text.splitlines()[-lines:]) or "(nothing)"
 
 
-def docker(*arguments, timeout=COMMAND_TIMEOUT_S, check=True):
-    """`docker <arguments>`. Returns (exit code, stdout, stderr); with
-    check, anything but 0 raises, with what docker said."""
+def docker(*arguments, timeout=COMMAND_TIMEOUT_S, check=True, typed=None):
+    """`docker <arguments>`, with `typed` as what is typed into it (nothing,
+    when None). Returns (exit code, stdout, stderr); with check, anything
+    but 0 raises, with what docker said."""
     command = [shutil.which("docker") or "docker", *arguments]
+    stdin = {"stdin": subprocess.DEVNULL} if typed is None else {"input": typed.encode("utf-8")}
     try:
-        done = subprocess.run(command, stdin=subprocess.DEVNULL, capture_output=True, timeout=timeout, check=False)
+        done = subprocess.run(command, **stdin, capture_output=True, timeout=timeout, check=False)
     except FileNotFoundError:
         raise DockerError(START_DOCKER % "no docker command on the PATH") from None
     except subprocess.TimeoutExpired:

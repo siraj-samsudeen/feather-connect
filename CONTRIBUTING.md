@@ -36,8 +36,14 @@ uv run fcon db upgrade          # brings the database's tables up to this versio
 uv run pytest                   # the inner tests, which must cover 100% of the code
 uv run --project acceptance-tests playwright install chromium     # once per machine
 uv run --project acceptance-tests python acceptance-tests/run_acceptance.py
-uv run fcon server           # then open http://127.0.0.1:8080
+uv run fcon users add admin  # the first user, an administrator; asks for a password to keep
+uv run fcon server           # then open http://127.0.0.1:8080 and sign in as admin
 ```
+
+`fcon server` needs a secret key: in `.env`, set `FCON_SECRET_KEY` to at least 32 random
+characters, made with `python -c "import secrets; print(secrets.token_urlsafe(32))"`. A
+worktree's `.env` gets one from `scripts/worktree_env.py`. Further users, with a password that
+works once: `uv run fcon users add ben --role operator`; `uv run fcon users list` shows them all.
 
 After pulling a change that adds a migration, run `uv run fcon db upgrade` again;
 `uv run fcon db status` lists the upgrades applied, with when they ran, and those waiting, and
@@ -58,11 +64,13 @@ and how to watch it in a browser: [`acceptance-tests/README.md`](acceptance-test
    ```sh
    git worktree add ../feather-connect-issue-<n> -b issue-<n>-<change-name> main
    cd ../feather-connect-issue-<n>
-   uv run scripts/worktree_env.py <n>   # .env: ports 18000+n and 19000+n, database feather_issue_<n>
+   uv run scripts/worktree_env.py <n>   # .env: ports 18000+n and 19000+n, database feather_issue_<n>, a secret key
+   uv run fcon users add admin          # the worktree's first user, to sign in to its dashboard
    ```
 
    It creates the worktree's database and upgrades it; run it again, or `uv run fcon db upgrade`,
-   after bringing in a migration.
+   after bringing in a migration. It writes a random `FCON_SECRET_KEY` the first time and keeps it
+   after.
 
 4. **Start your agent in the worktree** and tell it: "work on issue <n> in build mode" (or
    learning mode while you are new to the code). Product questions go to the owner on the issue;

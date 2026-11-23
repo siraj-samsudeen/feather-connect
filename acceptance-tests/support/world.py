@@ -8,11 +8,12 @@ import json
 import os
 import re
 import shutil
+from contextlib import contextmanager
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-from support import auth, captions, stack
+from support import auth, captions, run_database, stack
 from support.screen import Screen
 from support.scenario_database import ScenarioDatabase
 from support.stack import BASE_URL
@@ -60,6 +61,13 @@ PHONE = {"width": 375, "height": 812}
 # opened, the steps check that status; for anything the page loads (a
 # stylesheet), the message stays and fails the scenario.
 FAILED_TO_LOAD = "Failed to load resource"
+
+# The user's own browser, the one every page object drives unless the
+# scenario turns to another (World.on): their other computer, or another tab
+# of the same browser.
+THE_USER = "visitor"
+OTHER_COMPUTER = "other computer"
+OTHER_TAB = "other tab"
 
 
 def slug(text):
@@ -115,6 +123,7 @@ class World:
         self.console_errors = []  # (who, text) of every browser console error and page error
         self._documents = set()  # URLs of the documents the scenario's pages opened
         self.pages = {}  # who ('the user', 'a colleague') -> page
+        self.current = THE_USER  # whose page the page objects drive (on())
         self.contexts = []  # (who, label, browser context, page), in the order opened
         self.caption = None  # VIDEO=1: the step being run, as written
         self.base_url = BASE_URL  # the product the scenario talks to: the run's server, unless replaced
@@ -124,7 +133,20 @@ class World:
         self._servers = []  # servers started for this scenario alone
         self._database = None  # the scenario's own throwaway database (support/scenario_database.py)
         self.scenario_server = None  # the server started on it, whose log pages/server_log.py reads
+        self.product_settings = {}  # FCON_* settings for the product the scenario starts itself
+        self._own_product_starts = 0  # each start's log is a file of its own
+        self._own_product_port = None  # a restart keeps the address the browser has open
+        self._own_product_database = None
         self.screen = Screen(self)  # VIDEO=1: what a scenario without a web page shows
+        # The latest audit record of the run's database when the scenario
+        # began: the scenario's own records come after it (pages/audit_log.py).
+        self.audit_mark = run_database.audit_mark()
+        # For a product the scenario runs elsewhere (the standard setup's
+        # containers): how an `fcon` command runs there, (arguments, typed) ->
+        # (exit code, stdout, stderr, timed out?), and how its audit log is
+        # read, (query) -> records. None: here, and in the run's database.
+        self.fcon_runner = None
+        self.audit_reader = None
 
     def _new_page(self, who, label, storage_state=None):
         """A browser context for one of the scenario's people: traced, and recorded with VIDEO=1."""
@@ -189,19 +211,55 @@ class World:
         password = password or auth.ADMIN["password"]
         states = self.run.signed_in_states
         if fresh:
-            state = auth.signed_in_state(self.run.playwright, user, password)
+            state = auth.signed_in_state(self.run.playwright, user, password, self.base_url)
         else:
             if user not in states:
-                states[user] = auth.signed_in_state(self.run.playwright, user, password)
+                states[user] = auth.signed_in_state(self.run.playwright, user, password, self.base_url)
             state = states[user]
         self.pages[who] = self._new_page(slug(who), who, state)
         return self.pages[who]
 
-    def signed_out(self, who="visitor"):
-        """A page for someone not signed in: the only way a sign-in scenario starts."""
+    def signed_out(self, who=None):
+        """A page for someone not signed in: the only way a sign-in scenario
+        starts. Without `who`, the page the scenario is on now (on())."""
+        who = who or self.current
         if who not in self.pages:
             self.pages[who] = self._new_page(slug(who), who)
         return self.pages[who]
+
+    @contextmanager
+    def on(self, who):
+        """The page objects drive `who`'s page while inside: the user's other
+        computer, or another tab."""
+        previous, self.current = self.current, who
+        try:
+            yield
+        finally:
+            self.current = previous
+
+    def new_tab(self, who, of=THE_USER):
+        """Another tab of `of`'s browser: the same cookies, a page of its own."""
+        browser_context = self.signed_out(of).context
+        page = browser_context.new_page()
+        self._watch_console(who, page)
+        self.pages[who] = page
+        return page
+
+    def stay_away(self, hours):
+        """As if the scenario's users had not used the dashboard for `hours`:
+        their sessions' recorded times moved back (support/run_database.py)."""
+        moved = run_database.move_sessions_back(hours, self.product_database_url())
+        if not moved:
+            raise AssertionError("no session to move back: nobody is signed in")
+        self.screen.note("%d hours later (the sessions' times moved back)" % hours)
+
+    def fail_sign_in(self, user, password):
+        """Someone else's refused sign-in, from a session of their own."""
+        auth.refused_sign_in(self.run.playwright, user, password, self.base_url)
+
+    def choose_own_password(self, user, given, chosen):
+        """As setup: the user signs in with the given password and chooses their own."""
+        auth.choose_own_password(self.run.playwright, user, given, chosen, self.base_url)
 
     def open_pages(self):
         """The scenario's open pages (captions.py puts each step's caption on all of them)."""
@@ -281,6 +339,11 @@ class World:
             self._http.dispose()
             self._http = None
 
+    def product_database_url(self):
+        """The address of the database the scenario's product runs on: its own,
+        when it has one, else the run's."""
+        return self.scenario_database or stack.run_database_url()
+
     @property
     def scenario_database(self):
         """The address of the scenario's own database, or None."""
@@ -324,6 +387,46 @@ class World:
         if self._http is not None:
             self._http.dispose()
             self._http = None
+
+    def name_in_settings(self, name, value):
+        """A setting the product the scenario starts itself is given
+        (start_own_product), beside its database address and secret key."""
+        self.product_settings[name] = value
+        self.screen.note("%s=%s in the product's settings" % (name, value))
+
+    def start_own_product(self, on_run_database=False):
+        """From now on the scenario talks to a product of its own, started with
+        the settings it named, on its own upgraded database (made now, unless
+        it has one) or, with on_run_database, on the run's, and waited for
+        until it is ready."""
+        if on_run_database:
+            database_url = stack.run_database_url()
+        else:
+            if self._database is None:
+                self.own_database(upgraded=True)
+            database_url = self.own_database_state().url
+        self.screen.note("$ fcon server   (with the settings named, waited for until ready)")
+        self._own_product_starts += 1
+        name = "server-own-product-%d" % self._own_product_starts
+        base_url, process = stack.start_server(
+            name, database_url, ready_path="/readyz", settings=dict(self.product_settings), port=self._own_product_port
+        )
+        self._servers.append(process)
+        self.scenario_server = process
+        self._own_product_database = database_url
+        self._own_product_port = int(base_url.rsplit(":", 1)[1])
+        self.use_product_at(base_url)
+
+    def restart_own_product(self):
+        """Stops the product the scenario started (start_own_product) and starts
+        it again, at the same address, with the settings named now and the same
+        database; its log is a new one."""
+        if self.scenario_server is None:
+            raise RuntimeError("the scenario started no product of its own")
+        self._servers.remove(self.scenario_server)
+        stack.stop(self.scenario_server)
+        self.scenario_server = None
+        self.start_own_product(on_run_database=self._own_product_database == stack.run_database_url())
 
     def scenario_server_still_running(self):
         """The server started on the scenario's own database has not stopped

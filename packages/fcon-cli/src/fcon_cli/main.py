@@ -10,12 +10,14 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 from fcon_cli import problems
+from fcon_cli import users as user_commands
 from fcon_cli.db import show_status, upgrade_database
 from fcon_cli.logs import configure_logging
 from fcon_cli.problems import ProblemError
 from fcon_cli.server import run_server
 from fcon_cli.settings import Settings, load_database_settings, load_settings
 from fcon_server.store.clock import Clock, SystemClock
+from fcon_server.users.rights import Role
 
 PROBLEM_EXIT = 2  # a mistake only a person can fix
 BUG_EXIT = 1
@@ -55,7 +57,41 @@ def _parser() -> argparse.ArgumentParser:
         "upgrade", help="apply every waiting upgrade (FCON_MIGRATION_DATABASE_URL, else FCON_DATABASE_URL)"
     )
     db_commands.add_parser("status", help="list the upgrades applied, with when they ran, and those waiting")
+    users = commands.add_parser("users", help="add the people who sign in to the dashboard")
+    users_commands = users.add_subparsers(dest="users_command", required=True, metavar="command")
+    add = users_commands.add_parser(
+        "add", help="add a user; the password is asked for, or read as one line of stdin when not a terminal"
+    )
+    add.add_argument("name", help="1 to 64 lowercase letters, digits and . _ - @ +; an email address works")
+    role = add.add_mutually_exclusive_group()
+    role.add_argument("--admin", action="store_true", help="an administrator (the first user always is)")
+    role.add_argument("--role", choices=[r.value for r in Role], help="the user's role (default viewer)")
+    add.add_argument("--display-name", help="the name shown beside the user name")
+    users_commands.add_parser("list", help="list the users, with their role and state")
+    disable = users_commands.add_parser("disable", help="disable a user: every session of theirs ends at once")
+    disable.add_argument("name", help="the user's name")
+    enable = users_commands.add_parser("enable", help="let a disabled user sign in again")
+    enable.add_argument("name", help="the user's name")
+    set_role = users_commands.add_parser("set-role", help="give a user another role, from their next page")
+    set_role.add_argument("name", help="the user's name")
+    set_role.add_argument("role", choices=[r.value for r in Role], help="the new role")
     return parser
+
+
+def _users_command(args: argparse.Namespace) -> None:
+    settings = load_database_settings(os.environ, Path.cwd())
+    match args.users_command:
+        case "add":
+            role = Role.ADMINISTRATOR if args.admin else Role(args.role or Role.VIEWER)
+            user_commands.add(settings, args.name, role, args.display_name, sys.stdin, sys.stdout)
+        case "list":
+            user_commands.show_list(settings, sys.stdout)
+        case "disable":
+            user_commands.disable(settings, args.name, sys.stdout)
+        case "enable":
+            user_commands.enable(settings, args.name, sys.stdout)
+        case _:
+            user_commands.change_role(settings, args.name, Role(args.role), sys.stdout)
 
 
 def _database_command(command: str, clock: Clock) -> None:
@@ -75,6 +111,9 @@ def main(
         args = _parser().parse_args(argv)
         if args.command == "db":
             _database_command(args.db_command, clock or SystemClock())
+            return 0
+        if args.command == "users":
+            _users_command(args)
             return 0
         settings = load_settings(os.environ, Path.cwd(), host=args.host, port=args.port)
         configure_logging(settings.log_format, sys.stderr)

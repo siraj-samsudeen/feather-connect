@@ -10,6 +10,8 @@
 <input{{ view.user_field | xmlattr }}>
 <label for="{{ view.password_field.id }}">Password</label>
 <input{{ view.password_field | xmlattr }}>
+<input{{ view.token_field | xmlattr }}>
+<input{{ view.next_field | xmlattr }}>
 <button type="submit">Sign in</button>
 </form>
 {% endblock %}

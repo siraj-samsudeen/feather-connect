@@ -79,8 +79,9 @@ cd feather-connect
 cp deploy/.env.example deploy/.env
 ```
 
-Fill in `deploy/.env`: the site's name and the two database addresses. It holds passwords: never
-put it in git (git ignores it already). Then, from the checkout's root:
+Fill in `deploy/.env`: the site's name, the two database addresses and the secret key
+(`openssl rand -hex 32` makes one). It holds passwords: never put it in git (git ignores it
+already). Then, from the checkout's root:
 
 ```sh
 docker compose -f deploy/compose.yaml up -d --build
@@ -97,6 +98,46 @@ A missing setting stops the command at once, with the name of the setting to set
 
 Check it: `https://connect.example.com/readyz` answers 200, with the status `ready`, once the
 product can use its database.
+
+### The first administrator
+
+Nobody can sign in until there is a user. Make the first administrator one of two ways:
+
+- **From the command line**, once the setup is up. It asks for the password twice; the first
+  user keeps the password typed, and is always an administrator:
+
+  ```sh
+  docker compose -f deploy/compose.yaml exec server fcon users add admin@example.com
+  ```
+
+  The same works on a setup that is not running: `docker compose -f deploy/compose.yaml run
+  --rm server users add admin@example.com` (the image's command is `fcon` already).
+- **From the settings:** set `FCON_FIRST_ADMIN=admin@example.com` in `deploy/.env` before the
+  first start. When the server starts with no users, it makes that user an administrator with a
+  one-time password and writes the password in its log, once:
+  `docker compose -f deploy/compose.yaml logs server`. Sign in with it and choose your own.
+  Once there is a user, the setting does nothing; remove it.
+
+Then add the others from the command line: `fcon users add <name> --role operator` (or
+`viewer`, `developer`, `--admin`). Their password works once: they choose their own at the
+first sign-in. `fcon users list`, `disable`, `enable` and `set-role` do the rest.
+
+### The visitor's address
+
+The server records each visitor's address with every sign-in, and slows guessing by it. Behind
+Caddy, the address the server sees is Caddy's; the visitor's own is in the `X-Forwarded-For`
+header Caddy adds. The server believes that header only from the proxies `FCON_TRUSTED_PROXIES`
+names.
+
+`deploy/compose.yaml` sets it to Docker's private ranges, `172.16.0.0/12,192.168.0.0/16,10.0.0.0/8`,
+because Caddy's address on the setup's network is not fixed. That is safe in this setup: the
+server opens no port on the machine, so only the setup's containers and the machine itself reach
+it, and Caddy replaces any `X-Forwarded-For` a visitor sends with the one address it saw. If you
+give Docker other address pools, set `FCON_TRUSTED_PROXIES` in `deploy/.env` to cover them.
+
+Where Docker hides the visitor's address from Caddy (Docker Desktop, or IPv6 without
+`ip6tables`), every visitor arrives from one address, so the slowing by address slows everyone
+at once. A Linux machine taking visitors over IPv4 is fine.
 
 ### Logs
 
@@ -168,7 +209,21 @@ The same image runs twice per deploy: once for the upgrade, then as the product.
   set `FCON_PORT`.
 - **The health check:** the path `/readyz`, which answers 200 when the product can use its
   database. For a liveness check, use `/healthz`, which answers while the process runs.
-- **https** comes from the host's proxy. The product itself speaks plain http.
+- **https** comes from the host's proxy. The product itself speaks plain http. The session
+  cookie is always marked secure, unless the product listens on its own machine only.
+- **The secret key.** Set `FCON_SECRET_KEY` to at least 32 random characters
+  (`openssl rand -hex 32`), as a secret variable of the host. The product does not start
+  without it.
+- **The visitor's address.** Set `FCON_TRUSTED_PROXIES` to the addresses or ranges the host's
+  proxy connects from, if the host says. If it does not, and only the host's proxy can reach the
+  container (no public port of its own), set `*`: then the server believes whoever connects, but
+  only the last address in `X-Forwarded-For`, the one the proxy saw. Never set `*` where anyone
+  else can reach the container. Unset, the server records the proxy's address, and its log
+  warns once: `warning: requests carry X-Forwarded-For, but no proxy is trusted; set
+  FCON_TRUSTED_PROXIES.`
+- **The first administrator.** Set `FCON_FIRST_ADMIN` before the first deploy, and read the
+  one-time password in the product's log; or run `fcon users add <name>` in the host's shell for
+  the service, if it has one.
 - **A host that reaches containers over IPv6 only:** set `FCON_HOST=::`.
 
 ## The settings
@@ -182,10 +237,18 @@ The same image runs twice per deploy: once for the upgrade, then as the product.
 | `FCON_PORT` | Either | The port to listen on; wins over `PORT`. |
 | `FCON_HOST` | Either | The address to listen on. The image sets `0.0.0.0`; `::` for IPv6. |
 | `FCON_LOG_FORMAT` | Either | `text` or `json`. Unset: text on a terminal, one JSON object per line elsewhere. |
+| `FCON_SECRET_KEY` | Both | At least 32 random characters, signing the sign-in form. Required. Make one with `openssl rand -hex 32`. |
+| `FCON_SECRET_KEY_PREVIOUS` | Both, while changing the key | The old key, so sign-in forms already open still work. Remove it a day later. |
+| `FCON_FIRST_ADMIN` | Either | A user name: on a start with no users, made an administrator with a one-time password, written in the log once. |
+| `FCON_TRUSTED_PROXIES` | Both | The proxies whose `X-Forwarded-For` is believed: addresses or ranges, comma-separated, or `*` where only the proxy can reach the server. Unset: none. The setup on one machine sets Docker's private ranges. |
+| `FCON_ENVIRONMENT` | Either | The install's name, shown on every page, such as `production` or `staging`. Default `development`. |
 | `FCON_DATABASE_POOL_SIZE` | Either | The product's connections to the database. Default 5. |
 | `FCON_DATABASE_PREPARE` | Either | `off` behind a connection pooler that cannot keep prepared statements. Default `on`. |
+
+**Changing the secret key:** set the new one as `FCON_SECRET_KEY` and the old one as
+`FCON_SECRET_KEY_PREVIOUS`, restart, and remove the old one a day later. Signed-in users stay
+signed in: sessions are kept in the database, not signed with the key.
 
 ## Not yet
 
 - Backups are the database administrator's: the setup holds no data.
-- A secret key for sessions comes with sign-in (#16).

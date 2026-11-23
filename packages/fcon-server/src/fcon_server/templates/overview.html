@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block body_attributes %} class="app"{% endblock %}
+{% block body %}
+<header class="top">
+<div class="bar">
+<p class="brand">{{ view.product }}</p>
+<p class="environment">{{ view.environment }}</p>
+<p class="who">{{ view.who }}</p>
+<form method="post" action="{{ view.sign_out_path }}">
+{{ csrf_field() }}
+<button type="submit">Sign out</button>
+</form>
+</div>
+</header>
+<main class="page">
+<h1>{{ view.heading }}</h1>
+<p>{{ view.text }}</p>
+</main>
+{% endblock %}

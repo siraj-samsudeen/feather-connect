@@ -3,6 +3,8 @@ number kept open at all times, each replaced after 30 minutes and checked
 before it is handed out, so one the database dropped is replaced. Every
 connection starts with the product's limits and names itself."""
 
+from collections.abc import Generator
+from contextlib import contextmanager
 from typing import Any
 
 import psycopg
@@ -32,3 +34,17 @@ def make_pool(url: str, size: int = DEFAULT_SIZE, *, prepare: bool = True) -> Po
         check=ConnectionPool.check_connection,
         open=False,
     )
+
+
+class OneConnectionEach:
+    """A new connection for each transaction, with the same limits: for a
+    command that runs a few transactions and ends (`fcon users`)."""
+
+    def __init__(self, url: str, application_name: str) -> None:
+        self._url = url
+        self._application_name = application_name
+
+    @contextmanager
+    def connection(self) -> Generator[psycopg.Connection[Any]]:
+        with psycopg.connect(self._url, options=OPTIONS, application_name=self._application_name) as connection:
+            yield connection

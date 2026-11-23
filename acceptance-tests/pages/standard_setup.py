@@ -20,12 +20,14 @@ other: an encrypted answer is one verified against it, for the site's name.
 """
 
 import http.client
+import ipaddress
 import json
 import socket
 import ssl
 import time
 from datetime import UTC, datetime
 
+from pages.audit_log import AuditLog
 from support import docker, stack
 from support.auth import SIGN_IN_PATH
 
@@ -33,6 +35,7 @@ COMPOSE_FILE = stack.REPO_ROOT / "deploy" / "compose.yaml"
 REPORTS = stack.ACCEPTANCE / "reports"
 
 UPGRADE_SERVICE = "migrate"
+FCON_COMMAND = "fcon"  # on the image's PATH: its entrypoint
 PRODUCT_SERVICE = "server"
 PROXY_SERVICE = "caddy"
 
@@ -104,10 +107,10 @@ class StandardSetup:
 
     # --- docker compose -------------------------------------------------------
 
-    def _compose(self, *arguments, timeout=docker.COMMAND_TIMEOUT_S, check=True):
+    def _compose(self, *arguments, timeout=docker.COMMAND_TIMEOUT_S, check=True, typed=None):
         return docker.docker(
             "compose", "-p", self.project, "-f", str(COMPOSE_FILE), "-f", str(self.override_file),
-            "--env-file", str(self.env_file), *arguments, timeout=timeout, check=check,
+            "--env-file", str(self.env_file), *arguments, timeout=timeout, check=check, typed=typed,
         )  # fmt: skip
 
     def _logs(self, service=None):
@@ -138,10 +141,11 @@ class StandardSetup:
         REPORTS.mkdir(parents=True, exist_ok=True)
         self.env_file = REPORTS / ("%s.env" % self.project)
         self.env_file.write_text(
-            "%s=%s\n%s=%s\n%s=%s\n" % (
+            "%s=%s\n%s=%s\n%s=%s\n%s=%s\n" % (
                 SITE_SETTING, SITE_NAME,
                 MIGRATION_DATABASE_SETTING, self.host.owner_address,
                 DATABASE_SETTING, self.host.app_address,
+                stack.SECRET_KEY_SETTING, stack.SECRET_KEY,
             ),
             encoding="utf-8",
         )  # fmt: skip
@@ -206,10 +210,60 @@ class StandardSetup:
             )
         # The browser goes through the proxy too; the connection itself is verified by encrypted_get().
         self.world.use_product_at("https://%s:%d" % (SITE_NAME, self.encrypted_port), ignore_https_errors=True)
+        # The operator's commands run in the setup's server container; its
+        # audit log is read in the Postgres outside the setup.
+        self.world.fcon_runner = self.run_fcon
+        self.world.audit_reader = self.host.query_json
 
     def run(self):
         self.prepare()
         self.start()
+
+    def run_fcon(self, arguments, typed=None):
+        """`fcon <arguments>` in the setup's running server container, as the
+        operator runs it there (`docker compose exec -T server fcon ...`),
+        `typed` as what is typed into it. Returns (exit code, stdout, stderr,
+        timed out?)."""
+        try:
+            code, out, err = self._compose(
+                "exec", "-T", PRODUCT_SERVICE, FCON_COMMAND, *arguments, check=False, typed=typed
+            )
+        except docker.DockerError as error:
+            return None, "", str(error), True
+        return code, out, err, False
+
+    def _addresses(self, service):
+        """The addresses of the service's container on each of its networks."""
+        _code, out, _err = docker.docker(
+            "inspect", "--format", "{{json .NetworkSettings.Networks}}", self._container(service)
+        )
+        networks = json.loads(out) or {}
+        return {value for net in networks.values() for value in (net.get("IPAddress"), net.get("GlobalIPv6Address"))
+                if value}  # fmt: skip
+
+    def sign_in_address_problems(self, name):
+        """Why the audit log does not record `name`'s sign-in from the user's
+        own address: no successful sign-in is recorded, or it is recorded from
+        the proxy's address (or another of the setup's containers'), or from
+        what is not an address at all. The user's browser is on this machine,
+        so the address Caddy sees is the machine's as the setup's network
+        sees it, which no container of the setup has."""
+        address, log = AuditLog(self.world).successful_sign_in_address(name)
+        if address is None:
+            return ["no successful sign-in for %r is recorded; %s" % (name, log)]
+        proxy = self._addresses(PROXY_SERVICE)
+        containers = proxy | self._addresses(PRODUCT_SERVICE)
+        try:
+            ipaddress.ip_address(address)
+        except ValueError:
+            return ["the sign-in is recorded from %r, which is not an address; %s" % (address, log)]
+        if address in proxy:
+            return ["the sign-in is recorded from %s, the proxy's own address (%s); %s"
+                    % (address, ", ".join(sorted(proxy)), log)]  # fmt: skip
+        if address in containers:
+            return ["the sign-in is recorded from %s, an address of the setup's own containers (%s); %s"
+                    % (address, ", ".join(sorted(containers)), log)]  # fmt: skip
+        return []
 
     def _copy_root_certificate(self):
         target = REPORTS / ("%s-caddy-root.crt" % self.project)
