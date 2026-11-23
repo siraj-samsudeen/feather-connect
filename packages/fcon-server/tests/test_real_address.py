@@ -14,8 +14,14 @@ CADDY = "172.20.0.3"
 VISITOR = "203.0.113.7"
 
 
+def read(text: str) -> TrustedProxies:
+    trusted = trusted_proxies(text)
+    assert trusted is not None
+    return trusted
+
+
 def setup_network() -> TrustedProxies:
-    return trusted_proxies("172.16.0.0/12")
+    return read("172.16.0.0/12")
 
 
 def test_no_setting_trusts_no_proxy():
@@ -23,7 +29,7 @@ def test_no_setting_trusts_no_proxy():
 
 
 def test_a_list_of_addresses_and_ranges_is_read():
-    trusted = trusted_proxies(" 10.0.0.1 , 172.16.0.0/12,::1")
+    trusted = read(" 10.0.0.1 , 172.16.0.0/12,::1")
 
     assert [trusted.trusts(address) for address in ("10.0.0.1", "172.20.0.3", "::1", "10.0.0.2")] == [
         True,
@@ -72,7 +78,7 @@ def test_an_ipv4_peer_written_as_ipv6_is_trusted_as_ipv4():
 def test_everyone_trusts_any_peer_but_no_hop():
     """`*`: only the proxy can reach the container, so the peer is it; the
     address it saw is the last hop, whatever the visitor sent before it."""
-    assert real_address(CADDY, f"198.51.100.1, {VISITOR}", trusted_proxies("*")) == VISITOR
+    assert real_address(CADDY, f"198.51.100.1, {VISITOR}", read("*")) == VISITOR
 
 
 def _client_host(request: Request) -> PlainTextResponse:
