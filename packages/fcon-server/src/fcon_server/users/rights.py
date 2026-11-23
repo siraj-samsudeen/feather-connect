@@ -1,12 +1,15 @@
 """Rights, checked in one place (design point 2, ADR 0016): `RIGHTS` maps
 each action to the least role it needs, and `require` checks a caller
 against it, in the service layer that the dashboard, the API and the
-command line all call. The role is read fresh on each request."""
+command line all call. The role is read fresh on each request. A refusal is
+audited against the tenant, as the caller (design point 11)."""
 
 from dataclasses import dataclass
 from enum import StrEnum
 
 from fcon_server.store.context import Context
+from fcon_server.store.tables import TENANT
+from fcon_server.store.transaction import Store
 
 
 class Role(StrEnum):
@@ -45,6 +48,9 @@ class NotAllowedError(Exception):
         self.action = action
 
 
-def require(caller: Caller, action: Action) -> None:
+def require(store: Store, caller: Caller, action: Action) -> None:
     if caller.role.rank < RIGHTS[action].rank:
-        raise NotAllowedError(action)
+        refused = NotAllowedError(action)
+        with store.transaction(caller.context) as tx:
+            tx.refuse(TENANT, "", str(refused))
+        raise refused

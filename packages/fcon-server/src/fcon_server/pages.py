@@ -361,7 +361,7 @@ def router() -> APIRouter:
     @routes.get(OVERVIEW_PATH)
     def overview(request: Request) -> HTMLResponse:
         signed_in = _signed_in(request)
-        require(signed_in.caller, Action.SEE_OVERVIEW)
+        require(_store(request), signed_in.caller, Action.SEE_OVERVIEW)
         return render("overview.html", overview_view(signed_in, _site(request).environment), request=request)
 
     @routes.get(SIGN_IN_PATH)

@@ -70,7 +70,7 @@ _ANY_USER = "SELECT EXISTS (SELECT 1 FROM fcon.user WHERE tenant_id = %(tenant_i
 
 
 def add_user(store: Store, caller: Caller, new: NewUser) -> AddedUser:
-    require(caller, Action.MANAGE_USERS)
+    require(store, caller, Action.MANAGE_USERS)
     name = normal_name(new.name)
     if user_name_problem(name) is not None:
         raise NameNotAllowedError(name)

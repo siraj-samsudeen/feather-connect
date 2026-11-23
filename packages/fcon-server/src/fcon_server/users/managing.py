@@ -64,7 +64,7 @@ _LIST = """
 
 
 def list_users(store: Store, caller: Caller) -> list[ListedUser]:
-    require(caller, Action.MANAGE_USERS)
+    require(store, caller, Action.MANAGE_USERS)
     with store.transaction(caller.context) as tx:
         found = tx.fetch_all(_Listed, _LIST)
     return [ListedUser(row.name, row.display_name, Role(row.role), row.state) for row in found]
@@ -104,7 +104,7 @@ def _change(
 ) -> bool:
     """Sets the user's role or state; False when it was so already. With a
     clock, every session of the user ends too."""
-    require(caller, Action.MANAGE_USERS)
+    require(store, caller, Action.MANAGE_USERS)
     name = normal_name(typed_name)
     with store.transaction(caller.context) as tx:
         locked = tx.fetch_all(_Locked, _LOCK, {"name": name})
