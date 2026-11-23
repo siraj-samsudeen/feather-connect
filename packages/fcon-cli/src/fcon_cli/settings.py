@@ -5,7 +5,7 @@ of `fcon server`. A mistake raises SettingsError, with the error helper's
 words for it."""
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import NoReturn
 
@@ -35,12 +35,12 @@ class SettingsError(ProblemError):
 class Settings:
     host: str
     port: int
-    database_url: str
-    secret_key: str
+    database_url: str = field(repr=False)  # may hold a password
+    secret_key: str = field(repr=False)
     log_format: str = ""
     pool_size: int = DEFAULT_POOL_SIZE
     prepare: bool = True
-    previous_secret_key: str | None = None
+    previous_secret_key: str | None = field(default=None, repr=False)
     environment: str = DEFAULT_ENVIRONMENT
     first_admin: str | None = None
     trusted_proxies: TrustedProxies | None = None
@@ -51,8 +51,8 @@ class DatabaseSettings:
     """`fcon db`: the app's address, and the owner's for upgrades
     (FCON_MIGRATION_DATABASE_URL, else the app's)."""
 
-    database_url: str
-    migration_database_url: str
+    database_url: str = field(repr=False)  # may hold a password
+    migration_database_url: str = field(repr=False)
 
 
 def read_env_file(path: Path) -> dict[str, str]:

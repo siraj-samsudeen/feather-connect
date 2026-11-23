@@ -259,3 +259,21 @@ def test_trusted_proxies_that_are_not_addresses_are_a_settings_mistake(tmp_path:
     assert mistake({**BASE, "FCON_TRUSTED_PROXIES": "caddy"}, tmp_path) == problems.trusted_proxies_not_addresses(
         "caddy"
     )
+
+
+SECRETS = ("postgresql://app:app-password@db/fcon", "s" * 32, "p" * 32, "postgresql://owner:owner-password@db/fcon")
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        Settings("127.0.0.1", 8080, SECRETS[0], SECRETS[1], previous_secret_key=SECRETS[2]),
+        DatabaseSettings(SECRETS[0], SECRETS[3]),
+    ],
+    ids=["server", "database"],
+)
+def test_the_settings_shown_hold_no_secret(settings: Settings | DatabaseSettings):
+    """A setting printed while debugging, or in a traceback, gives away no password or key."""
+    shown = repr(settings)
+
+    assert [secret for secret in SECRETS if secret in shown] == []
