@@ -389,10 +389,14 @@ def test_the_same_role_says_so(capsys: pytest.CaptureFixture[str]):
 
 def test_a_role_that_does_not_exist_is_a_usage_problem(capsys: pytest.CaptureFixture[str]):
     code, _, err = users_run(capsys, "set-role", "ben@example.com", "boss")
+    first = err.splitlines()[0]
+    choices = first.partition("(choose from ")[2]
 
-    assert (code, err.splitlines()[0]) == (
+    # argparse quotes the choices in Python 3.14.10, not in 3.14.4: only the names and their order are pinned.
+    assert (code, first.startswith("error: argument role: invalid choice: 'boss' "), choices.replace("'", "")) == (
         2,
-        "error: argument role: invalid choice: 'boss' (choose from 'viewer', 'operator', 'developer', 'administrator').",
+        True,
+        "viewer, operator, developer, administrator).",
     )
 
 
