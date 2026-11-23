@@ -14,6 +14,7 @@ from psycopg import conninfo
 
 from fcon_cli import problems
 from fcon_cli.problems import ProblemError
+from fcon_server.proxies import NotAProxyError, TrustedProxies, trusted_proxies
 from fcon_server.users.rules import normal_name, user_name_problem
 
 DEFAULT_HOST = "127.0.0.1"
@@ -42,6 +43,7 @@ class Settings:
     previous_secret_key: str | None = None
     environment: str = DEFAULT_ENVIRONMENT
     first_admin: str | None = None
+    trusted_proxies: TrustedProxies | None = None
 
 
 @dataclass(frozen=True)
@@ -139,6 +141,13 @@ def _first_admin(variables: Mapping[str, str]) -> str | None:
     return name
 
 
+def _trusted_proxies(variables: Mapping[str, str]) -> TrustedProxies | None:
+    try:
+        return trusted_proxies(variables.get("FCON_TRUSTED_PROXIES", ""))
+    except NotAProxyError as err:
+        raise SettingsError(problems.trusted_proxies_not_addresses(err.item)) from None
+
+
 def _no_secret_key() -> NoReturn:
     raise SettingsError(problems.secret_key_missing())
 
@@ -158,6 +167,7 @@ def load_settings(
         previous_secret_key=_secret_key(variables, "FCON_SECRET_KEY_PREVIOUS"),
         environment=variables.get("FCON_ENVIRONMENT", "").strip() or DEFAULT_ENVIRONMENT,
         first_admin=_first_admin(variables),
+        trusted_proxies=_trusted_proxies(variables),
     )
 
 

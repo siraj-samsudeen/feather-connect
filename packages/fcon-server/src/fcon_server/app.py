@@ -10,6 +10,7 @@ from starlette.types import ASGIApp
 from fcon_server import health, pages
 from fcon_server.gate import Gate
 from fcon_server.middleware import HeadAsGet, SafetyHeaders
+from fcon_server.proxies import RealAddress, TrustedProxies
 from fcon_server.signing import SecretKeys
 from fcon_server.store.clock import Clock, SystemClock
 from fcon_server.store.ids import new_id
@@ -29,10 +30,14 @@ def create_app(
     pool_size: int = DEFAULT_SIZE,
     prepare: bool = True,
     clock: Clock = _SYSTEM_CLOCK,
+    trusted_proxies: TrustedProxies | None = None,
+    on_untrusted_forwarding: Callable[[], None] = lambda: None,
 ) -> ASGIApp:
     """The app, talking to the database at `database_url` (a libpq address).
     `secure_cookies` is False only for a server on its own machine alone,
-    over plain http (design point 8)."""
+    over plain http (design point 8). Forwarded headers are believed only from
+    `trusted_proxies`; with none, `on_untrusted_forwarding` is called on the
+    first request that carries one."""
     app = build_app(
         database_url,
         keys=keys,
@@ -55,7 +60,7 @@ def create_app(
         choose_password_path=pages.CHOOSE_PASSWORD_PATH,
         while_choosing=pages.WHILE_CHOOSING,
     )
-    return with_middleware(gate)
+    return with_middleware(RealAddress(gate, trusted_proxies, on_untrusted_forwarding))
 
 
 def _lifespan(pool: Pool) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:

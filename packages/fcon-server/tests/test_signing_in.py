@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup, Tag
 from fastapi.testclient import TestClient
 
 from fcon_server.app import create_app
+from fcon_server.proxies import trusted_proxies
 from fcon_server.signing import SecretKeys
 from fcon_server.store.clock import SystemClock
 from fcon_server.store.context import Context
@@ -203,6 +204,18 @@ def test_a_sign_in_ends_the_sign_in_cookie(client: TestClient):
     sign_in(client)
 
     assert client.cookies.get("fcon_sign_in") is None
+
+
+def test_a_sign_in_through_a_trusted_proxy_is_recorded_from_the_visitors_address(site_database: str):
+    app = create_app(site_database, keys=KEYS, pool_size=1, trusted_proxies=trusted_proxies("172.16.0.0/12"))
+    with TestClient(app, base_url="https://testserver", client=("172.20.0.3", 50000)) as client:
+        client.headers["X-Forwarded-For"] = "203.0.113.7"
+        sign_in(client)
+
+    with psycopg.connect(site_database) as connection:
+        [address] = connection.execute("SELECT address FROM fcon.sign_in_attempt").fetchone() or [None]
+
+    assert address == "203.0.113.7"
 
 
 # -- the gate and the overview --------------------------------------------------

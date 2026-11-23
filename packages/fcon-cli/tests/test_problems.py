@@ -356,3 +356,9 @@ def test_a_short_secret_key_never_shows_the_key():
         "  Make a longer one with:\n"
         '  python -c "import secrets; print(secrets.token_urlsafe(32))"'
     )
+
+
+def test_a_forwarded_request_with_no_proxy_trusted_names_the_setting():
+    assert problems.untrusted_forwarding().text() == (
+        "warning: requests carry X-Forwarded-For, but no proxy is trusted; set FCON_TRUSTED_PROXIES."
+    )

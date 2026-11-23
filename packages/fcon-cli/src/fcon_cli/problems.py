@@ -173,6 +173,22 @@ def listening_beyond_machine(host: str, port: int) -> Problem:
     )
 
 
+def trusted_proxies_not_addresses(item: str) -> Problem:
+    return Problem(
+        Level.ERROR,
+        f"FCON_TRUSTED_PROXIES is not a list of addresses or ranges: {item!r}.",
+        (
+            "Name the proxy's addresses or ranges, comma-separated, such as 172.16.0.0/12,10.0.0.5;",
+            "or * where only the proxy can reach the server (docs/deploy.md).",
+        ),
+    )
+
+
+def untrusted_forwarding() -> Problem:
+    """Logged once per process (design point 8)."""
+    return Problem(Level.WARNING, "requests carry X-Forwarded-For, but no proxy is trusted; set FCON_TRUSTED_PROXIES.")
+
+
 def bug() -> Problem:
     """Followed by the traceback."""
     return Problem(Level.ERROR, "this is a bug in Feather Connect; please report it with the lines below.")

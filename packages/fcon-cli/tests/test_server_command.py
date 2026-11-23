@@ -105,6 +105,17 @@ def test_it_stops_cleanly_when_asked(running: Running):
     assert running.stop() == 0
 
 
+def test_with_no_proxy_trusted_a_forwarded_request_warns_once(running: Running):
+    forwarded = {"X-Forwarded-For": "203.0.113.7"}
+    for _ in range(2):
+        request = urllib.request.Request(running.base_url + "/healthz", headers=forwarded)  # noqa: S310 - our own server
+        urllib.request.urlopen(request, timeout=2).close()  # noqa: S310 - our own local server
+    running.stop()
+
+    warned = [line["message"] for line in running.lines() if "no proxy is trusted" in line["message"]]
+    assert warned == [problems.untrusted_forwarding().text()]
+
+
 def test_it_watches_the_database_in_the_background(running: Running):
     expected = "warning: cannot reach the database at 127.0.0.1:9"
     deadline = time.monotonic() + START_TIMEOUT_S

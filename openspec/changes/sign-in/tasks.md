@@ -91,8 +91,8 @@
 - [ ] 2.52 deployment: And starts the product's image, giving it only the database's address, and the secret key every install needs — red → green → commit
 - [ ] 2.53 deployment: And starts the product's image, giving it only the database's address / Then the product does not start / And it says the secret key is missing, and how to make one — red → green → commit
 - [ ] 2.54 deployment: And the user has the sign-in page open / When the operator restarts the product with a new secret key, naming the old one as previous — red → green → commit
-- [ ] 2.55 deployment: When the user signs in as "ann" through the site's encrypted address / Then the audit log records the sign-in from the user's own address, not the proxy's — red → green → commit
-- [ ] 2.56 deployment: And the product's image runs with no proxy trusted / When a visitor opens two pages through a proxy that names the visitor's address / Then its log warns once, not twice … — red → green → commit
+- [x] 2.55 deployment: When the user signs in as "ann" through the site's encrypted address / Then the audit log records the sign-in from the user's own address, not the proxy's — red → green → commit
+- [x] 2.56 deployment: And the product's image runs with no proxy trusted / When a visitor opens two pages through a proxy that names the visitor's address / Then its log warns once, not twice … — red → green → commit
 
 ## 3. What no scenario drives — each still arrives with the test or check that needs it
 

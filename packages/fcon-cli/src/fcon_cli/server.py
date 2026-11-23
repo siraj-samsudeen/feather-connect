@@ -116,9 +116,11 @@ def run_server(settings: Settings) -> None:
             secure_cookies=not ipaddress.ip_address(host).is_loopback,
             pool_size=settings.pool_size,
             prepare=settings.prepare,
+            trusted_proxies=settings.trusted_proxies,
+            on_untrusted_forwarding=lambda: log_problem(log, problems.untrusted_forwarding()),
         ),
         log_config=None,  # its lines go through the one logger
-        proxy_headers=False,  # trusting a proxy's headers comes with real sign-in
+        proxy_headers=False,  # the app believes them from FCON_TRUSTED_PROXIES alone (fcon_server.proxies)
         server_header=False,  # no server name or version for visitors
     )
     # In the background while the server runs: the database watch, and the
