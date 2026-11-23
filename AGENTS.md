@@ -130,8 +130,11 @@ weekly as a report, the Windows and macOS tests do not block, Dependabot propose
 **Worktrees.** The ports come from the issue number `n`: development `18000 + n`, acceptance
 `19000 + n` (issue 4: 18004 and 19004); the main checkout keeps 8080 and 8030. Each worktree has
 its own database `feather_issue_<n>` in the shared container. `uv run scripts/worktree_env.py <n>`
-writes the worktree's `.env` (both ports and the database address; other lines are kept) and
-creates the database; `--drop` removes it when the worktree goes.
+writes the worktree's `.env` (both ports, the database address, and a random `FCON_SECRET_KEY`
+when it has none; other lines are kept) and creates the database; `--drop` removes it when the
+worktree goes. Nobody can sign in to a new database: `uv run fcon users add admin` makes its
+first user, an administrator, with the password typed (later users' passwords work once). The
+acceptance suite makes its own users and keys.
 
 **Windows.** Four things differ on a Windows machine:
 
