@@ -388,3 +388,62 @@ def step_still_signed_in_now(context):
 @when("a page on another site sends the dashboard a sign-out form")
 def step_forged_sign_out(context):
     context.another_site.send_sign_out_form()
+
+
+# -- the command line, and always an administrator --------------------------------
+
+
+@when('the operator makes "{name}" an {role} from the command line')
+@when('the operator makes "{name}" a {role} from the command line')
+def step_operator_sets_role(context, name, role):
+    context.user_commands.set_role(name, role)
+
+
+@when("the user opens the dashboard again")
+def step_open_dashboard_again(context):
+    context.overview.open()
+
+
+@given('the operator has disabled "{name}" from the command line')
+def step_operator_has_disabled(context, name):
+    context.user_commands.disable(name)
+    ended_well, why = context.user_commands.last_ended_well()
+    assert ended_well, why
+
+
+@when('the operator enables "{name}" from the command line')
+def step_operator_enables(context, name):
+    context.user_commands.enable(name)
+
+
+@given('"{name}" is the only administrator')
+def step_only_administrator(context, name):
+    context.user_commands.the_only_administrator(name)
+
+
+@then('the change is refused, because "{name}" is the only administrator')
+def step_refused_only_administrator(context, name):
+    refused, why = context.user_commands.refused_as_only_administrator(name)
+    assert refused, why
+
+
+@then('"{name}" is still an administrator')
+def step_still_administrator(context, name):
+    still, why = context.user_commands.is_active_administrator(name)
+    assert still, why
+
+
+# -- every sign-in is recorded ----------------------------------------------------
+
+
+@then('the audit log records a refused and a successful sign-in for "{name}", from the user\'s address')
+def step_audit_sign_ins(context, name):
+    problems = context.audit_log.refused_and_successful_sign_in_problems(name)
+    assert not problems, "; ".join(problems)
+
+
+@then("no password appears anywhere in the audit log")
+def step_no_password_in_audit(context):
+    passwords = context.sign_in_page.typed_passwords + list(context.user_commands.passwords.values())
+    problems = context.audit_log.password_problems(passwords)
+    assert not problems, "; ".join(problems)

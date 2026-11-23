@@ -6,6 +6,7 @@ import os
 
 from pages.accessibility import AccessibilityCheck
 from pages.another_site import AnotherSite
+from pages.audit_log import AuditLog
 from pages.choose_password_page import ChoosePasswordPage
 from pages.container_host import ContainerHost
 from pages.database_commands import DatabaseCommands
@@ -66,6 +67,7 @@ def before_scenario(context, scenario):
     context.another_site = AnotherSite(context.world)
     context.first_admin = FirstAdministrator(context.world)
     context.user_commands = UserCommands(context.world)
+    context.audit_log = AuditLog(context.world)
     context.accessibility = AccessibilityCheck()
     context.terminal = Terminal(context.world)
     context.database_commands = DatabaseCommands(context.world)

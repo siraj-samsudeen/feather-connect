@@ -136,6 +136,15 @@ class World:
         self.product_settings = {}  # FCON_* settings for the product the scenario starts itself
         self._own_product_starts = 0  # each start's log is a file of its own
         self.screen = Screen(self)  # VIDEO=1: what a scenario without a web page shows
+        # The latest audit record of the run's database when the scenario
+        # began: the scenario's own records come after it (pages/audit_log.py).
+        self.audit_mark = run_database.audit_mark()
+        # For a product the scenario runs elsewhere (the standard setup's
+        # containers): how an `fcon` command runs there, (arguments, typed) ->
+        # (exit code, stdout, stderr, timed out?), and how its audit log is
+        # read, (query) -> records. None: here, and in the run's database.
+        self.fcon_runner = None
+        self.audit_reader = None
 
     def _new_page(self, who, label, storage_state=None):
         """A browser context for one of the scenario's people: traced, and recorded with VIDEO=1."""

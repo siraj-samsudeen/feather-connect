@@ -7,17 +7,31 @@ Each command runs against the database of the product the scenario talks to,
 with only that address as its setting (support/stack.py, start_fcon).
 """
 
-from pages.database_commands import Result
+import re
+
+from pages.database_commands import TRACEBACK, Result
 from support import run_database, stack
 
 USERS = "users"
 ADD = "add"
 DISABLE = "disable"
+ENABLE = "enable"
+SET_ROLE = "set-role"
+LIST = "list"
 ADMIN_FLAG = "--admin"
 ROLE_FLAG = "--role"
 DATABASE_SETTING = "FCON_DATABASE_URL"
 # What `fcon users add` says when the password it was given works only once.
 WORKS_ONCE = "Their password works for one sign-in; then they choose their own."
+# How a command that is refused for a rule ends, and what it says when the
+# change would leave no active administrator (design point 10).
+REFUSED_EXIT = 2
+ONLY_ADMINISTRATOR = "%s is the only administrator; make another one first."
+# `fcon users list`: a line of headings, then one line per user, the columns
+# apart by two spaces or more.
+LIST_HEADINGS = ("NAME", "ROLE", "STATE")
+ADMINISTRATOR = "administrator"
+ACTIVE = "active"
 # The first user's password is their own, so a user with a given password is
 # never the first: setup adds this administrator before them.
 SETUP_ADMIN = {"name": "setup-admin", "password": "setup-admin-password-0"}
@@ -40,8 +54,14 @@ class UserCommands:
         return {DATABASE_SETTING: self.world.product_database_url()}
 
     def _run(self, arguments, typed=None):
-        process = stack.start_fcon([USERS, *arguments], self._settings(), stdin_text=typed)
-        code, out, err, timed_out = stack.finish_fcon(process)
+        # A product the scenario runs elsewhere (the standard setup's containers)
+        # gives its own way to run a command there; else it runs here.
+        runner = self.world.fcon_runner
+        if runner is not None:
+            code, out, err, timed_out = runner([USERS, *arguments], typed)
+        else:
+            process = stack.start_fcon([USERS, *arguments], self._settings(), stdin_text=typed)
+            code, out, err, timed_out = stack.finish_fcon(process)
         # What was typed is a password: the record of the command never shows it.
         result = Result(" ".join([USERS, *arguments]), code, out, err, timed_out)
         self.world.screen.command("fcon " + result.command, out + err, code)
@@ -118,6 +138,64 @@ class UserCommands:
     def disable(self, name):
         """`fcon users disable <name>`; what it answered is in `result`."""
         return self._run([DISABLE, name])
+
+    def enable(self, name):
+        """`fcon users enable <name>`; what it answered is in `result`."""
+        return self._run([ENABLE, name])
+
+    def set_role(self, name, role):
+        """`fcon users set-role <name> <role>`; what it answered is in `result`."""
+        return self._run([SET_ROLE, name, role])
+
+    def users(self):
+        """`fcon users list`, read: {name: (role, state)}; an AssertionError
+        when the command did not end well or its table cannot be read."""
+        result = self._run([LIST])
+        if not result.ended_well():
+            raise AssertionError("`fcon users list` did not end well; %r" % result)
+        lines = [line for line in result.output.splitlines() if line.strip()]
+        if not lines or tuple(re.split(r"\s{2,}", lines[0].strip())[: len(LIST_HEADINGS)]) != LIST_HEADINGS:
+            raise AssertionError("`fcon users list` shows no table headed %r; %r" % (LIST_HEADINGS, result))
+        found = {}
+        for line in lines[1:]:
+            cells = re.split(r"\s{2,}", line.strip())
+            if len(cells) < len(LIST_HEADINGS):
+                raise AssertionError("cannot read the line %r of `fcon users list`; %r" % (line, result))
+            found[cells[0]] = (cells[1], cells[2])
+        return found
+
+    def the_only_administrator(self, name):
+        """As setup: `name` is an administrator (added now unless the scenario
+        added them), and `fcon users list` shows no other active one."""
+        self.administrator(name)
+        others = [
+            user for user, (role, state) in self.users().items()
+            if user != name and role == ADMINISTRATOR and state == ACTIVE
+        ]  # fmt: skip
+        if others:
+            raise AssertionError("%r is not the only administrator: so are %r" % (name, others))
+
+    def refused_as_only_administrator(self, name):
+        """(yes?, why): the last command was refused, exit REFUSED_EXIT, saying
+        that `name` is the only administrator, with no stack trace."""
+        result = self.result
+        if result is None:
+            return False, "no `fcon users` command has been run yet"
+        said = ONLY_ADMINISTRATOR % name
+        refused = (
+            not result.timed_out
+            and result.exit_code == REFUSED_EXIT
+            and said in result.output + result.errors
+            and TRACEBACK not in result.output + result.errors
+        )
+        return refused, "expected exit %d saying %r; %r" % (REFUSED_EXIT, said, result)
+
+    def is_active_administrator(self, name):
+        """(yes?, why): `fcon users list` shows `name` as an active administrator."""
+        users = self.users()
+        return users.get(name) == (ADMINISTRATOR, ACTIVE), "`fcon users list` shows %r as %r; %r" % (
+            name, users.get(name), self.result,
+        )  # fmt: skip
 
     def given_password(self, name):
         """The password the scenario gave that user from the command line."""

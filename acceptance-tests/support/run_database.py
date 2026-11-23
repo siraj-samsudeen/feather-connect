@@ -73,3 +73,42 @@ def move_sessions_back(hours, database_url=None):
             {"h": hours},
         )
         return moved.rowcount
+
+
+AUDIT_TABLE = "fcon.audit"
+# Every column of the audit log, one JSON array of objects, oldest first: the
+# same text for psycopg here and for psql in a container (pages/standard_setup.py).
+_AUDIT_COLUMNS = (
+    "json_build_object('created_at', created_at, 'created_by', created_by, 'request_id', request_id,"
+    " 'table_name', table_name, 'action', action, 'row_key', row_key, 'before', before, 'after', after,"
+    " 'reason', reason)"
+)
+AUDIT_QUERY_ALL = "SELECT coalesce(json_agg(%s ORDER BY created_at), '[]') FROM %s" % (_AUDIT_COLUMNS, AUDIT_TABLE)
+_AUDIT_QUERY_SINCE = "SELECT coalesce(json_agg(%s ORDER BY created_at), '[]') FROM %s WHERE created_at > %%(since)s" % (
+    _AUDIT_COLUMNS,
+    AUDIT_TABLE,
+)
+
+
+def audit_mark(database_url=None):
+    """When the latest audit record of the database (the run's, or the one
+    given) was written, or None: what a scenario writes comes after it. The
+    product's own times, so no clock of this machine is compared with them."""
+    with _connect(database_url or stack.run_database_url()) as connection:
+        if not _existing(connection, (AUDIT_TABLE,)):
+            return None
+        (mark,) = connection.execute("SELECT max(created_at) FROM %s" % AUDIT_TABLE).fetchone()
+        return mark
+
+
+def audit_records(since, database_url=None):
+    """The audit records of the database (the run's, or the one given)
+    written after `since` (every one, when None), oldest first, as dicts."""
+    with _connect(database_url or stack.run_database_url()) as connection:
+        if not _existing(connection, (AUDIT_TABLE,)):
+            raise AssertionError("the database has no %s table" % AUDIT_TABLE)
+        if since is None:
+            (records,) = connection.execute(AUDIT_QUERY_ALL).fetchone()
+        else:
+            (records,) = connection.execute(_AUDIT_QUERY_SINCE, {"since": since}).fetchone()
+        return records

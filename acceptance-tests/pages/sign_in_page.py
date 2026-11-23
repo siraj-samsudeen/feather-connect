@@ -82,6 +82,7 @@ class SignInPage:
     def __init__(self, world):
         self.world = world
         self.response = None  # the answer to the last navigation or form post
+        self.typed_passwords = []  # every password typed into the form, for checks that none is kept
 
     @property
     def page(self) -> Page:
@@ -110,6 +111,7 @@ class SignInPage:
             raise AssertionError("no sign-in form to type into: no field labelled %r at %s" % (USER_LABEL, self.where()))
         self.page.get_by_label(USER_LABEL, exact=True).fill(user)
         self.page.get_by_label(PASSWORD_LABEL, exact=True).fill(password)
+        self.typed_passwords.append(password)
         with self.page.expect_navigation() as navigation:
             self.page.get_by_role("button", name=BUTTON, exact=True).click()
         self.response = navigation.value
