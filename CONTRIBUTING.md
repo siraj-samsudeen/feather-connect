@@ -64,7 +64,9 @@ and how to watch it in a browser: [`acceptance-tests/README.md`](acceptance-test
    It creates the worktree's database and upgrades it; run it again, or `uv run fcon db upgrade`,
    after bringing in a migration.
 
-4. **Start your agent in the worktree** and tell it: "work on issue <n> in build mode". The other
+4. **Start your agent in the worktree** and tell it: "work on issue <n> in build mode" (or
+   learning mode while you are new to the code). Product questions go to the owner on the issue;
+   who decides what is in [`docs/process.md`](docs/process.md) § Working as a developer with AI. The other
    modes are autopilot and learning (the `change-modes` skill), and you can switch at any time. The
    change then goes: planning artifacts, one commit each after you approve it; the PR; the build;
    the checks; the review videos; the archive.

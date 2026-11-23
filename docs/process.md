@@ -17,7 +17,7 @@ Steps marked **Owner** wait for the product owner's yes.
 | 2 | Backlog | The work becomes a GitHub issue with a rating (red, yellow, green or chore) and "blocked by" links. One worker takes one issue at a time. | Manager session | Project manager, scrum master | **Owner:** what comes next |
 | 3 | Design, point by point | For each point: what it means, the alternatives with their merits and drawbacks, one recommendation, and mockups for any screen. The agreed design is written into the issue. | Manager proposes, owner decides | Business analyst, architect, UX designer | **Owner:** each point |
 | 4 | Start the build | A build session starts in its own git worktree and branch from `main`, with a brief made from the issue and a mode: autopilot, build or learning. | Manager session, or a developer | Tech lead takes the work | **Owner:** the mode |
-| 5 | Planning (OpenSpec) | **Proposal:** why and what. **Specs:** requirements with Gherkin scenarios that later run as acceptance tests. **Design and ADRs:** how, and the lasting decisions. **Tasks:** the ordered steps. An independent reviewer checks the specs. | Build session | BA (proposal), test lead (scenarios), architect (ADRs), tech lead (tasks) | **Owner:** approve the planning |
+| 5 | Planning (OpenSpec) | **Proposal:** why and what. **Specs:** requirements with Gherkin scenarios that later run as acceptance tests. **Design and ADRs:** how, and the lasting decisions. **Tasks:** the ordered steps. An independent reviewer checks the specs. | Build session | BA (proposal), test lead (scenarios), architect (ADRs), tech lead (tasks) | **Owner:** the proposal, specs and ADRs; the developer running the build approves design and tasks |
 | 6 | Draft pull request | One PR per change, opened early, so the work is visible while it grows. | Build session | Tech lead | — |
 | 7 | Build (outside-in TDD) | `senior-qa` writes the acceptance scenarios (behave with Playwright) and commits them failing. `senior-dev` makes them pass, writing unit tests first: red, green, refactor. The build session checks each batch and hands out the next. | `senior-qa`, `senior-dev`, build session | QA automation, developer, tech lead | — in autopilot |
 | 8 | Continuous integration | Each push runs ruff, pyright (strict), vulture, pytest, the acceptance suite, spec validation and a container image build. Windows and macOS tests and mutation testing report without blocking until M1. A build pushes at a few agreed points, not after every commit. | GitHub Actions | DevOps, build engineer | — |
@@ -53,7 +53,8 @@ Agents work alone between these points; nothing passes one without a person sayi
 
 1. **Agree the design**: each point of the issue, before any code.
 2. **Choose the mode**: how often the build stops to ask.
-3. **Approve the planning**: proposal, specs, design and tasks.
+3. **Approve the planning**: the owner approves the proposal, the specs and any ADR (what the
+   change does); the developer running the build approves the design and tasks (how).
 4. **Accept the demo**: the verifier's results and the review videos.
 5. **Merge**: only the owner merges a change into `main`.
 
@@ -70,6 +71,44 @@ Review findings are sorted before anyone sees them (`AGENTS.md` § Review guidel
 | 1 | Breaks core functionality: wrong results, data loss, a security hole | Fixed now |
 | 2 | Plausible in real use, limited impact | Fixed if cheap, otherwise one issue for all of them |
 | 3 | Rare or theoretical | One line in the PR under "Deliberately not handled" |
+
+## Working as a developer with AI
+
+The owner makes the product decisions; developers build, each with their own AI agent on their own
+machine. A developer's agent sees only the repo and GitHub, never another person's chat, so every
+decision it needs is in the issue, the specs, an ADR or `AGENTS.md`.
+
+### Who decides what
+
+| Decision | Who | Where it is recorded |
+|---|---|---|
+| What to build next, scope, milestones | Owner | The issue and its rating, `docs/requirements.md` |
+| The design: behaviour, screens, security choices | Owner agrees each point | "Agreed design" in the issue |
+| The proposal and specs: what the change does, its scenarios | Owner approves | The change's first commits in its PR |
+| A lasting technical choice: a new dependency, pattern or table layout | Developer proposes, owner decides | An ADR in the PR |
+| The technical design inside the agreed design: modules, names, the shape of tests | Developer approves | `design.md` and `tasks.md` in the change |
+| Code, tests, refactoring | Developer with their agent | Commits |
+| The merge | Owner | A merge commit on `main` |
+
+### A developer's change, step by step
+
+1. **Pick a ready issue:** open, nobody assigned, no open blocker, with an "Agreed design" section.
+   Start with small ones: `good first issue`, green or chore.
+2. **Assign it to yourself**, make its worktree and run `scripts/worktree_env.py <n>`
+   ([`CONTRIBUTING.md`](../CONTRIBUTING.md) § Take up an issue).
+3. **Start your agent in the worktree:** "work on issue <n> in learning mode" while you are new to
+   the code, build mode after that. In both, the agent stops at each step for your yes; learning
+   mode also explains what it did and why. Autopilot is for those who know the code well.
+4. **Planning.** Your agent drafts the proposal and specs; read them, then ask the owner on the PR
+   to approve them. You approve the design and tasks yourself, unless they need an ADR.
+5. **Build.** Approve each batch of tests and code. Technical questions are yours to answer.
+6. **Product questions go to the owner**, as a comment on the issue: anything the agreed design
+   does not answer, such as what a user sees in a case it does not cover. Don't decide them in
+   the code. Once answered, the answer is added to the issue's design, so the next agent sees it.
+7. **Checks and review.** Run the same checks as CI, then the review: Codex, or a different Claude
+   model than the one that wrote the code; UI work also takes the independent verifier and the
+   review videos.
+8. **Archive the change, then ask the owner to merge.**
 
 ## Which SDLC this is
 
@@ -134,6 +173,12 @@ is rated red.
 ## Questions
 
 **Do I have to use AI agents?** No. The steps, the files and the checks are the same for a person.
+
+**Which mode should I use?** Learning mode for your first changes, build mode once you know the
+code. You can switch at any time by telling your agent.
+
+**The design doesn't say what should happen in a case I've found. What do I do?** Ask the owner on
+the issue, and carry on with other tasks meanwhile. Product behaviour is never decided in the code.
 
 **How do decisions reach my machine?** Through git and GitHub: conventions in `AGENTS.md`,
 decisions in `adr/` and the specs, designs in the issues. Nothing important lives only in a chat or
