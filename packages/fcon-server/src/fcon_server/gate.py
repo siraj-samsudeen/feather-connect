@@ -19,7 +19,9 @@ is refused too. Both get the form-expired page (403) and a refused audit
 record (design point 5).
 
 A user who must choose a password is sent to that page from every other
-but signing out."""
+but signing out.
+
+A websocket is closed (1008) before any route: none is open by default."""
 
 import hmac
 import logging
@@ -31,7 +33,9 @@ from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import Headers
 from starlette.requests import HTTPConnection
 from starlette.responses import RedirectResponse, Response
+from starlette.status import WS_1008_POLICY_VIOLATION
 from starlette.types import Message, Receive, Scope, Send
+from starlette.websockets import WebSocketClose
 
 from fcon_server.store.clock import Clock
 from fcon_server.store.context import Context, bind
@@ -127,7 +131,10 @@ class Gate:
         return f"{self.sign_in_path}?{urlencode({'next': asked})}"
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http":
+        if scope["type"] == "websocket":  # none is open by default: a route needing one opens it here
+            await WebSocketClose(WS_1008_POLICY_VIOLATION)(scope, receive, send)
+            return
+        if scope["type"] != "http":  # lifespan
             await self.app(scope, receive, send)
             return
         context = Context(tenant_id=request_tenant(), actor=ANONYMOUS, request_id=self.new_id().hex)

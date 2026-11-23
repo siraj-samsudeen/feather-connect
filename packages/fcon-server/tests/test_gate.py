@@ -7,11 +7,16 @@ import logging
 import pytest
 from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
-from starlette.types import Message, Scope
+from starlette.responses import Response
+from starlette.types import Message, Receive, Scope, Send
 
 from fcon_server.app import create_app
-from fcon_server.gate import form_token, read_body
+from fcon_server.gate import Gate, form_token, read_body
 from fcon_server.signing import SecretKeys
+from fcon_server.store.clock import SystemClock
+from fcon_server.store.ids import new_id
+from fcon_server.store.pool import OneConnectionEach
+from fcon_server.store.transaction import Store
 
 KEYS = SecretKeys("a-test-secret-key-of-32-characters-or-more")
 NO_DATABASE = "postgresql://nobody:secret@127.0.0.1:9/nowhere"
@@ -84,3 +89,33 @@ def test_a_refusal_the_database_cannot_record_still_gets_the_expired_page(caplog
     assert [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING] == [
         "a refused form could not be audited: the database did not answer"
     ]
+
+
+def test_a_websocket_is_closed_before_any_route():
+    """No websocket route is open by default: the gate closes every one."""
+    reached: list[Scope] = []
+
+    async def route(scope: Scope, receive: Receive, send: Send) -> None:
+        reached.append(scope)
+
+    gate = Gate(
+        route,  # pyright: ignore[reportArgumentType] - any ASGI app does
+        store=Store(OneConnectionEach(NO_DATABASE, "test"), SystemClock(), new_id),
+        clock=SystemClock(),
+        new_id=new_id,
+        open_paths=frozenset({"/live"}),
+        open_prefixes=(),
+        sign_in_path="/sign-in",
+        error_page=Response,
+        form_expired_page=Response,
+        choose_password_path="/choose-password",
+        while_choosing=frozenset(),
+    )
+    sent: list[Message] = []
+
+    async def send(message: Message) -> None:
+        sent.append(message)
+
+    asyncio.run(gate({"type": "websocket", "path": "/live", "headers": []}, arriving(), send))
+
+    assert (reached, sent) == ([], [{"type": "websocket.close", "code": 1008, "reason": ""}])
