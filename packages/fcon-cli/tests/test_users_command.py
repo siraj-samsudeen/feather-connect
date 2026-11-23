@@ -295,3 +295,131 @@ def test_two_passwords_that_differ_are_a_problem():
 
     with pytest.raises(ProblemError, match="the two passwords typed differ"):
         read_password(Terminal(), ask)
+
+
+# -- list, disable, enable, set-role ---------------------------------------
+
+
+def users_run(capsys: pytest.CaptureFixture[str], *argv: str) -> tuple[int, str, str]:
+    code = main(["users", *argv])
+    captured = capsys.readouterr()
+    return code, captured.out, captured.err
+
+
+@pytest.fixture
+def ann_and_ben(database: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> str:
+    users_add(monkeypatch, capsys, "ann")
+    users_add(
+        monkeypatch, capsys, "ben@example.com", "--role", "operator", "--display-name", "Ben", typed="given-once-0001\n"
+    )
+    return database
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("ann_and_ben")
+def test_the_list_shows_each_user_with_role_and_state(capsys: pytest.CaptureFixture[str]):
+    assert users_run(capsys, "list") == (
+        0,
+        (
+            "NAME             ROLE           STATE   DISPLAY NAME\n"
+            "ann              administrator  active\n"
+            "ben@example.com  operator       active  Ben\n"
+        ),
+        "",
+    )
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("database")
+def test_the_list_of_no_users_says_so(capsys: pytest.CaptureFixture[str]):
+    assert users_run(capsys, "list") == (0, "no users yet.\n", "")
+
+
+@pytest.mark.database
+def test_disabling_a_user_says_so(ann_and_ben: str, capsys: pytest.CaptureFixture[str]):
+    assert users_run(capsys, "disable", "ben@example.com") == (
+        0,
+        "disabled the user ben@example.com; every session of theirs has ended.\n",
+        "",
+    )
+    assert users(ann_and_ben)[1]["state"] == "disabled"
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("ann_and_ben")
+def test_disabling_a_disabled_user_says_so(capsys: pytest.CaptureFixture[str]):
+    users_run(capsys, "disable", "ben@example.com")
+
+    assert users_run(capsys, "disable", "ben@example.com") == (0, "ben@example.com is disabled already.\n", "")
+
+
+@pytest.mark.database
+def test_enabling_a_user_says_so(ann_and_ben: str, capsys: pytest.CaptureFixture[str]):
+    users_run(capsys, "disable", "ben@example.com")
+
+    assert users_run(capsys, "enable", "ben@example.com") == (0, "enabled the user ben@example.com.\n", "")
+    assert users(ann_and_ben)[1]["state"] == "active"
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("ann_and_ben")
+def test_enabling_an_active_user_says_so(capsys: pytest.CaptureFixture[str]):
+    assert users_run(capsys, "enable", "ben@example.com") == (0, "ben@example.com is active already.\n", "")
+
+
+@pytest.mark.database
+def test_a_new_role_says_so(ann_and_ben: str, capsys: pytest.CaptureFixture[str]):
+    assert users_run(capsys, "set-role", "ben@example.com", "viewer") == (
+        0,
+        "ben@example.com is now a viewer.\n",
+        "",
+    )
+    assert users(ann_and_ben)[1]["role"] == "viewer"
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("ann_and_ben")
+def test_the_same_role_says_so(capsys: pytest.CaptureFixture[str]):
+    assert users_run(capsys, "set-role", "ben@example.com", "operator") == (
+        0,
+        "ben@example.com is an operator already.\n",
+        "",
+    )
+
+
+def test_a_role_that_does_not_exist_is_a_usage_problem(capsys: pytest.CaptureFixture[str]):
+    code, _, err = users_run(capsys, "set-role", "ben@example.com", "boss")
+
+    assert (code, err.splitlines()[0]) == (
+        2,
+        "error: argument role: invalid choice: 'boss' (choose from 'viewer', 'operator', 'developer', 'administrator').",
+    )
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("ann_and_ben")
+@pytest.mark.parametrize("argv", [("disable", "ann"), ("set-role", "ann", "operator")], ids=["disable", "demote"])
+def test_the_only_administrator_is_a_problem(capsys: pytest.CaptureFixture[str], argv: tuple[str, ...]):
+    assert users_run(capsys, *argv) == (
+        2,
+        "",
+        (
+            "error: ann is the only administrator; make another one first.\n"
+            "  Make another user an administrator: fcon users set-role <name> administrator\n"
+        ),
+    )
+
+
+@pytest.mark.database
+@pytest.mark.usefixtures("ann_and_ben")
+@pytest.mark.parametrize(
+    "argv",
+    [("disable", "nobody"), ("enable", "nobody"), ("set-role", "nobody", "viewer")],
+    ids=["disable", "enable", "set-role"],
+)
+def test_a_name_nobody_has_is_a_problem(capsys: pytest.CaptureFixture[str], argv: tuple[str, ...]):
+    assert users_run(capsys, *argv) == (
+        2,
+        "",
+        "error: no user is named nobody.\n  See who there is: fcon users list\n",
+    )

@@ -10,12 +10,12 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 from fcon_cli import problems
+from fcon_cli import users as user_commands
 from fcon_cli.db import show_status, upgrade_database
 from fcon_cli.logs import configure_logging
 from fcon_cli.problems import ProblemError
 from fcon_cli.server import run_server
 from fcon_cli.settings import Settings, load_database_settings, load_settings
-from fcon_cli.users import add as add_user
 from fcon_server.store.clock import Clock, SystemClock
 from fcon_server.users.rights import Role
 
@@ -67,13 +67,31 @@ def _parser() -> argparse.ArgumentParser:
     role.add_argument("--admin", action="store_true", help="an administrator (the first user always is)")
     role.add_argument("--role", choices=[r.value for r in Role], help="the user's role (default viewer)")
     add.add_argument("--display-name", help="the name shown beside the user name")
+    users_commands.add_parser("list", help="list the users, with their role and state")
+    disable = users_commands.add_parser("disable", help="disable a user: every session of theirs ends at once")
+    disable.add_argument("name", help="the user's name")
+    enable = users_commands.add_parser("enable", help="let a disabled user sign in again")
+    enable.add_argument("name", help="the user's name")
+    set_role = users_commands.add_parser("set-role", help="give a user another role, from their next page")
+    set_role.add_argument("name", help="the user's name")
+    set_role.add_argument("role", choices=[r.value for r in Role], help="the new role")
     return parser
 
 
 def _users_command(args: argparse.Namespace) -> None:
     settings = load_database_settings(os.environ, Path.cwd())
-    role = Role.ADMINISTRATOR if args.admin else Role(args.role or Role.VIEWER)
-    add_user(settings, args.name, role, args.display_name, sys.stdin, sys.stdout)
+    match args.users_command:
+        case "add":
+            role = Role.ADMINISTRATOR if args.admin else Role(args.role or Role.VIEWER)
+            user_commands.add(settings, args.name, role, args.display_name, sys.stdin, sys.stdout)
+        case "list":
+            user_commands.show_list(settings, sys.stdout)
+        case "disable":
+            user_commands.disable(settings, args.name, sys.stdout)
+        case "enable":
+            user_commands.enable(settings, args.name, sys.stdout)
+        case _:
+            user_commands.change_role(settings, args.name, Role(args.role), sys.stdout)
 
 
 def _database_command(command: str, clock: Clock) -> None:

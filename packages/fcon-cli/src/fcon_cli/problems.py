@@ -337,3 +337,13 @@ def no_password() -> Problem:
 
 def passwords_differ() -> Problem:
     return Problem(Level.ERROR, "the two passwords typed differ.", ("Type the same password twice.",))
+
+
+def no_such_user(name: str) -> Problem:
+    return Problem(Level.ERROR, f"no user is named {name}.", ("See who there is: fcon users list",))
+
+
+def only_administrator(reason: str) -> Problem:
+    return Problem(
+        Level.ERROR, reason, ("Make another user an administrator: fcon users set-role <name> administrator",)
+    )

@@ -1,10 +1,12 @@
-"""`fcon users add` (design § How it is built): the users service, called
-as `system:cli` in the request's tenant (`default` until M2). The password
-is asked twice on a terminal, else read as one line of stdin; it is never
-printed. Every refusal is a problem through the error helper."""
+"""`fcon users add`, `list`, `disable`, `enable` and `set-role` (design §
+How it is built): the users service, called as `system:cli` in the
+request's tenant (`default` until M2). The password is asked twice on a
+terminal, else read as one line of stdin; it is never printed. Every
+refusal is a problem through the error helper."""
 
 import getpass
-from collections.abc import Callable
+from collections.abc import Callable, Generator
+from contextlib import contextmanager
 from typing import TextIO
 
 from fcon_cli import problems
@@ -17,7 +19,16 @@ from fcon_server.store.ids import new_id
 from fcon_server.store.pool import OneConnectionEach
 from fcon_server.store.transaction import Store
 from fcon_server.users.accounts import NameNotAllowedError, NameTakenError, NewUser, WeakPasswordError, add_user
+from fcon_server.users.managing import (
+    LastAdministratorError,
+    NoSuchUserError,
+    disable_user,
+    enable_user,
+    list_users,
+    set_role,
+)
 from fcon_server.users.rights import Caller, Role
+from fcon_server.users.rules import normal_name
 from fcon_server.users.tenant import request_tenant
 
 ACTOR = "system:cli"
@@ -72,3 +83,55 @@ def add(
     print(f"added the user {added.name}, {_with_article(added.role)}.", file=out)
     if added.must_choose_password:
         print("Their password works for one sign-in; then they choose their own.", file=out)
+
+
+HEADINGS = ("NAME", "ROLE", "STATE", "DISPLAY NAME")
+
+
+def show_list(settings: DatabaseSettings, out: TextIO) -> None:
+    listed = list_users(_store(settings), _caller())
+    if not listed:
+        print("no users yet.", file=out)
+        return
+    lines = [HEADINGS, *((user.name, user.role.value, user.state, user.display_name or "") for user in listed)]
+    widths = [max(len(line[column]) for line in lines) for column in range(len(HEADINGS) - 1)]
+    for line in lines:
+        cells = [cell.ljust(width) for cell, width in zip(line[:-1], widths, strict=True)]
+        print("  ".join([*cells, line[-1]]).rstrip(), file=out)
+
+
+@contextmanager
+def _refusals() -> Generator[None]:
+    try:
+        yield
+    except NoSuchUserError as err:
+        raise ProblemError(problems.no_such_user(err.name)) from None
+    except LastAdministratorError as err:
+        raise ProblemError(problems.only_administrator(str(err))) from None
+
+
+def disable(settings: DatabaseSettings, name: str, out: TextIO) -> None:
+    store = _store(settings)
+    with _refusals():
+        changed = disable_user(store, SystemClock(), _caller(), name)
+    name = normal_name(name)
+    print(
+        f"disabled the user {name}; every session of theirs has ended." if changed else f"{name} is disabled already.",
+        file=out,
+    )
+
+
+def enable(settings: DatabaseSettings, name: str, out: TextIO) -> None:
+    store = _store(settings)
+    with _refusals():
+        changed = enable_user(store, _caller(), name)
+    name = normal_name(name)
+    print(f"enabled the user {name}." if changed else f"{name} is active already.", file=out)
+
+
+def change_role(settings: DatabaseSettings, name: str, role: Role, out: TextIO) -> None:
+    store = _store(settings)
+    with _refusals():
+        changed = set_role(store, _caller(), name, role)
+    name = normal_name(name)
+    print(f"{name} is now {_with_article(role)}." if changed else f"{name} is {_with_article(role)} already.", file=out)

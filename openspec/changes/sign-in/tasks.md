@@ -48,8 +48,8 @@
 - [ ] 2.27 users-and-access: Then the user is no longer signed in on the other — red → green → commit
 - [ ] 2.28 users-and-access: And the user has signed in as "ben@example.com" with the password "given-once-0001" on two computers / When the user chooses the password "ben-own-password-1" on one of them — red → green → commit
 - [ ] 2.29 users-and-access: Given "ben@example.com" is an operator with the password "ben-own-password-1" / And the user is signed in as "ben@example.com" — red → green → commit
-- [ ] 2.30 users-and-access: When the operator disables "ben@example.com" from the command line — red → green → commit
-- [ ] 2.31 users-and-access: Then the user is no longer signed in / And signing in as … is refused — red → green → commit
+- [x] 2.30 users-and-access: When the operator disables "ben@example.com" from the command line — red → green → commit
+- [x] 2.31 users-and-access: Then the user is no longer signed in / And signing in as … is refused — red → green → commit
 - [ ] 2.32 users-and-access: When the user comes back after 13 hours without using the dashboard / Then the user is asked to sign in again — red → green → commit
 
 ### Users and access: guessing is slowed
