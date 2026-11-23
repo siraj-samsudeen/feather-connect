@@ -135,6 +135,10 @@ server opens no port on the machine, so only the setup's containers and the mach
 it, and Caddy replaces any `X-Forwarded-For` a visitor sends with the one address it saw. If you
 give Docker other address pools, set `FCON_TRUSTED_PROXIES` in `deploy/.env` to cover them.
 
+Where Docker hides the visitor's address from Caddy (Docker Desktop, or IPv6 without
+`ip6tables`), every visitor arrives from one address, so the slowing by address slows everyone
+at once. A Linux machine taking visitors over IPv4 is fine.
+
 ### Logs
 
 ```sh
