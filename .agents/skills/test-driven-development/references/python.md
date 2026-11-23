@@ -77,7 +77,7 @@ In a project with no JavaScript toolchain, these rules stand in for them:
 Stop when a script needs logic a browser test cannot pin down cheaply: branches, state kept
 across interactions, data reshaped in the browser. That is a design decision for the human, not
 a bigger script: it is when a JavaScript toolchain, and its own test loop, comes in
-(`CLAUDE.md` § Project).
+(`AGENTS.md` § Project).
 
 ## Collaborators
 

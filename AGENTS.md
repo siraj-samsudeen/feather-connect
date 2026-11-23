@@ -127,6 +127,12 @@ weekly as a report, the Windows and macOS tests do not block, Dependabot propose
 16. Flow and package code never reaches the store or gets the product's database address; only
     the server and the worker do.
 
+**Who decides** (owner, 23-Nov-2026; the full table is in [`docs/process.md`](docs/process.md)).
+The owner decides scope, the agreed design, the proposal and specs, every ADR, and the merge. The
+developer running a build approves its design and tasks. A product question the agreed design does
+not answer goes to the owner as a comment on the issue, never decided in code, and its answer is
+added to the issue's design.
+
 **Worktrees.** The ports come from the issue number `n`: development `18000 + n`, acceptance
 `19000 + n` (issue 4: 18004 and 19004); the main checkout keeps 8080 and 8030. Each worktree has
 its own database `feather_issue_<n>` in the shared container. `uv run scripts/worktree_env.py <n>`

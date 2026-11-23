@@ -32,10 +32,10 @@ When `spec-as-source` is active, adding `stack:` is a specs-zone edit under `ope
 
 | Stack | Pack | Runner |
 | --- | --- | --- |
-| `javascript` | [references/javascript/SETUP.md](references/javascript/SETUP.md) | cucumber-js |
-| `python` | [references/python/SETUP.md](references/python/SETUP.md) | behave 1.2.7+ |
+| `javascript` | [references/javascript/SETUP.md](references/javascript/SETUP.md) | cucumber-js, with Playwright |
+| `python` | [references/python/SETUP.md](references/python/SETUP.md) | behave 1.2.7+, with Playwright |
 
-Each pack has a **Files to copy** table naming every destination filename and why it is load-bearing. Copy those files verbatim; they are the canonical runner.
+Each pack has a **Files to copy** table naming every destination filename and why it is load-bearing. Copy those files verbatim; they are the canonical runner. Each pack also has starting points for `acceptance-tests/support/` (booting the app, signing people in, the browser per person, review videos), which a project fills in where it says `PROJECT:`.
 
 Two files sit at the `references/` root because they are shared by both stacks:
 

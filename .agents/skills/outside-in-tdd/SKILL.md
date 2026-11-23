@@ -210,7 +210,7 @@ one of three fates — **ratify** (a `specs:` commit adds the scenario, then a t
 | Mutation testing — every surviving mutant is a missing test or code nobody needs | Stryker | `mutmut run` |
 
 The project's stack is `stack:` in `openspec/config.yaml`; the tools it really uses, when they
-differ from this table, are a project fact (`CLAUDE.md` § Project).
+differ from this table, are a project fact (`AGENTS.md` § Project).
 
 Then `openspec verify`, record the review videos for the owner, and archive on the change's
 branch once the owner has watched them; the owner merges (the `change-modes` skill).
