@@ -27,7 +27,7 @@ context: |
   operators and AI agents run, monitor and repair them from one dashboard. Tech
   stack: Python, managed with uv; pages rendered on the server as HTML, with a
   React client possibly added later; acceptance tests in behave driving a real
-  browser with Playwright. Project facts are in CLAUDE.md § Project.
+  browser with Playwright. Project facts are in AGENTS.md § Project.
 
 # Per-artifact rules. They apply to every change. A line that applies to one mode only says so
 # first ("Autopilot only - ...") and applies while the session is in that mode.
