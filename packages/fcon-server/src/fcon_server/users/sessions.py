@@ -10,8 +10,14 @@ most once a minute. The role is read fresh with every request.
 
 Signing out ends every session of the user, on every computer.
 
-Not yet here, each with the step that needs it: the slowing of repeated
-failures, the clean-up of old attempts."""
+Repeated failures are slowed (point 7): after 3 failures in 15 minutes for
+one name from any address, or from one address for any name, each further
+attempt waits 1 s, 2 s, 4 s and so on after the last failure, a minute at
+most. An attempt during the wait is refused without checking the password
+and recorded as `waited`; it is no failure itself, so someone hammering the
+form cannot keep the real user out for longer than a minute. A success
+clears that name's failures. No account is ever locked. Each sign-in
+removes attempts older than a day, at most 100 (decision 3)."""
 
 import contextlib
 import hashlib
@@ -37,6 +43,12 @@ NAME_KEPT = 100  # characters of the name tried kept with an attempt: no user's 
 BY_PASSWORD = "password"  # noqa: S105 - how the session was made, not a secret
 SUCCEEDED = "succeeded"
 REFUSED = "refused"
+WAITED = "waited"
+COUNTED_FOR = timedelta(minutes=15)
+FREE_FAILURES = 2  # the third failure starts the wait
+LONGEST_WAIT = timedelta(minutes=1)
+KEPT_FOR = timedelta(days=1)
+REMOVED_AT_ONCE = 100
 
 
 @dataclass(frozen=True)
@@ -98,23 +110,74 @@ _USER_BY_NAME = """
 """
 
 
+@dataclass(frozen=True)
+class _Failure:
+    for_name: bool
+    for_address: bool
+    created_at: datetime
+
+
+# Failures in the last 15 minutes for the name or from the address, but for
+# none of those a success of the same name came after.
+_FAILURES = """
+    SELECT a.name = %(name)s AS for_name, a.address = %(address)s AS for_address, a.created_at
+    FROM fcon.sign_in_attempt a
+    WHERE a.tenant_id = %(tenant_id)s AND (a.name = %(name)s OR a.address = %(address)s)
+        AND a.outcome = 'refused' AND a.created_at > %(since)s
+        AND NOT EXISTS (
+            SELECT 1 FROM fcon.sign_in_attempt s
+            WHERE s.tenant_id = %(tenant_id)s AND s.name = a.name AND s.outcome = 'succeeded'
+                AND s.created_at >= a.created_at
+        )
+"""
+
+_REMOVE_OLD = """
+    DELETE FROM fcon.sign_in_attempt
+    WHERE tenant_id = %(tenant_id)s AND id IN (
+        SELECT id FROM fcon.sign_in_attempt
+        WHERE tenant_id = %(tenant_id)s AND created_at < %(before)s
+        LIMIT %(at_most)s
+    )
+"""
+
+
+def wait_ends(failures: list[datetime]) -> datetime | None:
+    """When the wait these failures bring ends: 1 s after the last of 3, twice
+    as long for each one more, a minute at most; None below 3."""
+    if len(failures) <= FREE_FAILURES:
+        return None
+    seconds = 2 ** min(len(failures) - FREE_FAILURES - 1, 6)  # 2 ** 6 passes the minute already
+    return max(failures) + min(timedelta(seconds=seconds), LONGEST_WAIT)
+
+
+def _waiting(failures: list[_Failure], now: datetime) -> bool:
+    by_name = wait_ends([failure.created_at for failure in failures if failure.for_name])
+    by_address = wait_ends([failure.created_at for failure in failures if failure.for_address])
+    return any(ends is not None and now < ends for ends in (by_name, by_address))
+
+
 def sign_in(store: Store, clock: Clock, context: Context, attempt: Attempt) -> str | None:
     """The new session's id for the cookie, or None when refused."""
     name = normal_name(attempt.name)[:NAME_KEPT]
+    tried = {"name": name, "address": attempt.address}
+    now = clock.now()
     with store.transaction(context) as tx:
+        tx.execute(_REMOVE_OLD, {"before": now - KEPT_FOR, "at_most": REMOVED_AT_ONCE})
+        failures = tx.fetch_all(_Failure, _FAILURES, {**tried, "since": now - COUNTED_FOR})
+        if _waiting(failures, now):
+            tx.insert(SIGN_IN_ATTEMPT, {**tried, "outcome": WAITED})
+            return None
         user = tx.fetch_one(_User, _USER_BY_NAME, {"name": name})
     # A password longer than any allowed can match none; cut there so a huge
     # one costs no more to check than a long one.
     password = attempt.password[: LONGEST + 1]
     matches = password_matches(user.password_hash if user else None, password)
-    tried = {"name": name, "address": attempt.address}
     if user is None or not matches or user.state != ACTIVE:
         with store.transaction(context) as tx:
             tx.insert(SIGN_IN_ATTEMPT, {**tried, "outcome": REFUSED})
         return None
     new_hash = hash_password(password) if needs_rehash(user.password_hash) else None
     session_id = secrets.token_urlsafe(32)
-    now = clock.now()
     with store.transaction(_as_user(context, user.id)) as tx:
         tx.insert(SIGN_IN_ATTEMPT, {**tried, "outcome": SUCCEEDED})
         tx.insert(

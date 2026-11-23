@@ -54,11 +54,11 @@
 
 ### Users and access: guessing is slowed
 
-- [ ] 2.33 users-and-access: And someone has failed to sign in as "ann" 3 times in a row — red → green → commit
-- [ ] 2.34 users-and-access: When the user signs in as "ann" with the password "blue-harbour-lamp" at once — red → green → commit
-- [ ] 2.35 users-and-access: Then the sign-in is refused, in the same words as a wrong password — red → green → commit
-- [ ] 2.36 users-and-access: And signing in as "ann" with the password "blue-harbour-lamp" works once the wait has passed — red → green → commit
-- [ ] 2.37 users-and-access: And someone at the user's address has failed to sign in as 3 different names — red → green → commit
+- [x] 2.33 users-and-access: And someone has failed to sign in as "ann" 3 times in a row — red → green → commit
+- [x] 2.34 users-and-access: When the user signs in as "ann" with the password "blue-harbour-lamp" at once — red → green → commit
+- [x] 2.35 users-and-access: Then the sign-in is refused, in the same words as a wrong password — red → green → commit
+- [x] 2.36 users-and-access: And signing in as "ann" with the password "blue-harbour-lamp" works once the wait has passed — red → green → commit
+- [x] 2.37 users-and-access: And someone at the user's address has failed to sign in as 3 different names — red → green → commit
 
 ### Users and access: forged forms are refused
 
@@ -97,7 +97,7 @@
 ## 3. What no scenario drives — each still arrives with the test or check that needs it
 
 - [ ] 3.1 The 7-day limit on a session, a secret key too short, two password entries that differ, a user name that breaks the rules, a password over 128 characters: inner tests
-- [ ] 3.2 Equal time for every refusal: a made-up name still runs one argon2id check against a dummy hash (inner test on the call)
+- [x] 3.2 Equal time for every refusal: a made-up name still runs one argon2id check against a dummy hash (inner test on the call)
 - [ ] 3.3 A hash redone at sign-in when the strength rises; `fcon users list`; the rights table and `require(ctx, action)` with a refusal audited: inner tests
 - [ ] 3.4 Every table checked against `tables.py`, secret columns never in the audit (hashes, tokens, session ids), every index starting with `tenant_id`: inner tests beside the store's
 - [ ] 3.5 `.env.example`, `deploy/.env.example`, `deploy/compose.yaml` (the secret key, the trusted proxy), `docs/deploy.md` (the five settings, making the first administrator both ways), `scripts/smoke-image.sh` and CI's image job pass a secret key
