@@ -92,4 +92,4 @@ Who decides what, and a developer's change step by step:
 
 ## Licence
 
-MIT.
+MIT: see [`LICENSE`](LICENSE).
