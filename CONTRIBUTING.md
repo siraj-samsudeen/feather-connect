@@ -2,7 +2,8 @@
 
 How a developer sets up a machine and takes up work, alone or beside others. The process itself
 lives in [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md) and the skills under
-[`.agents/skills/`](.agents/skills/); this page is the way in.
+[`.agents/skills/`](.agents/skills/); this page is the way in. How a change moves from issue to
+merge, and who does what, mapped to the roles of a usual team: [`docs/process.md`](docs/process.md).
 
 ## Set up your machine, once
 
@@ -63,7 +64,9 @@ and how to watch it in a browser: [`acceptance-tests/README.md`](acceptance-test
    It creates the worktree's database and upgrades it; run it again, or `uv run fcon db upgrade`,
    after bringing in a migration.
 
-4. **Start your agent in the worktree** and tell it: "work on issue <n> in build mode". The other
+4. **Start your agent in the worktree** and tell it: "work on issue <n> in build mode" (or
+   learning mode while you are new to the code). Product questions go to the owner on the issue;
+   who decides what is in [`docs/process.md`](docs/process.md) § Working as a developer with AI. The other
    modes are autopilot and learning (the `change-modes` skill), and you can switch at any time. The
    change then goes: planning artifacts, one commit each after you approve it; the PR; the build;
    the checks; the review videos; the archive.
@@ -112,6 +115,7 @@ are generic, never a real organisation, customer, vendor system or site. Never c
 | What the product must do, by milestone | [`docs/requirements.md`](docs/requirements.md) |
 | What it does today | [`openspec/specs/`](openspec/specs/) |
 | Why it is built this way | [`adr/`](adr/) |
+| How a change moves, step by step and role by role | [`docs/process.md`](docs/process.md) |
 | How the team works | [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md), [`.agents/skills/`](.agents/skills/) |
 | The acceptance suite | [`acceptance-tests/README.md`](acceptance-tests/README.md) |
 
