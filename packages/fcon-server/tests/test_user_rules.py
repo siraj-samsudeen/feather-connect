@@ -3,8 +3,10 @@
 import pytest
 
 from fcon_server.users.rules import (
+    SHORTEST,
     PasswordProblem,
     UserNameProblem,
+    common_passwords,
     normal_name,
     password_problem,
     user_name_problem,
@@ -44,6 +46,12 @@ def test_a_password_over_128_characters_is_too_long():
 
 def test_a_password_on_the_common_list_is_too_common():
     assert password_problem("password123456", "ann") is PasswordProblem.TOO_COMMON
+
+
+def test_the_common_list_is_a_starter_list_of_long_passwords():
+    listed = common_passwords()
+
+    assert (10 <= len(listed) <= 20, min(map(len, listed))) == (True, SHORTEST)
 
 
 def test_the_common_list_is_compared_lowercased():

@@ -96,13 +96,13 @@
 
 ## 3. What no scenario drives — each still arrives with the test or check that needs it
 
-- [ ] 3.1 The 7-day limit on a session, a secret key too short, two password entries that differ, a user name that breaks the rules, a password over 128 characters: inner tests
+- [x] 3.1 The 7-day limit on a session, a secret key too short, two password entries that differ, a user name that breaks the rules, a password over 128 characters: inner tests
 - [x] 3.2 Equal time for every refusal: a made-up name still runs one argon2id check against a dummy hash (inner test on the call)
 - [x] 3.3 A hash redone at sign-in when the strength rises; `fcon users list`; the rights table and `require(ctx, action)` with a refusal audited: inner tests
-- [ ] 3.4 Every table checked against `tables.py`, secret columns never in the audit (hashes, tokens, session ids), every index starting with `tenant_id`: inner tests beside the store's
+- [x] 3.4 Every table checked against `tables.py`, secret columns never in the audit (hashes, tokens, session ids), every index starting with `tenant_id`: inner tests beside the store's
 - [ ] 3.5 `.env.example`, `deploy/.env.example`, `deploy/compose.yaml` (the secret key, the trusted proxy), `docs/deploy.md` (the five settings, making the first administrator both ways), `scripts/smoke-image.sh` and CI's image job pass a secret key
 - [ ] 3.6 `AGENTS.md` § Project and `CONTRIBUTING.md`: the secret key in a worktree's `.env`, making a first user for development
-- [ ] 3.7 The common-password list in the package, with where it came from and its licence
+- [x] 3.7 The common-password list in the package, with where it came from and its licence
 
 ## 4. Completion
 
