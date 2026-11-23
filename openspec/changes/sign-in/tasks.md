@@ -24,8 +24,8 @@
 ### Users and access: sign in, and back to the page asked for
 
 - [x] 2.11 users-and-access: And the user is still signed in when they open the dashboard again — red → green → commit
-- [ ] 2.12 users-and-access: When the user opens the address of run 42 / And signs in as … — red → green → commit
-- [ ] 2.13 users-and-access: Then the user is at the address of run 42 — red → green → commit
+- [x] 2.12 users-and-access: When the user opens the address of run 42 / And signs in as … — red → green → commit
+- [x] 2.13 users-and-access: Then the user is at the address of run 42 — red → green → commit
 - [x] 2.14 users-and-access: When the user follows a sign-in link that would send them on to another site — red → green → commit
 
 ### Users and access: a given password works once; passwords hard to guess
@@ -43,14 +43,14 @@
 
 ### Users and access: sessions end, and run out
 
-- [ ] 2.25 users-and-access: And the user is signed in as "ann" on two computers — red → green → commit
-- [ ] 2.26 users-and-access: When the user signs out on one of them — red → green → commit
-- [ ] 2.27 users-and-access: Then the user is no longer signed in on the other — red → green → commit
-- [ ] 2.28 users-and-access: And the user has signed in as "ben@example.com" with the password "given-once-0001" on two computers / When the user chooses the password "ben-own-password-1" on one of them — red → green → commit
-- [ ] 2.29 users-and-access: Given "ben@example.com" is an operator with the password "ben-own-password-1" / And the user is signed in as "ben@example.com" — red → green → commit
+- [x] 2.25 users-and-access: And the user is signed in as "ann" on two computers — red → green → commit
+- [x] 2.26 users-and-access: When the user signs out on one of them — red → green → commit
+- [x] 2.27 users-and-access: Then the user is no longer signed in on the other — red → green → commit
+- [x] 2.28 users-and-access: And the user has signed in as "ben@example.com" with the password "given-once-0001" on two computers / When the user chooses the password "ben-own-password-1" on one of them — red → green → commit
+- [x] 2.29 users-and-access: Given "ben@example.com" is an operator with the password "ben-own-password-1" / And the user is signed in as "ben@example.com" — red → green → commit
 - [x] 2.30 users-and-access: When the operator disables "ben@example.com" from the command line — red → green → commit
 - [x] 2.31 users-and-access: Then the user is no longer signed in / And signing in as … is refused — red → green → commit
-- [ ] 2.32 users-and-access: When the user comes back after 13 hours without using the dashboard / Then the user is asked to sign in again — red → green → commit
+- [x] 2.32 users-and-access: When the user comes back after 13 hours without using the dashboard / Then the user is asked to sign in again — red → green → commit
 
 ### Users and access: guessing is slowed
 
@@ -62,10 +62,10 @@
 
 ### Users and access: forged forms are refused
 
-- [ ] 2.38 users-and-access: Given the user is signed in as "ann", with the overview open / And the user has since signed out and back in from another tab — red → green → commit
-- [ ] 2.39 users-and-access: When the user signs out from the overview opened before — red → green → commit
-- [ ] 2.40 users-and-access: Then the user is told the form has expired, and to reload the page / And the user can go on to the overview from there / And the user is still signed in — red → green → commit
-- [ ] 2.41 users-and-access: When a page on another site sends the dashboard a sign-out form / Then the form is refused as expired — red → green → commit
+- [x] 2.38 users-and-access: Given the user is signed in as "ann", with the overview open / And the user has since signed out and back in from another tab — red → green → commit
+- [x] 2.39 users-and-access: When the user signs out from the overview opened before — red → green → commit
+- [x] 2.40 users-and-access: Then the user is told the form has expired, and to reload the page / And the user can go on to the overview from there / And the user is still signed in — red → green → commit
+- [x] 2.41 users-and-access: When a page on another site sends the dashboard a sign-out form / Then the form is refused as expired — red → green → commit
 
 ### Users and access: the command line, and always an administrator
 
@@ -84,7 +84,7 @@
 
 - [ ] 2.49 dashboard-basics: Given the product's environment is named "staging" / And the user is signed in as "ann", an administrator — red → green → commit
 - [ ] 2.50 dashboard-basics: Then the page names the environment "staging" — red → green → commit
-- [ ] 2.51 dashboard-basics: And the user opens the overview, the page to choose a password and an expired form (accessibility, light and dark) — red → green → commit
+- [x] 2.51 dashboard-basics: And the user opens the overview, the page to choose a password and an expired form (accessibility, light and dark) — red → green → commit
 
 ### Deployment
 
