@@ -72,6 +72,11 @@ checklist left to the build.
 
 Review route: UI (sign-in, the overview, choose-password, form expired) with an independent verifier at 1280 px, and a code review for security, sessions and the audit.
 
+**Confirmed during the build** (owner, 23-Nov-2026), two readings of point 7: an attempt
+refused during the wait does not count as a failure, so constant guessing can't keep the real user
+out for good; and a good sign-in also clears that name's failures from its address's count (other
+names' failures from that address still count).
+
 **Corrected during the build** (23-Nov-2026): the image's entrypoint is already `fcon`, so point
 1's `docker compose run --rm server fcon users add …` would run `fcon fcon`. The guide gives
 `docker compose exec server fcon users add <name>` for a running setup, and
