@@ -109,5 +109,5 @@
 - [x] 4.1 Run the full suite: every scenario passes, zero pending/undefined steps, HTML report generated
 - [x] 4.2 The end-of-change checks (ruff, pyright, vulture, deptry from each package, pytest at 100%), and CI green on the PR
 - [x] 4.3 The UI route: an independent verifier at 1280 px against issue 16's checklist; then the code review (security, sessions, the audit), at most 3 rounds
-- [ ] 4.4 Review videos of the sign-in journey, watched by the owner
-- [ ] 4.5 Run `openspec validate sign-in --type change` before archive
+- [x] 4.4 Review videos of the sign-in journey, watched by the owner
+- [x] 4.5 Run `openspec validate sign-in --type change` before archive
