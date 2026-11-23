@@ -72,6 +72,11 @@ checklist left to the build.
 
 Review route: UI (sign-in, the overview, choose-password, form expired) with an independent verifier at 1280 px, and a code review for security, sessions and the audit.
 
+**Corrected during the build** (23-Nov-2026): the image's entrypoint is already `fcon`, so point
+1's `docker compose run --rm server fcon users add …` would run `fcon fcon`. The guide gives
+`docker compose exec server fcon users add <name>` for a running setup, and
+`docker compose run --rm server users add <name>` otherwise.
+
 **Settled while writing the specs** (owner, 22-Nov-2026): a password set from the command line
 works for one sign-in, like one an administrator sets, except the first user's: whoever installs
 the product types it for themselves, so it is their own.
@@ -156,8 +161,9 @@ flowchart LR
   The standard library's `hmac` does this; no new dependency.
 - **Passwords**: `argon2-cffi`'s `PasswordHasher` with OWASP's recommended settings (19 MiB, 2 passes,
   1 lane), set explicitly rather than from one of RFC 9106's profiles; `check_needs_rehash` after a good sign-in. The list of
-  common passwords is a text file in the package: the 10,000 most common from a public list under
-  an open licence, keeping those of 12 characters or more (the shorter ones are refused anyway).
+  common passwords is a text file in the package: for now a starter list of 18 well-known
+  passwords of 12 characters or more, written by hand (owner, 23-Nov-2026); a fuller public list
+  replaces it later.
   A name is compared lowercased, and so is the password against it.
 - **The secret key**: `FCON_SECRET_KEY` must be at least 32 characters; `.env.example` gives the
   command that makes one (`python -c "import secrets; print(secrets.token_urlsafe(32))"`).
