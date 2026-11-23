@@ -69,28 +69,28 @@
 
 ### Users and access: the command line, and always an administrator
 
-- [ ] 2.42 users-and-access: When the operator makes "ben@example.com" a viewer from the command line / And the user opens the dashboard again / Then the user is shown as "ben@example.com", a viewer — red → green → commit
-- [ ] 2.43 users-and-access: And the operator has disabled … / When the operator enables "ben@example.com" from the command line — red → green → commit
-- [ ] 2.44 users-and-access: Given "ann" is the only administrator / When the operator makes "ann" an operator from the command line — red → green → commit
-- [ ] 2.45 users-and-access: Then the change is refused, because "ann" is the only administrator / And "ann" is still an administrator — red → green → commit
-- [ ] 2.46 users-and-access: When the operator disables "ann" from the command line (refused) — red → green → commit
+- [x] 2.42 users-and-access: When the operator makes "ben@example.com" a viewer from the command line / And the user opens the dashboard again / Then the user is shown as "ben@example.com", a viewer — red → green → commit
+- [x] 2.43 users-and-access: And the operator has disabled … / When the operator enables "ben@example.com" from the command line — red → green → commit
+- [x] 2.44 users-and-access: Given "ann" is the only administrator / When the operator makes "ann" an operator from the command line — red → green → commit
+- [x] 2.45 users-and-access: Then the change is refused, because "ann" is the only administrator / And "ann" is still an administrator — red → green → commit
+- [x] 2.46 users-and-access: When the operator disables "ann" from the command line (refused) — red → green → commit
 
 ### Users and access: every sign-in is recorded
 
-- [ ] 2.47 users-and-access: Then the audit log records a refused and a successful sign-in for "ann", from the user's address — red → green → commit
-- [ ] 2.48 users-and-access: And no password appears anywhere in the audit log — red → green → commit
+- [x] 2.47 users-and-access: Then the audit log records a refused and a successful sign-in for "ann", from the user's address — red → green → commit
+- [x] 2.48 users-and-access: And no password appears anywhere in the audit log — red → green → commit
 
 ### Dashboard basics
 
-- [ ] 2.49 dashboard-basics: Given the product's environment is named "staging" / And the user is signed in as "ann", an administrator — red → green → commit
-- [ ] 2.50 dashboard-basics: Then the page names the environment "staging" — red → green → commit
+- [x] 2.49 dashboard-basics: Given the product's environment is named "staging" / And the user is signed in as "ann", an administrator — red → green → commit
+- [x] 2.50 dashboard-basics: Then the page names the environment "staging" — red → green → commit
 - [x] 2.51 dashboard-basics: And the user opens the overview, the page to choose a password and an expired form (accessibility, light and dark) — red → green → commit
 
 ### Deployment
 
-- [ ] 2.52 deployment: And starts the product's image, giving it only the database's address, and the secret key every install needs — red → green → commit
-- [ ] 2.53 deployment: And starts the product's image, giving it only the database's address / Then the product does not start / And it says the secret key is missing, and how to make one — red → green → commit
-- [ ] 2.54 deployment: And the user has the sign-in page open / When the operator restarts the product with a new secret key, naming the old one as previous — red → green → commit
+- [x] 2.52 deployment: And starts the product's image, giving it only the database's address, and the secret key every install needs — red → green → commit
+- [x] 2.53 deployment: And starts the product's image, giving it only the database's address / Then the product does not start / And it says the secret key is missing, and how to make one — red → green → commit
+- [x] 2.54 deployment: And the user has the sign-in page open / When the operator restarts the product with a new secret key, naming the old one as previous — red → green → commit
 - [x] 2.55 deployment: When the user signs in as "ann" through the site's encrypted address / Then the audit log records the sign-in from the user's own address, not the proxy's — red → green → commit
 - [x] 2.56 deployment: And the product's image runs with no proxy trusted / When a visitor opens two pages through a proxy that names the visitor's address / Then its log warns once, not twice … — red → green → commit
 
