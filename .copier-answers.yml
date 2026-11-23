@@ -1,6 +1,6 @@
 # The project's answers to the template's questions (copier.yml in the template). Skills read
 # these values. Change one with: copier update --trust --defaults --data <question>=<value>
-_commit: v1.1.1
+_commit: v1.2.0
 _src_path: gh:dev-sukkur/intent-driven-with-human-control
 acceptance_stack: python
 adr_dir: adr
