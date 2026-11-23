@@ -204,8 +204,9 @@ def sign_in(store: Store, clock: Clock, context: Context, attempt: Attempt) -> s
                 "expires_at": now + LONGEST_SESSION,
             },
         )
-        if new_hash is not None:
-            tx.update(USER, {"id": user.id}, {"password_hash": new_hash}, user.row_version)
+        if new_hash is not None:  # unless the user changed meanwhile: the next sign-in redoes it
+            with contextlib.suppress(ChangedBySomeoneElseError):
+                tx.update(USER, {"id": user.id}, {"password_hash": new_hash}, user.row_version)
     return session_id
 
 

@@ -203,6 +203,30 @@ def test_a_hash_made_weaker_than_now_is_redone_at_sign_in(
     ) == (True, True)
 
 
+def test_a_user_changed_while_the_hash_is_redone_still_signs_in(
+    fixed_store: Store,
+    clock: FixedClock,
+    anonymous: Context,
+    database_url: str,
+    ann: AddedUser,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """The new hash waits for the next sign-in; this one goes on."""
+    weaker = PasswordHasher(time_cost=1, memory_cost=8192, parallelism=1).hash(PASSWORD)
+    with psycopg.connect(database_url) as connection:
+        connection.execute("UPDATE fcon.user SET password_hash = %s WHERE id = %s", (weaker, ann.id))
+    hash_now = PasswordHasher.hash
+
+    def changed_meanwhile(hasher: PasswordHasher, password: str | bytes, *, salt: bytes | None = None) -> str:
+        with psycopg.connect(database_url) as connection:
+            connection.execute("UPDATE fcon.user SET row_version = row_version + 1 WHERE id = %s", (ann.id,))
+        return hash_now(hasher, password, salt=salt)
+
+    monkeypatch.setattr(PasswordHasher, "hash", changed_meanwhile)
+
+    assert sign_in(fixed_store, clock, anonymous, attempt()) is not None
+
+
 # -- the session, on each request -----------------------------------------
 
 
