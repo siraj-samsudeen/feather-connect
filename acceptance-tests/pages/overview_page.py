@@ -114,3 +114,12 @@ class OverviewPage:
         if banner is None:
             return False, "no page header (banner) at %s" % self.where()
         return expected.lower() in banner.lower(), "the header says %r, not %r, at %s" % (banner, expected, self.where())
+
+    def names_environment(self, name):
+        """(yes?, why): the page header names the product's environment."""
+        banner = self._banner_text()
+        if banner is None:
+            return False, "no page header (banner) at %s" % self.where()
+        return name.lower() in banner.lower().split(), "the header says %r, without %r, at %s" % (
+            banner, name, self.where(),
+        )  # fmt: skip

@@ -135,6 +135,8 @@ class World:
         self.scenario_server = None  # the server started on it, whose log pages/server_log.py reads
         self.product_settings = {}  # FCON_* settings for the product the scenario starts itself
         self._own_product_starts = 0  # each start's log is a file of its own
+        self._own_product_port = None  # a restart keeps the address the browser has open
+        self._own_product_database = None
         self.screen = Screen(self)  # VIDEO=1: what a scenario without a web page shows
         # The latest audit record of the run's database when the scenario
         # began: the scenario's own records come after it (pages/audit_log.py).
@@ -392,31 +394,39 @@ class World:
         self.product_settings[name] = value
         self.screen.note("%s=%s in the product's settings" % (name, value))
 
-    def start_own_product(self):
+    def start_own_product(self, on_run_database=False):
         """From now on the scenario talks to a product of its own, started with
         the settings it named, on its own upgraded database (made now, unless
-        it has one), and waited for until it is ready."""
-        if self._database is None:
-            self.own_database(upgraded=True)
+        it has one) or, with on_run_database, on the run's, and waited for
+        until it is ready."""
+        if on_run_database:
+            database_url = stack.run_database_url()
+        else:
+            if self._database is None:
+                self.own_database(upgraded=True)
+            database_url = self.own_database_state().url
         self.screen.note("$ fcon server   (with the settings named, waited for until ready)")
         self._own_product_starts += 1
         name = "server-own-product-%d" % self._own_product_starts
         base_url, process = stack.start_server(
-            name, self.own_database_state().url, ready_path="/readyz", settings=dict(self.product_settings)
+            name, database_url, ready_path="/readyz", settings=dict(self.product_settings), port=self._own_product_port
         )
         self._servers.append(process)
         self.scenario_server = process
+        self._own_product_database = database_url
+        self._own_product_port = int(base_url.rsplit(":", 1)[1])
         self.use_product_at(base_url)
 
     def restart_own_product(self):
         """Stops the product the scenario started (start_own_product) and starts
-        it again, with the same settings and database; its log is a new one."""
+        it again, at the same address, with the settings named now and the same
+        database; its log is a new one."""
         if self.scenario_server is None:
             raise RuntimeError("the scenario started no product of its own")
         self._servers.remove(self.scenario_server)
         stack.stop(self.scenario_server)
         self.scenario_server = None
-        self.start_own_product()
+        self.start_own_product(on_run_database=self._own_product_database == stack.run_database_url())
 
     def scenario_server_still_running(self):
         """The server started on the scenario's own database has not stopped

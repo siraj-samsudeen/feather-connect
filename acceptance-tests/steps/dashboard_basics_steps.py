@@ -77,3 +77,14 @@ def step_go_on_to_sign_in(context):
     assert reached, why
     named, why = context.sign_in_page.names_the_product()
     assert named, why
+
+
+@given('the product\'s environment is named "{name}"')
+def step_environment_named(context, name):
+    context.own_product.start_in_environment(name)
+
+
+@then('the page names the environment "{name}"')
+def step_names_environment(context, name):
+    named, why = context.overview.names_environment(name)
+    assert named, why

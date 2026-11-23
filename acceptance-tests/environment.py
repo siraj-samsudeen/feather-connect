@@ -15,6 +15,7 @@ from pages.form_expired_page import FormExpiredPage
 from pages.monitor import Monitor
 from pages.not_found_page import NotFoundPage
 from pages.overview_page import OverviewPage
+from pages.own_product import OwnProduct
 from pages.server_log import ServerLog
 from pages.sign_in_page import SignInPage
 from pages.standard_setup import StandardSetup
@@ -68,6 +69,7 @@ def before_scenario(context, scenario):
     context.first_admin = FirstAdministrator(context.world)
     context.user_commands = UserCommands(context.world)
     context.audit_log = AuditLog(context.world)
+    context.own_product = OwnProduct(context.world)
     context.accessibility = AccessibilityCheck()
     context.terminal = Terminal(context.world)
     context.database_commands = DatabaseCommands(context.world)
