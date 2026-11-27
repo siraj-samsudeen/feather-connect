@@ -98,7 +98,8 @@ serves, as `- [ ] X.Y.Z (added) inner: <behaviour>`, and tick it after its green
 5. **Write the minimal code** and run the suite — no stop; show the diff with the result.
 6. **Commit `green:`** — code only, no test changes. For the outer test or a change to shared
    code, ask the human to predict the suite result first.
-7. **Refactor** only when there is a smell: name it and let the human decide. No smell, no stop. A refactor is its own
+7. **Refactor** only when there is a smell (the `maintainable-code` skill lists what to look
+   for): name it and let the human decide. No smell, no stop. A refactor is its own
    `refactor:` commit: structure only, no assertion changes, same pass count.
 8. Tick the task. Add any newly discovered inner test under its outer task as `(added)`. Move
    to the next task.
@@ -212,6 +213,7 @@ one of three fates — **ratify** (a `specs:` commit adds the scenario, then a t
 | Types | `tsc --noEmit` | `pyright` |
 | Mutation testing — every surviving mutant is a missing test or code nobody needs | Stryker | `mutmut run` |
 | Complexity and length limits (`change-modes` § Defaults) | eslint `complexity` | `ruff check --select C90` |
+| A description on every file, class and function (`maintainable-code`) | eslint-plugin-jsdoc `require-jsdoc` | `ruff check --select D1` |
 | Known vulnerabilities in the locked dependencies | `npm audit` | `pip-audit` |
 
 The project's stack is `stack:` in `openspec/config.yaml`; the tools it really uses, when they

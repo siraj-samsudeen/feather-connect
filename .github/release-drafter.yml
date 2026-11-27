@@ -1,0 +1,22 @@
+# Release notes written from the merged PRs (the change-modes skill, § Releases). The release
+# workflow keeps a draft release up to date; the owner publishes it with the version number.
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+categories:
+  - title: "Breaking changes"
+    labels: ["breaking"]
+  - title: "Features"
+    labels: ["red", "yellow", "green", "enhancement"]
+  - title: "Fixes"
+    labels: ["bug"]
+  - title: "Upkeep"
+    labels: ["chore", "dependencies"]
+version-resolver:
+  major:
+    labels: ["breaking"]
+  minor:
+    labels: ["red", "yellow", "green", "enhancement"]
+  default: patch
+change-template: "- $TITLE (#$NUMBER)"
+template: |
+  $CHANGES

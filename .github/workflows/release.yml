@@ -1,0 +1,26 @@
+# Keeps a draft release up to date from the merged PRs (.github/release-drafter.yml), from the
+# process template. The owner reads the draft, checks the release checklist (the change-modes
+# skill, § Releases) and publishes it.
+name: Release notes
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  draft:
+    name: Draft the next release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: release-drafter/release-drafter@d1a19e60e81a7e650d00a7de9277f87e439117ea # v7.11.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

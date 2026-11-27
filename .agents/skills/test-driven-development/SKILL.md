@@ -44,9 +44,33 @@ fast-check in JavaScript). For example, "a retried delivery is never sent twice"
 as one tenant never returns another tenant's row". Keep the failing example the tool finds as a
 plain test too.
 
+## Tests that never flake
+
+A test that sometimes fails teaches everyone to ignore the suite. Every test gives the same result
+every run, on every machine, in any order:
+
+- **No sleeping.** Wait for a condition (an element, a row, a message), with a timeout.
+- **Inject what changes:** the clock, random numbers, generated ids and anything read from the
+  environment are passed in, so a test sets them.
+- **Each test owns its data:** it creates what it needs and leaves nothing a later test could see;
+  no test depends on another having run first.
+- **No real network** in inner tests: a fake at the boundary (§ Collaborators).
+
+A flaky test is fixed the same day, or quarantined with a tag and an issue number until it is.
+It is never retried until it happens to pass.
+
 ## Collaborators
 
 Read [collaborators](references/collaborators.md) before substituting a dependency. Mock system boundaries, not code owned by the application.
+
+## Outside systems: a fake and a contract test
+
+For each outside system the code calls (a payment provider, an email service, another team's
+API), the tests use a **fake**: a small in-process stand-in with the same interface, which
+records what it was sent and answers as the real one would. A **contract test** runs the same
+checks against the fake and against the real system, on a schedule (not on every PR), with test
+credentials. When the outside system changes, the contract test fails before production does,
+and the fake is updated to match.
 
 ## Python and server-rendered pages
 

@@ -35,6 +35,7 @@ rules:
   proposal:
     - Keep it short and say why in terms of what users get.
     - List the capabilities (New, then Modified) in the order a person meets them in the user journey. The acceptance suite runs the change's scenarios, and records review videos, in that order.
+    - Say how we will know it is broken: what the feature logs (with the request id, never a secret), what it measures, and which alerts it adds; each alert gets an entry in docs/runbook.md. A change with nothing to watch says so in one line.
     - Must use grill-me skill - one decision per question, showing the text it will write into the artifact (paraphrased is fine), with the alternatives
     # - Must use adversarial-authoring skill - only with the human's consent (AGENTS.md § Review guidelines)
     # - Must use glossary skill
@@ -43,6 +44,9 @@ rules:
     - Present each decision to the owner on its own, for approval, before committing the design.
     - Must use grill-me skill - one decision per question, showing the text it will write into the artifact (paraphrased is fine), with the alternatives
     - Must use c4-diagrams skill - Mermaid, lightweight C4-inspired; do not ask
+    - A risky change says how it is undone: a feature flag, or a data change that only adds, so the previous version still runs (change-modes skill, § Releases).
+    - A change that adds or removes a service, a store or an outside system updates docs/architecture.md.
+    - A change that touches sign-in, sessions, permissions, personal data, money, secrets or outside input must use security-baseline skill - a short Threats section, and its checklist
     # - Must use glossary skill
   adr:
     - Must use grill-me skill - one decision per question, showing the text it will write into the artifact (paraphrased is fine), with the alternatives
