@@ -144,24 +144,25 @@ def _equal(columns: list[str], prefix: str) -> list[sql.Composable]:
     return [sql.SQL("{} = {}").format(sql.Identifier(column), sql.Placeholder(prefix + column)) for column in columns]
 
 
+@dataclass(frozen=True)
+class _SlowStatements:
+    """When a statement is slow enough to log: longer than `after_s` seconds, read on `timer`."""
+
+    after_s: float
+    timer: Callable[[], float]
+
+
 class Transaction:
     """One transaction's statements, scoped to its context's tenant."""
 
     def __init__(
-        self,
-        connection: psycopg.Connection[Any],
-        context: Context,
-        clock: Clock,
-        new_id: NewId,
-        slow_after: float,
-        timer: Callable[[], float],
+        self, connection: psycopg.Connection[Any], context: Context, clock: Clock, new_id: NewId, slow: _SlowStatements
     ) -> None:
         self._connection = connection
         self._context = context
         self._clock = clock
         self._new_id = new_id
-        self._slow_after = slow_after
-        self._timer = timer
+        self._slow = slow
 
     def execute(self, query: LiteralString, params: Params | None = None) -> None:
         """Runs one statement scoped to the context's tenant, with no rows back."""
@@ -202,7 +203,7 @@ class Transaction:
 
         The `refused` audit record names the row and why. An empty `row_key` names the tenant.
         """
-        self._write_audit(table, "refused", row_key, None, None, reason)
+        self._write_audit(table, "refused", row_key, reason=reason)
 
     def _insert(self, table: Table, values: Params, *, if_absent: bool) -> Row | None:
         """Adds one row, with the columns the store fills, and its audit record; gives its key.
@@ -271,15 +272,22 @@ class Transaction:
         """Writes the audit record of one insert or update, secrets hidden, with the context's reason."""
         before, after = _hide_secrets(table, changed)
         row_key = "/".join(str(changed.after[column]) for column in table.key if column != "tenant_id")
-        self._write_audit(table, action, row_key, before, after, self._context.reason)
+        self._write_audit(table, action, row_key, rows=(before, after), reason=self._context.reason)
 
     def _write_audit(
-        self, table: Table, action: str, row_key: str, before: Row | None, after: Row | None, reason: str | None
+        self,
+        table: Table,
+        action: str,
+        row_key: str,
+        *,
+        rows: tuple[Row | None, Row | None] = (None, None),
+        reason: str | None,
     ) -> None:
         """Writes one audit record, stamped by the clock, the context's actor and its request id.
 
-        An empty `row_key` names the tenant.
+        An empty `row_key` names the tenant; `rows` is the row before and after the change.
         """
+        before, after = rows
         self._run(
             self._connection.cursor(),
             _AUDIT,
@@ -317,14 +325,14 @@ class Transaction:
 
         A statement slower than `slow_after` seconds is logged with its text, never its values.
         """
-        started = self._timer()
+        started = self._slow.timer()
         try:
             cursor.execute(query, params)
         except psycopg.Error as err:
             raise _translate(err) from err
         finally:
-            seconds = self._timer() - started
-            if seconds > self._slow_after:
+            seconds = self._slow.timer() - started
+            if seconds > self._slow.after_s:
                 text = query if isinstance(query, str) else query.as_string(self._connection)
                 logger.warning("slow statement, %.1f s: %s", seconds, text)
 
@@ -344,8 +352,7 @@ class Store:
         self._source = source
         self._clock = clock
         self._new_id = new_id
-        self._slow_after = slow_after
-        self._timer = timer
+        self._slow = _SlowStatements(slow_after, timer)
 
     @contextmanager
     def transaction(self, context: Context) -> Generator[Transaction]:
@@ -355,7 +362,7 @@ class Store:
         """
         try:
             with self._source.connection() as connection, connection.transaction():
-                yield Transaction(connection, context, self._clock, self._new_id, self._slow_after, self._timer)
+                yield Transaction(connection, context, self._clock, self._new_id, self._slow)
         except psycopg.Error as err:
             raise _translate(err) from err
 
