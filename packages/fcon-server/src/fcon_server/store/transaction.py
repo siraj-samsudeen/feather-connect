@@ -323,7 +323,7 @@ class Transaction:
     def _run(self, cursor: psycopg.Cursor[Any], query: Query, params: Row) -> None:
         """Runs one statement, turning a driver's error into the store's own.
 
-        A statement slower than `slow_after` seconds is logged with its text, never its values.
+        A statement slower than the store's `slow_after` seconds is logged with its text, never its values.
         """
         started = self._slow.timer()
         try:

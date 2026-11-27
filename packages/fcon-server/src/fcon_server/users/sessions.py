@@ -240,7 +240,7 @@ _SESSION_BY_ID_HASH = """
 
 
 def _has_ended(session: _Session, now: datetime) -> bool:
-    """Whether the session has run out, at most or idle, or its user is no longer active."""
+    """Whether the session has reached its expiry or sat idle for `IDLE`, or its user is no longer active."""
     return session.state != ACTIVE or now >= session.expires_at or now - session.last_seen_at >= IDLE
 
 

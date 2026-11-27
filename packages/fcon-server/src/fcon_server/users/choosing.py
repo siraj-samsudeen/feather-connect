@@ -49,7 +49,7 @@ def choose_password(
     """Sets the signed-in user's own password and ends their other sessions.
 
     Gives None once chosen; otherwise the rule it broke, and nothing changes. Raises
-    `NothingToChooseError` when the user's password is their own already. Writes the user, the
+    `NothingToChooseError` when the user's password is their own already, or the user is gone. Writes the user, the
     sessions ended and their audit records.
     """
     if (problem := password_problem(password, signed_in.name)) is not None:
