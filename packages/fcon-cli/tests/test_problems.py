@@ -1,5 +1,7 @@
-"""The error helper: every message a person reads says what is wrong and what
-to do. Issue 4, point 5 pins six texts exactly; the others keep their shape."""
+"""Tests of the error helper: every message a person reads says what is wrong and what to do.
+
+Issue 4, point 5 pins six texts exactly; the others keep their shape.
+"""
 
 from datetime import UTC, datetime
 

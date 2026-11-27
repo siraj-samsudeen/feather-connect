@@ -38,10 +38,15 @@ def new_secret_key() -> str:
 
 
 def database_name(number: int) -> str:
+    """The name of the database of the worktree for issue `number`."""
     return f"feather_issue_{number}"
 
 
 def env_values(number: int) -> dict[str, str]:
+    """The ports and database address the worktree for issue `number` writes to its .env.
+
+    Raises ValueError when `number` is below 1 or so high that a port would pass 65535.
+    """
     if not 1 <= number <= LAST:
         raise ValueError(f"the issue number must be between 1 and {LAST}, not {number}")
     return {
@@ -52,8 +57,10 @@ def env_values(number: int) -> dict[str, str]:
 
 
 def merge_env(text: str, values: Mapping[str, str], defaults: Mapping[str, str] | None = None) -> tuple[str, list[str]]:
-    """The .env text with `values` set, `defaults` added only where their key
-    is missing, and a line for each value it replaced."""
+    """The .env text with `values` set and `defaults` added where their key is missing, with each change.
+
+    The second item is a line for each value it replaced; every other line of `text` is kept.
+    """
     lines = text.splitlines()
     changes: list[str] = []
     missing = dict(values)
@@ -72,6 +79,7 @@ def merge_env(text: str, values: Mapping[str, str], defaults: Mapping[str, str] 
 
 
 def write_env(root: Path, values: Mapping[str, str], defaults: Mapping[str, str] | None = None) -> str:
+    """Writes or updates `root`/.env with `values` and missing `defaults`, and says what it did to the file."""
     path = root / ".env"
     if not path.exists():
         path.write_text(merge_env("", values, defaults)[0], encoding="utf-8")
@@ -86,6 +94,7 @@ def write_env(root: Path, values: Mapping[str, str], defaults: Mapping[str, str]
 
 
 def _exists(connection: psycopg.Connection[tuple[object, ...]], name: str) -> bool:
+    """Whether the server `connection` is on has a database called `name`."""
     return connection.execute("SELECT 1 FROM pg_database WHERE datname = %s", (name,)).fetchone() is not None
 
 
@@ -108,8 +117,11 @@ def drop_database(server_url: str, name: str) -> bool:
 
 
 def upgrade_database(server_url: str, name: str) -> str | None:
-    """Applies the waiting upgrades; says what it did, or None when an
-    upgrade that ran has changed (nothing is applied then)."""
+    """Applies the waiting upgrades to database `name` and says what it did.
+
+    Gives back None, after printing why to stderr, when an upgrade that ran has changed; nothing is
+    applied then.
+    """
     result = upgrade(conninfo.make_conninfo(server_url, dbname=name), SystemClock())
     if result.changed:
         print(
@@ -124,6 +136,7 @@ def upgrade_database(server_url: str, name: str) -> str | None:
 
 
 def main(argv: Sequence[str], root: Path = ROOT, server_url: str = SERVER_URL) -> int:
+    """Sets up, or with --drop removes, the worktree's .env and database; 0 when done, 2 on a problem it reports."""
     parser = argparse.ArgumentParser(prog="worktree_env.py", description="Set up a worktree's .env and database.")
     parser.add_argument("number", type=int, help="the issue number the worktree works on")
     parser.add_argument("--drop", action="store_true", help="remove the worktree's database")

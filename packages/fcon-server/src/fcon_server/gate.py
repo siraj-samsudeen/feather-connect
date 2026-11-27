@@ -1,27 +1,28 @@
-"""The gate (decision 1): ASGI middleware in front of every route, so pages
-are closed by default. A route needs a signed-in user unless it is on the
-one short open list; a forgotten entry makes a page too closed, which shows
-at once. An address that is no route at all is closed too: only a signed-in
-user is told it is not found, so a stranger can't tell which addresses
-exist.
+"""The gate (decision 1): ASGI middleware in front of every route, so pages are closed by default.
+
+A route needs a signed-in user unless it is on the one short open list; a
+forgotten entry makes a page too closed, which shows at once. An address that is
+no route at all is closed too: only a signed-in user is told it is not found, so
+a stranger can't tell which addresses exist.
 
 For every request it makes the context: the request's tenant (decision 2), a
-request id, and `system:anonymous` until a session says who it is. For a
-closed route it reads the `fcon_session` cookie, loads the session and its
-user (ending one that has run out), and puts them on the request as
+request id, and `system:anonymous` until a session says who it is. For a closed
+route it reads the `fcon_session` cookie, loads the session and its user (ending
+one that has run out), and puts them on the request as
 `request.state.signed_in`; with no session it sends the visitor to sign-in,
 naming the page asked for (`/sign-in?next=...`) when it was a GET.
 
-A POST, PUT, PATCH or DELETE whose Origin names another site is refused
-before anything else, signed in or not; one behind sign-in whose form token
-(the field `csrf_token`, or the header `X-CSRF-Token`) is not the session's
-is refused too. Both get the form-expired page (403) and a refused audit
-record (design point 5).
+A POST, PUT, PATCH or DELETE whose Origin names another site is refused before
+anything else, signed in or not; one behind sign-in whose form token (the field
+`csrf_token`, or the header `X-CSRF-Token`) is not the session's is refused too.
+Both get the form-expired page (403) and a refused audit record (design point
+5).
 
-A user who must choose a password is sent to that page from every other
-but signing out.
+A user who must choose a password is sent to that page from every other but
+signing out.
 
-A websocket is closed (1008) before any route: none is open by default."""
+A websocket is closed (1008) before any route: none is open by default.
+"""
 
 import hmac
 import logging
@@ -56,8 +57,10 @@ FORM = "application/x-www-form-urlencoded"
 
 
 def comes_from_another_site(headers: Headers) -> bool:
-    """An Origin that is not this site's own (`null` included); a request
-    without one is left to the form token."""
+    """Whether the request's Origin is not this site's own (`null` included).
+
+    A request without an Origin is left to the form token.
+    """
     origin = headers.get("origin")
     return origin is not None and urlsplit(origin).netloc != headers.get("host", "")
 
@@ -72,6 +75,7 @@ async def read_body(receive: Receive) -> tuple[bytes, Receive]:
     given = False
 
     async def again() -> Message:
+        """Give the body already read on the first call, and what `receive` gives after that."""
         nonlocal given
         if given:
             return await receive()
@@ -93,7 +97,15 @@ async def form_token(scope: Scope, receive: Receive) -> tuple[str, Receive]:
 
 
 class Gate:
-    def __init__(
+    """Lets a request through to the app only when the gate's rules allow it, and answers it otherwise.
+
+    `open_paths` and `open_prefixes` need no sign-in; `while_choosing` are the
+    paths a user who must choose a password may still open. `error_page` answers
+    when the session cannot be read, and `form_expired_page` answers a refused
+    form.
+    """
+
+    def __init__(  # noqa: PLR0913  # the site's pages and paths, by keyword; tests build a gate of their own
         self,
         app: FastAPI,
         *,
@@ -121,6 +133,7 @@ class Gate:
         self.while_choosing = while_choosing
 
     def _is_open(self, path: str) -> bool:
+        """Whether `path` is open to anyone: on the open list, or under an open prefix."""
         return path in self.open_paths or path.startswith(self.open_prefixes)
 
     def _sign_in_address(self, scope: Scope) -> str:
@@ -131,6 +144,7 @@ class Gate:
         return f"{self.sign_in_path}?{urlencode({'next': asked})}"
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Close a websocket, pass a lifespan event on, and let an http request through or answer it."""
         if scope["type"] == "websocket":  # none is open by default: a route needing one opens it here
             await WebSocketClose(WS_1008_POLICY_VIOLATION)(scope, receive, send)
             return
@@ -144,7 +158,7 @@ class Gate:
         with bind(context):
             changes = scope["method"] in CHANGES
             if changes and comes_from_another_site(Headers(scope=scope)):
-                await self._refuse(scope, receive, send, context, None, FOREIGN_ORIGIN)
+                await self._refuse(scope, receive, send, None, FOREIGN_ORIGIN)
                 return
             if self._is_open(scope["path"]):
                 await self.app(scope, receive, send)
@@ -165,17 +179,16 @@ class Gate:
                 if changes:
                     token, receive = await form_token(scope, receive)
                     if not hmac.compare_digest(token.encode(), found.form_token.encode()):
-                        await self._refuse(scope, receive, send, found.caller.context, found, WRONG_FORM_TOKEN)
+                        await self._refuse(scope, receive, send, found, WRONG_FORM_TOKEN)
                         return
                 if found.must_choose_password and scope["path"] not in self.while_choosing:
                     await RedirectResponse(self.choose_password_path, status_code=303)(scope, receive, send)
                     return
                 await self.app(scope, receive, send)
 
-    async def _refuse(
-        self, scope: Scope, receive: Receive, send: Send, context: Context, found: SignedIn | None, reason: str
-    ) -> None:
-        """The form-expired page (403), with a refused audit record."""
+    async def _refuse(self, scope: Scope, receive: Receive, send: Send, found: SignedIn | None, reason: str) -> None:
+        """The form-expired page (403), with a refused audit record in the request's context as the gate set it."""
+        context: Context = scope["state"]["context"]
         session_id = None if found is None else found.session_id
         try:
             await run_in_threadpool(refuse_form, self.store, context, session_id, reason)
@@ -184,6 +197,7 @@ class Gate:
         await self.form_expired_page()(scope, receive, send)
 
     async def _session(self, context: Context, session_id: str | None) -> SignedIn | None:
+        """The signed-in user of the session `session_id` names, or None without a live session."""
         if not session_id:
             return None
         return await run_in_threadpool(signed_in, self.store, self.clock, context, session_id)

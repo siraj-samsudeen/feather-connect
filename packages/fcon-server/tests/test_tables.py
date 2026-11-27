@@ -1,5 +1,7 @@
-"""Each table description matches the table the migrations made (design
-§ The store), and every product table is described."""
+"""Each table description matches the table the migrations made (design § The store).
+
+Every product table is described.
+"""
 
 import psycopg
 import pytest

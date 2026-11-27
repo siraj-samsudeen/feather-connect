@@ -1,7 +1,8 @@
-"""Signing in, and the session it makes (design points 4 and 7, § How it is
-built). Every attempt goes the same way, so a made-up name takes as long as
-a real one: one argon2id check, against a dummy hash when there is no such
-user. Each attempt is a row added through the store, so it is audited.
+"""Signing in, and the session it makes (design points 4 and 7, § How it is built).
+
+Every attempt goes the same way, so a made-up name takes as long as a real one: one argon2id
+check, against a dummy hash when there is no such user. Each attempt is a row added through the
+store, so it is audited.
 
 A session lives in `fcon.session`; the browser holds only its id, 32 random
 bytes, of which the database keeps the SHA-256. It ends after 12 hours idle
@@ -17,7 +18,8 @@ most. An attempt during the wait is refused without checking the password
 and recorded as `waited`; it is no failure itself, so someone hammering the
 form cannot keep the real user out for longer than a minute. A success
 clears that name's failures. No account is ever locked. Each sign-in
-removes attempts older than a day, at most 100 (decision 3)."""
+removes attempts older than a day, at most 100 (decision 3).
+"""
 
 import contextlib
 import hashlib
@@ -53,6 +55,8 @@ REMOVED_AT_ONCE = 100
 
 @dataclass(frozen=True)
 class Attempt:
+    """One sign-in try as the form sent it: the name, the password, the address and the user agent."""
+
     name: str
     password: str
     address: str
@@ -61,6 +65,8 @@ class Attempt:
 
 @dataclass(frozen=True)
 class _User:
+    """The user a sign-in names, with what checking and redoing their password needs."""
+
     id: UUID
     password_hash: str
     state: str
@@ -69,6 +75,8 @@ class _User:
 
 @dataclass(frozen=True)
 class _Session:
+    """A session the cookie names, with its user, as one query reads them."""
+
     id: UUID
     row_version: int
     form_token: str
@@ -97,10 +105,12 @@ class SignedIn:
 
 
 def _id_hash(session_id: str) -> str:
+    """The SHA-256 of a session's id: what the database keeps."""
     return hashlib.sha256(session_id.encode()).hexdigest()
 
 
 def _as_user(context: Context, user_id: UUID) -> Context:
+    """The same context, acting as the user."""
     return replace(context, actor=f"user:{user_id}")
 
 
@@ -112,6 +122,8 @@ _USER_BY_NAME = """
 
 @dataclass(frozen=True)
 class _Failure:
+    """One failed attempt, and whether it counts for the name tried, the address, or both."""
+
     for_name: bool
     for_address: bool
     created_at: datetime
@@ -142,8 +154,10 @@ _REMOVE_OLD = """
 
 
 def wait_ends(failures: list[datetime]) -> datetime | None:
-    """When the wait these failures bring ends: 1 s after the last of 3, twice
-    as long for each one more, a minute at most; None below 3."""
+    """When the wait these failures bring ends; None below 3.
+
+    It ends 1 s after the last of 3, twice as long for each one more, a minute at most.
+    """
     if len(failures) <= FREE_FAILURES:
         return None
     seconds = 2 ** min(len(failures) - FREE_FAILURES - 1, 6)  # 2 ** 6 passes the minute already
@@ -151,6 +165,7 @@ def wait_ends(failures: list[datetime]) -> datetime | None:
 
 
 def _waiting(failures: list[_Failure], now: datetime) -> bool:
+    """Whether `now` falls in the wait brought by the name's failures or by the address's."""
     by_name = wait_ends([failure.created_at for failure in failures if failure.for_name])
     by_address = wait_ends([failure.created_at for failure in failures if failure.for_address])
     return any(ends is not None and now < ends for ends in (by_name, by_address))
@@ -167,7 +182,11 @@ _LOCK_ADDRESS = (
 
 
 def sign_in(store: Store, clock: Clock, context: Context, attempt: Attempt) -> str | None:
-    """The new session's id for the cookie, or None when refused."""
+    """Signs a user in, and gives the new session's id for the cookie, or None when refused.
+
+    Records the attempt, removes old attempts, and redoes the password's hash when its settings are
+    out of date.
+    """
     name = normal_name(attempt.name)[:NAME_KEPT]
     tried = {"name": name, "address": attempt.address}
     now = clock.now()
@@ -221,13 +240,16 @@ _SESSION_BY_ID_HASH = """
 
 
 def _has_ended(session: _Session, now: datetime) -> bool:
+    """Whether the session has reached its expiry or sat idle for `IDLE`, or its user is no longer active."""
     return session.state != ACTIVE or now >= session.expires_at or now - session.last_seen_at >= IDLE
 
 
 def signed_in(store: Store, clock: Clock, context: Context, session_id: str) -> SignedIn | None:
-    """The session the cookie names, if it goes on; one that has run out, or
-    whose user is disabled, is ended here. What is written about the session
-    is written by its user."""
+    """The session the cookie names, with its user, or None when there is none or it has ended.
+
+    One that has run out, or whose user is disabled, is ended here; "last seen" is written at most
+    once a minute. What is written about the session is written by its user.
+    """
     now = clock.now()
     with store.transaction(context) as tx:
         session = tx.fetch_one(_Session, _SESSION_BY_ID_HASH, {"id_hash": _id_hash(session_id)})
@@ -257,6 +279,8 @@ def signed_in(store: Store, clock: Clock, context: Context, session_id: str) -> 
 
 @dataclass(frozen=True)
 class _Open:
+    """An open session of a user, to end."""
+
     id: UUID
     row_version: int
 
@@ -270,8 +294,10 @@ _OPEN_SESSIONS = """
 
 
 def end_sessions(tx: Transaction, user_id: UUID, now: datetime, keep: UUID | None = None) -> None:
-    """Ends every open session of the user but `keep`, in the caller's
-    transaction, each through the store, so each is audited."""
+    """Ends every open session of the user but `keep`, in the caller's transaction.
+
+    Each goes through the store, so each is audited.
+    """
     for session in tx.fetch_all(_Open, _OPEN_SESSIONS, {"user_id": user_id}):
         if session.id != keep:
             tx.update(SESSION, {"id": session.id}, {"ended_at": now}, session.row_version)
@@ -288,7 +314,10 @@ WRONG_FORM_TOKEN = "the form's token is not the session's"  # noqa: S105 - a rea
 
 
 def refuse_form(store: Store, context: Context, session_id: UUID | None, reason: str) -> None:
-    """A form refused as expired (design point 5), audited against its
-    session, or the tenant when it came with none (decision 3)."""
+    """Records a refused form, and changes nothing else (design point 5).
+
+    `reason` says why: it came from another site, or its form token was wrong; the person sees the
+    form-expired page either way. Audited against its session, or the tenant when it came with none (decision 3).
+    """
     with store.transaction(context) as tx:
         tx.refuse(SESSION, "" if session_id is None else str(session_id), reason)

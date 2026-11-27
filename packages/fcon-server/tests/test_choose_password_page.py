@@ -1,5 +1,7 @@
-"""The page to choose a password (design point 9, the agreed mockup): shown
-before any other page while the user's password was given to them."""
+"""The page to choose a password (design point 9, the agreed mockup).
+
+It is shown before any other page while the user's password was given to them.
+"""
 
 from collections.abc import Iterator
 
@@ -29,7 +31,7 @@ CHOSEN = "ben-own-password-1"
 
 @pytest.fixture
 def client(empty_database_url: str) -> Iterator[TestClient]:
-    """ "ann" with her own password, "ben" with one given him."""
+    """The app on a database with "ann", whose password is her own, and "ben", with one given him."""
     upgrade(empty_database_url, SystemClock())
     store = Store(OneConnectionEach(empty_database_url, "fcon-test"), SystemClock(), new_id)
     context = Context(tenant_id=request_tenant(), actor="system:test", request_id="test-setup")

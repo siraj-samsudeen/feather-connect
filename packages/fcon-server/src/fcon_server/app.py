@@ -21,7 +21,7 @@ DEFAULT_ENVIRONMENT = "development"
 _SYSTEM_CLOCK = SystemClock()
 
 
-def create_app(
+def create_app(  # noqa: PLR0913  # keyword-only settings with defaults: each caller names only the few that differ
     database_url: str,
     *,
     keys: SecretKeys,
@@ -33,11 +33,13 @@ def create_app(
     trusted_proxies: TrustedProxies | None = None,
     on_untrusted_forwarding: Callable[[], None] = lambda: None,
 ) -> ASGIApp:
-    """The app, talking to the database at `database_url` (a libpq address).
-    `secure_cookies` is False only for a server on its own machine alone,
-    over plain http (design point 8). Forwarded headers are believed only from
+    """The server's whole app, talking to the database at `database_url` (a libpq address).
+
+    `secure_cookies` is False only for a server on its own machine alone, over
+    plain http (design point 8). Forwarded headers are believed only from
     `trusted_proxies`; with none, `on_untrusted_forwarding` is called on the
-    first request that carries one."""
+    first request that carries one.
+    """
     app = build_app(
         database_url,
         keys=keys,
@@ -64,8 +66,11 @@ def create_app(
 
 
 def _lifespan(pool: Pool) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
+    """The app's lifespan: the store's pool opens when the server starts and closes when it stops."""
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+        """Open the pool without waiting for the database, and close it when the server stops."""
         pool.open(wait=False)  # the database may come later: readiness says so
         try:
             yield
@@ -75,7 +80,7 @@ def _lifespan(pool: Pool) -> Callable[[FastAPI], AbstractAsyncContextManager[Non
     return lifespan
 
 
-def build_app(
+def build_app(  # noqa: PLR0913  # keyword-only settings with defaults: each caller names only the few that differ
     database_url: str,
     *,
     keys: SecretKeys,
@@ -86,8 +91,10 @@ def build_app(
     clock: Clock = _SYSTEM_CLOCK,
 ) -> FastAPI:
     """The routes and their error pages, without the middleware around them.
+
     `app.state.store` is the store, on a pool open while the server runs;
-    readiness keeps a connection of its own (design decision 3)."""
+    readiness keeps a connection of its own (design decision 3).
+    """
     pool = make_pool(database_url, pool_size, prepare=prepare)
     # No automatic trailing-slash redirect: FastAPI builds it as a full http://
     # address from what it saw, which behind an https proxy is the insecure one.

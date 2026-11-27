@@ -1,5 +1,7 @@
-"""The flow library imports neither the server nor the command line, so a flow
-can run anywhere the library is installed (ADR 0002)."""
+"""The flow library imports neither the server nor the command line (ADR 0002).
+
+So a flow can run anywhere the library is installed.
+"""
 
 import ast
 from pathlib import Path

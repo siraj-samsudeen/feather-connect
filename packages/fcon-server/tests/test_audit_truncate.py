@@ -1,6 +1,8 @@
-"""The audit log refuses TRUNCATE whoever asks, the owner included (design
-point 16), while an old month still leaves by detaching or dropping it. Each
-test works in a transaction it rolls back, so the database stays as upgraded."""
+"""The audit log refuses TRUNCATE whoever asks, the owner included (design point 16).
+
+An old month still leaves by detaching or dropping it. Each test works in a
+transaction it rolls back, so the database stays as upgraded.
+"""
 
 from collections.abc import Iterator
 from datetime import UTC, datetime

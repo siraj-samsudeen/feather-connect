@@ -43,6 +43,7 @@ START_IT = "start the database: docker compose up -d"
 
 
 def _server_url() -> str:
+    """The address of the test database server, from FCON_DATABASE_URL; fails the test, saying how, when it is unset."""
     variables = {**read_env_file(REPO_ROOT / ENV_FILE), **os.environ}
     if url := variables.get("FCON_DATABASE_URL"):
         return url
@@ -50,6 +51,7 @@ def _server_url() -> str:
 
 
 def _admin(url: str) -> psycopg.Connection[tuple[object, ...]]:
+    """An autocommit connection to `url`; fails the test, saying how to start the server, when it cannot connect."""
     try:
         return psycopg.connect(url, autocommit=True, connect_timeout=5)
     except psycopg.OperationalError as err:
@@ -59,6 +61,7 @@ def _admin(url: str) -> psycopg.Connection[tuple[object, ...]]:
 
 @contextmanager
 def _throwaway_database() -> Generator[str]:
+    """Creates a new, empty database with a random name, gives its address, and drops it afterwards."""
     server_url = _server_url()
     name = f"feather_test_{uuid.uuid4().hex[:8]}"
     with _admin(server_url) as admin:
@@ -80,8 +83,11 @@ def database_url() -> Iterator[str]:
 
 @pytest.fixture(scope="session")
 def app_role(database_url: str) -> Iterator[tuple[str, str]]:
-    """A login role's name and password; `database_url` comes first so its
-    databases are gone, with every right granted there, before the role is."""
+    """A login role's name and password, made for this session and dropped at its end.
+
+    It asks for `database_url` so that database is gone, with every right granted there, before
+    the role is dropped.
+    """
     name, password = f"fcon_test_app_{secrets.token_hex(3)}", secrets.token_hex(16)
     server_url = _server_url()
     with _admin(server_url) as admin:
@@ -101,23 +107,29 @@ class _Connect:
 
     @contextmanager
     def connection(self) -> Generator[psycopg.Connection[tuple[object, ...]]]:
+        """A new connection to the database, closed when the block ends."""
         with psycopg.connect(self.url) as connection:
             yield connection
 
 
 @pytest.fixture(scope="session")
 def store_source(database_url: str) -> ConnectionSource:
+    """The connections the store opens on the session's database."""
     return _Connect(database_url)
 
 
 @pytest.fixture(scope="session")
 def store(store_source: ConnectionSource) -> Store:
+    """The store on the session's database, with the system clock."""
     return Store(store_source, SystemClock(), new_id)
 
 
 @pytest.fixture
 def new_tenant(store: Store) -> Callable[[], Context]:
+    """A maker of new tenants, each with a context of its own, for cross-tenant tests."""
+
     def make() -> Context:
+        """Inserts a new `test-<6 hex>` tenant through the store and gives its context."""
         context = Context(
             tenant_id=f"test-{secrets.token_hex(3)}", actor="system:test", request_id=f"test-{uuid.uuid4().hex[:8]}"
         )
@@ -130,6 +142,7 @@ def new_tenant(store: Store) -> Callable[[], Context]:
 
 @pytest.fixture
 def tenant(new_tenant: Callable[[], Context]) -> Context:
+    """The context of a tenant of the test's own."""
     return new_tenant()
 
 

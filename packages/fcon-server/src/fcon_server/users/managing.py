@@ -1,14 +1,15 @@
-"""Managing users (design points 2 and 10): the list, disabling, enabling
-and a new role, for `fcon users` now and the dashboard's pages later. Each
-change is a store write, so it is audited; disabling ends every session of
-the user at once.
+"""Managing users (design points 2 and 10): the list, disabling, enabling and a new role.
+
+For `fcon users` now and the dashboard's pages later. Each change is a store write, so it is
+audited; disabling ends every session of the user at once.
 
 Always an administrator (R10.13): the last active administrator is never
 disabled or demoted. The check runs in the same transaction as the change,
 on rows locked in the tenant in id order (convention 13): the user changed
 and every active administrator. Of two administrators demoting each other at
 once, the second waits for the first, then sees its change and is refused.
-A refusal is audited as `refused` (decision 3)."""
+A refusal is audited as `refused` (decision 3).
+"""
 
 from dataclasses import dataclass
 from uuid import UUID
@@ -26,6 +27,8 @@ DISABLED = "disabled"
 
 @dataclass(frozen=True)
 class ListedUser:
+    """One user as the list shows them."""
+
     name: str
     display_name: str | None
     role: Role
@@ -33,23 +36,30 @@ class ListedUser:
 
 
 class NoSuchUserError(Exception):
+    """No user of the tenant has this name."""
+
     def __init__(self, name: str) -> None:
         super().__init__(f"no user is named {name!r}")
         self.name = name
 
 
 class LastAdministratorError(Exception):
+    """The change would leave the tenant with no active administrator."""
+
     def __init__(self, name: str) -> None:
         super().__init__(only_administrator(name))
         self.name = name
 
 
 def only_administrator(name: str) -> str:
+    """The reason given for refusing to disable or demote `name`, the only active administrator."""
     return f"{name} is the only administrator; make another one first."
 
 
 @dataclass(frozen=True)
 class _Listed:
+    """One user as the list's query reads them, the role as text."""
+
     name: str
     display_name: str | None
     role: str
@@ -64,6 +74,7 @@ _LIST = """
 
 
 def list_users(store: Store, caller: Caller) -> list[ListedUser]:
+    """The tenant's users, sorted by name for people; for an administrator only."""
     require(store, caller, Action.MANAGE_USERS)
     with store.transaction(caller.context) as tx:
         found = tx.fetch_all(_Listed, _LIST)
@@ -72,6 +83,8 @@ def list_users(store: Store, caller: Caller) -> list[ListedUser]:
 
 @dataclass(frozen=True)
 class _Locked:
+    """A user row locked for a change: the user changed, or an active administrator."""
+
     id: UUID
     name: str
     role: str
@@ -80,6 +93,7 @@ class _Locked:
 
     @property
     def is_active_administrator(self) -> bool:
+        """Whether the user is an administrator and active."""
         return self.role == Role.ADMINISTRATOR and self.state == ACTIVE
 
 
@@ -93,7 +107,7 @@ _LOCK = """
 """
 
 
-def _change(
+def _change(  # noqa: PLR0913  # one change, named by keyword; each caller passes only its own
     store: Store,
     caller: Caller,
     typed_name: str,
@@ -102,8 +116,12 @@ def _change(
     state: str | None = None,
     clock: Clock | None = None,
 ) -> bool:
-    """Sets the user's role or state; False when it was so already. With a
-    clock, every session of the user ends too."""
+    """Sets the user's role or state for an administrator; False when it was so already.
+
+    With a clock, every session of the user ends too. Raises `NoSuchUserError` for a name no user
+    has, and `LastAdministratorError`, after auditing the refusal, when the change would leave the
+    tenant with no active administrator.
+    """
     require(store, caller, Action.MANAGE_USERS)
     name = normal_name(typed_name)
     with store.transaction(caller.context) as tx:
@@ -133,8 +151,10 @@ def disable_user(store: Store, clock: Clock, caller: Caller, name: str) -> bool:
 
 
 def enable_user(store: Store, caller: Caller, name: str) -> bool:
+    """Lets a disabled user sign in again; False when they were active already."""
     return _change(store, caller, name, state=ACTIVE)
 
 
 def set_role(store: Store, caller: Caller, name: str, role: Role) -> bool:
+    """Gives the user a new role; False when they had it already."""
     return _change(store, caller, name, role=role)

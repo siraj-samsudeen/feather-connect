@@ -1,14 +1,15 @@
-"""Adding users (design points 1 to 3). The first user of a tenant is
-always an administrator, so an install never has users but no
-administrator (R10.13). A password set for someone else works for one
-sign-in (`must_choose_password`), except the first user's: whoever installs
-the product types it for themselves, so it is their own.
+"""Adding users (design points 1 to 3): the first user of a tenant is always an administrator.
+
+So an install never has users but no administrator (R10.13). A password set for someone else
+works for one sign-in (`must_choose_password`), except the first user's: whoever installs the
+product types it for themselves, so it is their own.
 
 The first administrator from FCON_FIRST_ADMIN (point 1, decision 4) gets a
 random one-time password instead, and only when the tenant has no users;
 the row goes in with `ON CONFLICT DO NOTHING`, so of two server copies
 starting together only one makes it, and only that one is given the
-password to log."""
+password to log.
+"""
 
 import secrets
 from dataclasses import dataclass
@@ -29,6 +30,8 @@ ONE_TIME_PASSWORD_BYTES = 18  # 24 characters, none of them a space
 
 @dataclass(frozen=True)
 class NewUser:
+    """A user an administrator asks to add: the name and password typed, the role, a display name."""
+
     name: str
     password: str
     role: Role = Role.VIEWER
@@ -37,6 +40,8 @@ class NewUser:
 
 @dataclass(frozen=True)
 class AddedUser:
+    """The user just added: its id, its name as stored, its role, and whether it must choose a password."""
+
     id: UUID
     name: str
     role: Role
@@ -44,18 +49,24 @@ class AddedUser:
 
 
 class NameNotAllowedError(Exception):
+    """The user name breaks the name rules."""
+
     def __init__(self, name: str) -> None:
         super().__init__(f"the user name {name!r} is not allowed")
         self.name = name
 
 
 class NameTakenError(Exception):
+    """A user of the tenant has this name already."""
+
     def __init__(self, name: str) -> None:
         super().__init__(f"the user name {name!r} is taken")
         self.name = name
 
 
 class WeakPasswordError(Exception):
+    """The password breaks a password rule; `problem` says which."""
+
     def __init__(self, problem: PasswordProblem) -> None:
         super().__init__(f"the password is {problem}")
         self.problem = problem
@@ -63,6 +74,8 @@ class WeakPasswordError(Exception):
 
 @dataclass(frozen=True)
 class _Exists:
+    """Whether the tenant has any user yet."""
+
     exists: bool
 
 
@@ -70,6 +83,13 @@ _ANY_USER = "SELECT EXISTS (SELECT 1 FROM fcon.user WHERE tenant_id = %(tenant_i
 
 
 def add_user(store: Store, caller: Caller, new: NewUser) -> AddedUser:
+    """Adds a user for an administrator, and gives back what was stored.
+
+    The tenant's first user is made an administrator, whatever role was asked, and keeps the
+    password as their own; any later one must choose their own at the first sign-in. Raises
+    `NotAllowedError`, `NameNotAllowedError`, `WeakPasswordError` or `NameTakenError`; writes the
+    user and its audit record.
+    """
     require(store, caller, Action.MANAGE_USERS)
     name = normal_name(new.name)
     if user_name_problem(name) is not None:
@@ -99,8 +119,12 @@ def add_user(store: Store, caller: Caller, new: NewUser) -> AddedUser:
 
 
 def add_first_administrator(store: Store, context: Context, name: str) -> str | None:
-    """The one-time password of the administrator made, or None when the
-    tenant has a user already (this start, or another copy, made none)."""
+    """Makes the tenant's first administrator, with a random one-time password, unless it has a user.
+
+    Gives the one-time password of the administrator made, or None when the tenant has a user
+    already (this start, or another copy, made none). Raises `NameNotAllowedError` for a name the
+    rules refuse.
+    """
     name = normal_name(name)
     if user_name_problem(name) is not None:
         raise NameNotAllowedError(name)

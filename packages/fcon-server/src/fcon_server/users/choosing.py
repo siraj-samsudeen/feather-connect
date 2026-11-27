@@ -1,9 +1,11 @@
-"""Choosing one's own password (design points 2 and 3). A password given to
-a user (by an administrator, the command line or the first administrator's
-setting) works for one sign-in; then the user must choose their own
-(`must_choose_password`) before any other page opens. The one chosen follows
-the password rules and is typed twice; choosing it clears the flag and ends
-every other session of the user, keeping the one it was chosen in."""
+"""Choosing one's own password (design points 2 and 3), after signing in with one given.
+
+A password given to a user (by an administrator, the command line or the first administrator's
+setting) works for one sign-in; then the user must choose their own (`must_choose_password`)
+before any other page opens. The one chosen follows the password rules and is typed twice;
+choosing it clears the flag and ends every other session of the user, keeping the one it was
+chosen in.
+"""
 
 from dataclasses import dataclass
 from enum import StrEnum
@@ -17,6 +19,8 @@ from fcon_server.users.sessions import SignedIn, end_sessions
 
 
 class ChoiceProblem(StrEnum):
+    """Why a chosen password is refused, besides the password rules."""
+
     DIFFERENT = "not the same twice"
 
 
@@ -26,6 +30,8 @@ class NothingToChooseError(Exception):
 
 @dataclass(frozen=True)
 class _Flag:
+    """The user's row version, and whether they must choose a password."""
+
     row_version: int
     must_choose_password: bool
 
@@ -40,7 +46,12 @@ _USER_FOR_UPDATE = """
 def choose_password(
     store: Store, clock: Clock, signed_in: SignedIn, password: str, again: str
 ) -> PasswordProblem | ChoiceProblem | None:
-    """None once chosen; otherwise the rule it broke, and nothing changes."""
+    """Sets the signed-in user's own password and ends their other sessions.
+
+    Gives None once chosen; otherwise the rule it broke, and nothing changes. Raises
+    `NothingToChooseError` when the user's password is their own already, or the user is gone. Writes the user, the
+    sessions ended and their audit records.
+    """
     if (problem := password_problem(password, signed_in.name)) is not None:
         return problem
     if again != password:

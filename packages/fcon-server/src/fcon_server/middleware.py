@@ -1,22 +1,28 @@
-"""ASGI middleware around the whole app, outside FastAPI's own, so that what
-they add holds for every response, errors included."""
+"""ASGI middleware around the whole app, outside FastAPI's own.
+
+Being outside, what they add holds for every response, errors included.
+"""
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
 class HeadAsGet:
-    """Answers HEAD wherever GET is answered: the same status and headers, no
-    body. Some uptime monitors check with HEAD, and FastAPI answers 405."""
+    """Answers HEAD wherever GET is answered: the same status and headers, no body.
+
+    Some uptime monitors check with HEAD, and FastAPI answers 405.
+    """
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Pass a HEAD request on as a GET with its answer's body dropped, and anything else as it is."""
         if scope["type"] != "http" or scope["method"] != "HEAD":
             await self.app(scope, receive, send)
             return
 
         async def send_without_body(message: Message) -> None:
+            """Send the message, with its body emptied when it carries the response's body."""
             if message["type"] == "http.response.body":
                 message = {**message, "body": b""}
             await send(message)
@@ -42,17 +48,22 @@ KEPT_IF_CURRENT = (b"cache-control", b"no-cache")
 
 
 class SafetyHeaders:
-    """Adds the safety headers to every response, errors included. Nothing is
-    kept by the browser but the answers at `cacheable_paths` (the stylesheet)."""
+    """Adds the safety headers to every response, errors included.
+
+    Nothing is kept by the browser but the answers at `cacheable_paths` (the
+    stylesheet).
+    """
 
     def __init__(self, app: ASGIApp, cacheable_paths: frozenset[str] = frozenset()) -> None:
         self.app = app
         self.cacheable_paths = cacheable_paths
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Pass the request on, adding the safety headers and the caching rule to its answer."""
         caching = KEPT_IF_CURRENT if scope.get("path") in self.cacheable_paths else NEVER_KEPT
 
         async def send_with_headers(message: Message) -> None:
+            """Send the message, with the headers added when it starts the response."""
             if message["type"] == "http.response.start":
                 message = {**message, "headers": [*message.get("headers", []), *SAFETY_HEADERS, caching]}
             await send(message)

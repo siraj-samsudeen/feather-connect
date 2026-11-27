@@ -1,12 +1,13 @@
-"""The database check: whether the database is usable, and if not, which
-problem it has. It returns facts; the command line words them for a person,
-and /readyz says one word.
+"""The database check: whether the database is usable, and if not, which problem it has.
 
-Readiness keeps its own connection (storage-foundation, decision 3): each
-check opens a fresh connection, runs its few queries and closes it, so a
-problem keeps its cause. Beyond the connection it reads the database's
-encoding, whether the ICU collation exists, the upgrades recorded against
-this version's files, and the audit log's monthly partitions.
+It returns facts; the command line words them for a person, and /readyz says one
+word.
+
+Readiness keeps its own connection (storage-foundation, decision 3): each check
+opens a fresh connection, runs its few queries and closes it, so a problem keeps
+its cause. Beyond the connection it reads the database's encoding, whether the
+ICU collation exists, the upgrades recorded against this version's files, and
+the audit log's monthly partitions.
 """
 
 import re
@@ -37,6 +38,8 @@ HOST_NOT_FOUND = "host not found"
 
 
 class Problem(StrEnum):
+    """What makes the database unusable, or the server not ready, as the check names it."""
+
     UNREACHABLE = "unreachable"
     LOGIN_REFUSED = "login refused"
     DATABASE_MISSING = "database missing"
@@ -64,12 +67,14 @@ class DatabaseAddress:
 
 @dataclass(frozen=True)
 class DatabaseCheck:
-    """Usable when `problem` is None. `reason` says why it is unreachable,
-    `version` is the version found, `detail` the driver's own first line;
-    `encoding`, `icu` (whether the ICU collation exists), `migrations` (the
-    upgrades against this version's files) and `months_ahead` (the audit
-    months made after the current one) once connected: all for the log,
-    never for a reply."""
+    """What one check found: the database is usable when `problem` is None.
+
+    `reason` says why it is unreachable, `version` is the version found,
+    `detail` the driver's own first line; `encoding`, `icu` (whether the ICU
+    collation exists), `migrations` (the upgrades against this version's files)
+    and `months_ahead` (the audit months made after the current one) once
+    connected: all for the log, never for a reply.
+    """
 
     address: DatabaseAddress
     problem: Problem | None = None
@@ -95,6 +100,7 @@ _TEXTS = [
 
 
 def address_of(url: str) -> DatabaseAddress:
+    """The database address in `url`, with libpq's defaults filled in and never the password."""
     params = conninfo.conninfo_to_dict(url)
     user = str(params.get("user") or "")
     return DatabaseAddress(
@@ -106,8 +112,11 @@ def address_of(url: str) -> DatabaseAddress:
 
 
 def classify(text: str) -> tuple[Problem, str]:
-    """The problem the driver's text names, and why it is unreachable; a text
-    it does not know is unreachable, with the driver's first line."""
+    """The problem the driver's text names, and why it is unreachable.
+
+    A text it does not know is unreachable, with the driver's first line as the
+    reason.
+    """
     lowered = text.lower()
     for pattern, problem, reason in _TEXTS:
         if pattern.search(lowered):
@@ -116,6 +125,7 @@ def classify(text: str) -> tuple[Problem, str]:
 
 
 def first_line(text: str) -> str:
+    """The text's first line once trimmed, or "" for a blank text."""
     return text.strip().splitlines()[0] if text.strip() else ""
 
 
@@ -126,14 +136,18 @@ def version_text(server_version: int) -> str:
 
 
 def assess_version(address: DatabaseAddress, server_version: int) -> DatabaseCheck:
+    """The check of the server's version alone: too old below Postgres 18."""
     version = version_text(server_version)
     problem = Problem.TOO_OLD if server_version < OLDEST_SUPPORTED else None
     return DatabaseCheck(address=address, problem=problem, version=version)
 
 
 def port_refuses(host: str, port: int) -> bool:
-    """Whether the port refuses a plain connection: on Windows psycopg reports
-    a refused port as a timeout, so this tells the two apart."""
+    """Whether the port refuses a plain connection.
+
+    On Windows psycopg reports a refused port as a timeout, so this tells the
+    two apart.
+    """
     try:
         with socket.create_connection((host, port), timeout=PROBE_TIMEOUT_S):
             return False
@@ -142,9 +156,11 @@ def port_refuses(host: str, port: int) -> bool:
 
 
 def open_connection(url: str) -> psycopg.Connection[tuple[object, ...]]:
-    """The check's connection: connecting, each query and a peer that stops
-    answering are each cut off after TIMEOUT_S, and closing it sends nothing
-    more (no transaction to commit)."""
+    """Open the check's own connection, every wait on it cut off after TIMEOUT_S.
+
+    Connecting, each query and a peer that stops answering are each cut off;
+    closing it sends nothing more (no transaction to commit).
+    """
     timeout_ms = TIMEOUT_S * 1000
     return psycopg.connect(
         url,
@@ -160,11 +176,13 @@ def open_connection(url: str) -> psycopg.Connection[tuple[object, ...]]:
 
 
 def _one(connection: psycopg.Connection[tuple[object, ...]], query: str, *params: object) -> object:
+    """The first column of the query's first row, or None when it gives no row."""
     row = connection.execute(query.encode(), params).fetchone()
     return row[0] if row else None
 
 
 def _audit_partitions(connection: psycopg.Connection[tuple[object, ...]]) -> set[str]:
+    """The names of the audit log's partitions, one per month."""
     rows = connection.execute(
         "SELECT c.relname FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid"
         " WHERE i.inhparent = to_regclass('fcon.audit')"
@@ -173,8 +191,7 @@ def _audit_partitions(connection: psycopg.Connection[tuple[object, ...]]) -> set
 
 
 def _months_ahead(partitions: set[str], clock: Clock) -> tuple[bool, int]:
-    """Whether the current UTC month has its partition, and how many months
-    in a row after it do."""
+    """Whether the current UTC month has its audit partition, and how many months in a row after it do."""
     current, *ahead = (f"audit_{month:%Y_%m}" for month in audit_months(clock.now()))
     count = 0
     for name in ahead:
@@ -185,6 +202,7 @@ def _months_ahead(partitions: set[str], clock: Clock) -> tuple[bool, int]:
 
 
 def _readiness_problem(encoding: str, status: MigrationStatus, has_current_month: bool) -> Problem | None:
+    """The first problem that keeps a connected database from being ready, or None."""
     if encoding != ENCODING:
         return Problem.NOT_UTF8
     if status.changed:
@@ -226,9 +244,11 @@ def diagnose_database(
     check: Callable[[str], DatabaseCheck] = check_database,
     probe: Callable[[str, int], bool] = port_refuses,
 ) -> DatabaseCheck:
-    """The check, and when it timed out, a probe of the port to tell a refused
-    port from a silent one: for the log, which names the cause. It can take
-    PROBE_TIMEOUT_S more, so /readyz, which says one word, never does it."""
+    """The check, and when it timed out, a probe of the port to tell a refused port from a silent one.
+
+    It is for the log, which names the cause. It can take PROBE_TIMEOUT_S more,
+    so /readyz, which says one word, never does it.
+    """
     result = check(url)
     if result.reason == TIMED_OUT and probe(result.address.host, int(result.address.port)):
         return replace(result, reason=REFUSED)

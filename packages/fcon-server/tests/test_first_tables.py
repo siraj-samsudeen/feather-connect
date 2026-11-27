@@ -1,5 +1,8 @@
-"""The first migration's tables, on the session's upgraded database. Each test
-works in a transaction it rolls back, so the database stays as upgraded."""
+"""The first migration's tables, on the session's upgraded database.
+
+Each test works in a transaction it rolls back, so the database stays as
+upgraded.
+"""
 
 from collections.abc import Iterator
 from uuid import uuid4

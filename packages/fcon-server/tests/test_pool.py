@@ -1,5 +1,8 @@
-"""The store's connection pool (design point 14): opened when the server
-starts, without waiting for the database, and closed when it stops."""
+"""The store's connection pool (design point 14).
+
+It is opened when the server starts, without waiting for the database, and
+closed when it stops.
+"""
 
 import time
 from dataclasses import dataclass
@@ -84,8 +87,10 @@ def test_prepared_statements_can_be_turned_off(database_url: str):
 
 
 def test_the_server_starts_without_waiting_for_the_database(free_port: int):
-    """On Windows a refused connection takes seconds, so stopping takes a
-    while here: the pool's workers finish their attempts first."""
+    """On Windows a refused connection takes seconds, so stopping takes a while here.
+
+    The pool's workers finish their attempts first.
+    """
     app = build_app(f"postgresql://feather:feather@127.0.0.1:{free_port}/feather", keys=KEYS)
     started = time.monotonic()
 

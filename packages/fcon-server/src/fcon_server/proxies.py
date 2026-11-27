@@ -1,11 +1,12 @@
 """The visitor's real address behind the host's proxy (design point 8).
 
-`X-Forwarded-For` is believed only from a peer that FCON_TRUSTED_PROXIES
-trusts: then the real address is the last hop in it that is not a trusted
-proxy. `*` trusts any peer, for hosts where only the proxy can reach the
-container, but no hop in the header: the address is the one that proxy saw.
-Without the setting the header is ignored, and the first request carrying it
-is reported once, so the operator learns the setting exists."""
+`X-Forwarded-For` is believed only from a peer that FCON_TRUSTED_PROXIES trusts:
+then the real address is the last hop in it that is not a trusted proxy. `*`
+trusts any peer, for hosts where only the proxy can reach the container, but no
+hop in the header: the address is the one that proxy saw. Without the setting
+the header is ignored, and the first request carrying it is reported once, so
+the operator learns the setting exists.
+"""
 
 import ipaddress
 from collections.abc import Callable
@@ -24,6 +25,8 @@ type Network = ipaddress.IPv4Network | ipaddress.IPv6Network
 
 @dataclass(frozen=True)
 class TrustedProxies:
+    """The proxies FCON_TRUSTED_PROXIES names; `everyone` is its `*`, trusting any peer."""
+
     networks: tuple[Network, ...]
     everyone: bool = False
 
@@ -33,6 +36,7 @@ class TrustedProxies:
         return parsed is not None and any(parsed in network for network in self.networks)
 
     def trusts_peer(self, address: str) -> bool:
+        """Whether the peer at `address` is trusted to forward: any peer under `*`."""
         return self.everyone or self.trusts(address)
 
 
@@ -45,6 +49,7 @@ class NotAProxyError(ValueError):
 
 
 def _address(text: str) -> Address | None:
+    """The IP address in `text`, an IPv4-mapped one as IPv4, or None when it is not an address."""
     try:
         parsed = ipaddress.ip_address(text.strip())
     except ValueError:
@@ -55,8 +60,10 @@ def _address(text: str) -> Address | None:
 
 
 def trusted_proxies(text: str) -> TrustedProxies | None:
-    """FCON_TRUSTED_PROXIES read: addresses or ranges, comma-separated, or `*`;
-    None when unset. Raises NotAProxyError for anything else."""
+    """FCON_TRUSTED_PROXIES read: addresses or ranges, comma-separated, or `*`; None when unset.
+
+    Raises NotAProxyError for anything else.
+    """
     if not text.strip():
         return None
     networks: list[Network] = []
@@ -73,9 +80,11 @@ def trusted_proxies(text: str) -> TrustedProxies | None:
 
 
 def real_address(peer: str, forwarded_for: str, trusted: TrustedProxies) -> str:
-    """The visitor's address: the peer's, unless the peer is trusted; then the
-    last hop of `forwarded_for` that is not trusted, walking from the right.
-    A hop that is not an address ends the walk at the one before it."""
+    """The visitor's address: the peer's, unless the peer is trusted.
+
+    Then it is the last hop of `forwarded_for` that is not trusted, walking from
+    the right. A hop that is not an address ends the walk at the one before it.
+    """
     if not trusted.trusts_peer(peer):
         return peer
     address = peer
@@ -89,10 +98,12 @@ def real_address(peer: str, forwarded_for: str, trusted: TrustedProxies) -> str:
 
 
 class RealAddress:
-    """Puts the visitor's real address in the request's `client`, which the
-    slowing, the session row and the audit all read. With no proxy trusted,
-    `on_untrusted_forwarding` is called on the first request that carries
-    X-Forwarded-For, once per process."""
+    """Puts the visitor's real address in the request's `client`.
+
+    The slowing, the session row and the audit all read it there. With no proxy
+    trusted, `on_untrusted_forwarding` is called on the first request that
+    carries X-Forwarded-For, once per process.
+    """
 
     def __init__(
         self, app: ASGIApp, trusted: TrustedProxies | None, on_untrusted_forwarding: Callable[[], None]
@@ -103,6 +114,7 @@ class RealAddress:
         self.warned = False
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Pass an http request on with its real address as its client; with no proxy trusted, as it is."""
         client = scope.get("client")
         if scope["type"] != "http" or client is None:
             await self.app(scope, receive, send)

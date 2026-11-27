@@ -1,11 +1,13 @@
-"""The slowing of repeated failures (design point 7, § Signing in): after 3
-failed sign-ins in 15 minutes for one name from any address, or from one
-address for any name, each further attempt waits 1 s, 2 s, 4 s and so on
-after the last failure, a minute at most. An attempt during the wait is
-refused without checking the password, recorded as `waited`, and is no
-failure itself. A success clears that name's count. Every refusal checks one
-argon2id hash, a dummy one for a made-up name. Attempts older than a day go,
-at most 100 with each sign-in (decision 3)."""
+"""The slowing of repeated failures (design point 7, § Signing in).
+
+After 3 failed sign-ins in 15 minutes for one name from any address, or from one
+address for any name, each further attempt waits 1 s, 2 s, 4 s and so on after
+the last failure, a minute at most. An attempt during the wait is refused
+without checking the password, recorded as `waited`, and is no failure itself. A
+success clears that name's count. Every refusal checks one argon2id hash, a
+dummy one for a made-up name. Attempts older than a day go, at most 100 with
+each sign-in (decision 3).
+"""
 
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -65,8 +67,7 @@ class SignIn:
         return sign_in(self.store, self.clock, self.context, attempt) is not None
 
     def fail(self, times: int, name: str = "ann", address: str = ADDRESS) -> None:
-        """`times` failures; from the fourth on, each once the wait before it
-        has passed, so that it counts."""
+        """`times` failed sign-ins; from the fourth on, each once the wait before it has passed, so it counts."""
         for done in range(times):
             if done >= 3:
                 self.later(61)
@@ -262,8 +263,10 @@ def test_an_attempt_during_the_wait_checks_no_password(signing_in: SignIn, check
 def test_attempts_at_the_same_time_check_3_passwords_before_the_wait(
     signing_in: SignIn, checks: list[str], names: tuple[str, ...]
 ):
-    """Counting, checking and recording go in one transaction, one attempt
-    at a time for a name or an address, so a burst cannot all count zero."""
+    """Counting, checking and recording go in one transaction, one attempt at a time per name or address.
+
+    So a burst of attempts cannot all count zero.
+    """
     start = threading.Barrier(len(names))
 
     def attempt(name: str) -> bool:

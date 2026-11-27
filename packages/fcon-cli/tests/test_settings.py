@@ -1,6 +1,8 @@
-"""Where the commands get their settings: FCON_* variables, .env in the
-current directory for what they leave unset, and --host/--port for one run
-of `fcon server`."""
+"""Tests of where the commands get their settings.
+
+FCON_* variables, .env in the current directory for what they leave unset, and --host/--port for one run of
+`fcon server`.
+"""
 
 from pathlib import Path
 

@@ -1,5 +1,4 @@
-"""The one stylesheet every page uses: served by the app itself, and the one
-answer a browser may keep."""
+"""The one stylesheet every page uses: served by the app itself, and the one answer a browser may keep."""
 
 import pytest
 from bs4 import BeautifulSoup

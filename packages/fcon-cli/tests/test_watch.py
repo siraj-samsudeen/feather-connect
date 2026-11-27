@@ -1,6 +1,7 @@
-"""The database watch: the server's check every few seconds, in the
-background; it logs through the error helper when a problem starts, once a
-minute while it lasts, and when it ends."""
+"""Tests of the database watch: the server's check every few seconds, in the background.
+
+It logs through the error helper when a problem starts, once a minute while it lasts, and when it ends.
+"""
 
 import logging
 import threading
@@ -112,8 +113,10 @@ def test_a_database_that_stays_usable_is_not_logged_again(caplog: pytest.LogCapt
 
 
 def test_the_watch_names_a_refused_port_as_refused(free_port: int, caplog: pytest.LogCaptureFixture):
-    """On Windows the driver reports a refused port as a timeout: the watch
-    probes the port to tell the two apart."""
+    """On Windows the driver reports a refused port as a timeout.
+
+    The watch probes the port to tell the two apart.
+    """
     DatabaseWatch(f"postgresql://feather:feather@127.0.0.1:{free_port}/feather").look()
 
     assert "(connection refused)" in caplog.records[0].getMessage()

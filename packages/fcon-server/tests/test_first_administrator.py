@@ -1,6 +1,8 @@
-"""The first administrator from FCON_FIRST_ADMIN (design point 1, decision
-4): made once, on a start with no users, with a one-time password; nothing
-when any user exists."""
+"""The first administrator from FCON_FIRST_ADMIN (design point 1, decision 4).
+
+It is made once, on a start with no users, with a one-time password; nothing is
+made when any user exists.
+"""
 
 from dataclasses import replace
 from typing import Any

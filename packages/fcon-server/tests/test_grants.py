@@ -1,7 +1,9 @@
-"""The rights an upgrade grants (design point 17): an app user other than the
-owner reads and writes every `fcon` table, and only reads and adds to the
-audit log. The owner is the test server's administrator; the app user is a
-login role made for the test session (`app_role`)."""
+"""The rights an upgrade grants (design point 17).
+
+An app user other than the owner reads and writes every `fcon` table, and only
+reads and adds to the audit log. The owner is the test server's administrator;
+the app user is a login role made for the test session (`app_role`).
+"""
 
 from collections.abc import Iterator
 from datetime import UTC, datetime

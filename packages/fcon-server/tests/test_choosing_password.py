@@ -1,6 +1,9 @@
-"""Choosing one's own password (design points 2 and 3): a password given to
-a user works for one sign-in; the one they choose follows the rules, is typed
-twice, clears `must_choose_password`, and ends every other session of theirs."""
+"""Choosing one's own password (design points 2 and 3).
+
+A password given to a user works for one sign-in; the one they choose follows
+the rules, is typed twice, clears `must_choose_password`, and ends every other
+session of theirs.
+"""
 
 from dataclasses import replace
 from datetime import UTC, datetime

@@ -1,5 +1,8 @@
-"""`scripts/trace_requirements.py` (from the process template): lists the catalogue's
-requirement IDs that no spec names. Each test writes a catalogue and specs of its own."""
+"""Tests of `scripts/trace_requirements.py` (from the process template).
+
+It lists the catalogue's requirement IDs that no spec names. Each test writes a catalogue and specs
+of its own.
+"""
 
 import subprocess
 import sys

@@ -1,7 +1,8 @@
-"""The error helper: every message a person reads, for every command. Each
-says what is wrong and what to do, names a database by host, port and name,
-never its password, and gives the development hints (docker compose) only
-when the database is on this machine."""
+"""The error helper: every message a person reads, for every command.
+
+Each says what is wrong and what to do, names a database by host, port and name, never its password, and gives the
+development hints (docker compose) only when the database is on this machine.
+"""
 
 from dataclasses import dataclass
 from enum import StrEnum
@@ -21,6 +22,8 @@ _NO_STATUS = MigrationStatus(applied=(), waiting=(), newer=(), changed=())
 
 
 class Level(StrEnum):
+    """How serious a problem is; a problem's text starts with it."""
+
     ERROR = "error"
     WARNING = "warning"
     INFO = "info"  # worth knowing, nothing to do
@@ -28,11 +31,14 @@ class Level(StrEnum):
 
 @dataclass(frozen=True)
 class Problem:
+    """A message for a person: what is wrong, at a level, and what to do about it."""
+
     level: Level
     what: str  # what is wrong, one sentence
     todo: tuple[str, ...] = ()  # what to do, a line each
 
     def text(self) -> str:
+        """The message as printed: "level: what", then each thing to do on an indented line of its own."""
         return "\n".join([f"{self.level}: {self.what}", *(f"  {line}" for line in self.todo)])
 
 
@@ -45,6 +51,7 @@ class ProblemError(Exception):
 
 
 def _pick_port(port: int) -> str:
+    """How to choose `port`: the setting, or the option for one run."""
     return f"FCON_PORT={port} (or --port {port})"
 
 
@@ -52,6 +59,7 @@ def _pick_port(port: int) -> str:
 
 
 def database_url_missing() -> Problem:
+    """The problem when FCON_DATABASE_URL is not set."""
     return Problem(
         Level.ERROR,
         "FCON_DATABASE_URL is not set.",
@@ -60,11 +68,15 @@ def database_url_missing() -> Problem:
 
 
 def database_url_not_postgres(name: str = "FCON_DATABASE_URL") -> Problem:
-    """Never repeats the address: it may hold a password."""
+    """The problem when the setting `name` is not a Postgres address.
+
+    Never repeats the address: it may hold a password.
+    """
     return Problem(Level.ERROR, f"{name} is not a Postgres address.", (SET_THE_ADDRESS,))
 
 
 def port_not_a_number(name: str, text: str) -> Problem:
+    """The problem when the setting or option `name` holds `text`, which is not a port from 1 to 65535."""
     return Problem(
         Level.ERROR,
         f"{name} is not a port number: {text}.",
@@ -73,6 +85,7 @@ def port_not_a_number(name: str, text: str) -> Problem:
 
 
 def log_format_unknown(text: str) -> Problem:
+    """The problem when FCON_LOG_FORMAT is neither text nor json."""
     return Problem(
         Level.ERROR,
         f"FCON_LOG_FORMAT is not text or json: {text}.",
@@ -81,6 +94,7 @@ def log_format_unknown(text: str) -> Problem:
 
 
 def pool_size_not_a_number(text: str) -> Problem:
+    """The problem when FCON_DATABASE_POOL_SIZE is not a whole number from 1 up."""
     return Problem(
         Level.ERROR,
         f"FCON_DATABASE_POOL_SIZE is not a number of connections: {text}.",
@@ -89,6 +103,7 @@ def pool_size_not_a_number(text: str) -> Problem:
 
 
 def prepare_unknown(text: str) -> Problem:
+    """The problem when FCON_DATABASE_PREPARE is neither on nor off."""
     return Problem(
         Level.ERROR,
         f"FCON_DATABASE_PREPARE is not on or off: {text}.",
@@ -100,6 +115,7 @@ MAKE_A_KEY = 'python -c "import secrets; print(secrets.token_urlsafe(32))"'
 
 
 def secret_key_missing() -> Problem:
+    """The problem when FCON_SECRET_KEY is not set, with a command that makes one."""
     return Problem(
         Level.ERROR,
         "FCON_SECRET_KEY is not set.",
@@ -108,11 +124,15 @@ def secret_key_missing() -> Problem:
 
 
 def secret_key_too_short(name: str) -> Problem:
-    """Never repeats the key: it is a secret."""
+    """The problem when the key in the setting `name` is shorter than 32 characters.
+
+    Never repeats the key: it is a secret.
+    """
     return Problem(Level.ERROR, f"{name} is shorter than 32 characters.", ("Make a longer one with:", MAKE_A_KEY))
 
 
 def first_admin_not_allowed(name: str) -> Problem:
+    """The problem when FCON_FIRST_ADMIN is not an allowed user name."""
     return Problem(
         Level.ERROR,
         f"FCON_FIRST_ADMIN is not an allowed user name: {name!r}.",
@@ -121,7 +141,10 @@ def first_admin_not_allowed(name: str) -> Problem:
 
 
 def first_admin_made(name: str, password: str) -> Problem:
-    """The one place a one-time password is written: the log, once (design point 1)."""
+    """The warning that gives the first administrator's one-time password.
+
+    The one place a one-time password is written: the log, once (design point 1).
+    """
     return Problem(
         Level.WARNING,
         f'no administrator yet; made "{name}" with a one-time password: {password}',
@@ -138,6 +161,7 @@ def usage(message: str, usage_text: str) -> Problem:
 
 
 def port_taken(host: str, port: int) -> Problem:
+    """The problem when the port is already in use, suggesting the next one."""
     return Problem(
         Level.ERROR,
         f"port {port} on {host} is already in use.",
@@ -146,6 +170,7 @@ def port_taken(host: str, port: int) -> Problem:
 
 
 def port_not_allowed(host: str, port: int) -> Problem:
+    """The problem when this machine does not allow listening on the port, suggesting another."""
     other = DEFAULT_PORT if port < 1024 else port + 1
     return Problem(
         Level.ERROR,
@@ -158,6 +183,7 @@ def port_not_allowed(host: str, port: int) -> Problem:
 
 
 def host_not_here(host: str) -> Problem:
+    """The problem when the server cannot listen on `host`: it is not an address of this machine."""
     return Problem(
         Level.ERROR,
         f"cannot listen on {host}: it is not an address of this machine.",
@@ -166,6 +192,7 @@ def host_not_here(host: str) -> Problem:
 
 
 def listening_beyond_machine(host: str, port: int) -> Problem:
+    """The warning that the server listens where other machines can reach it."""
     return Problem(
         Level.WARNING,
         f"listening on {host}:{port} can be reached from other machines.",
@@ -174,6 +201,7 @@ def listening_beyond_machine(host: str, port: int) -> Problem:
 
 
 def trusted_proxies_not_addresses(item: str) -> Problem:
+    """The problem when an item of FCON_TRUSTED_PROXIES is not an address or a range."""
     return Problem(
         Level.ERROR,
         f"FCON_TRUSTED_PROXIES is not a list of addresses or ranges: {item!r}.",
@@ -185,12 +213,15 @@ def trusted_proxies_not_addresses(item: str) -> Problem:
 
 
 def untrusted_forwarding() -> Problem:
-    """Logged once per process (design point 8)."""
+    """The warning that requests carry X-Forwarded-For but no proxy is trusted.
+
+    Logged once per process (design point 8).
+    """
     return Problem(Level.WARNING, "requests carry X-Forwarded-For, but no proxy is trusted; set FCON_TRUSTED_PROXIES.")
 
 
 def bug() -> Problem:
-    """Followed by the traceback."""
+    """The error for an unexpected failure, a bug in Feather Connect; the traceback follows it."""
     return Problem(Level.ERROR, "this is a bug in Feather Connect; please report it with the lines below.")
 
 
@@ -198,11 +229,15 @@ def bug() -> Problem:
 
 
 def _where(address: DatabaseAddress) -> str:
+    """The database's host and port, as host:port."""
     return f"{address.host}:{address.port}"
 
 
 def _unusable(check: DatabaseCheck, setting: str) -> tuple[str, tuple[str, ...]]:
-    """What is wrong with a database that is not usable, and what to do."""
+    """What is wrong with a database that is not usable, and what to do.
+
+    `setting` names the setting that holds its address.
+    """
     address = check.address
     local = address.host in THIS_MACHINE
     match check.problem:
@@ -229,12 +264,15 @@ def _unusable(check: DatabaseCheck, setting: str) -> tuple[str, tuple[str, ...]]
 
 
 def _upgrades(count: int) -> str:
+    """The number of upgrades in words: "1 upgrade", "3 upgrades"."""
     return f"{count} upgrade{'' if count == 1 else 's'}"
 
 
 def _not_ready(check: DatabaseCheck) -> tuple[str, tuple[str, ...]]:
-    """What is wrong with a database the server reaches but cannot use yet,
-    and what to do; `_unusable` words the ones it cannot reach."""
+    """What is wrong with a database the server reaches but cannot use yet, and what to do.
+
+    `_unusable` words the ones it cannot reach.
+    """
     status = check.migrations or _NO_STATUS
     match check.problem:
         case database.Problem.NOT_UTF8:
@@ -256,6 +294,10 @@ def _not_ready(check: DatabaseCheck) -> tuple[str, tuple[str, ...]]:
 
 
 def _database_problem(check: DatabaseCheck, level: Level, after: str) -> Problem:
+    """The problem for a database that is not usable, at `level`, with `after` added to what is wrong.
+
+    An upgrade that has changed since it ran has its own error, whatever the level.
+    """
     if check.problem is database.Problem.CHANGED:
         return upgrade_changed((check.migrations or _NO_STATUS).changed[0].name)
     what, todo = _not_ready(check)
@@ -268,8 +310,10 @@ def database_problem(check: DatabaseCheck) -> Problem:
 
 
 def database_notes(check: DatabaseCheck) -> tuple[Problem, ...]:
-    """What is worth saying, once, about a database that is usable: none of
-    it stops the server being ready."""
+    """What is worth saying, once, about a database that is usable; nothing for one that is not.
+
+    None of it stops the server being ready.
+    """
     if check.problem is not None:
         return ()
     notes: list[Problem] = []
@@ -298,13 +342,13 @@ def database_not_ready_for_command(check: DatabaseCheck) -> Problem:
 
 
 def database_unusable(check: DatabaseCheck, setting: str) -> Problem:
-    """A command's error for a database that is not usable, whose address it
-    read from `setting`."""
+    """A command's error for a database that is not usable, whose address it read from `setting`."""
     what, todo = _unusable(check, setting)
     return Problem(Level.ERROR, what, todo)
 
 
 def upgrade_changed(name: str) -> Problem:
+    """The problem when the upgrade `name` has changed since it ran."""
     return Problem(
         Level.ERROR, f"upgrade {name} has changed since it ran.", ("Restore it; never edit a migration that ran.",)
     )
@@ -332,6 +376,7 @@ _PASSWORD_TODO = {
 
 
 def user_name_not_allowed(name: str) -> Problem:
+    """The problem when `name` is not an allowed user name."""
     return Problem(
         Level.ERROR,
         f"the user name {name!r} is not allowed.",
@@ -340,26 +385,32 @@ def user_name_not_allowed(name: str) -> Problem:
 
 
 def user_name_taken(name: str) -> Problem:
+    """The problem when another user has the name already."""
     return Problem(Level.ERROR, f"the user name {name} is taken.", ("Pick another name.",))
 
 
 def weak_password(problem: PasswordProblem) -> Problem:
+    """The problem when the password breaks a rule, with how to meet it."""
     return Problem(Level.ERROR, f"the password is {problem}.", (_PASSWORD_TODO[problem],))
 
 
 def no_password() -> Problem:
+    """The problem when no password was given."""
     return Problem(Level.ERROR, "no password was given.", ("Type it when asked, or give it as one line on stdin.",))
 
 
 def passwords_differ() -> Problem:
+    """The problem when the password typed again differs from the first."""
     return Problem(Level.ERROR, "the two passwords typed differ.", ("Type the same password twice.",))
 
 
 def no_such_user(name: str) -> Problem:
+    """The problem when no user has the name."""
     return Problem(Level.ERROR, f"no user is named {name}.", ("See who there is: fcon users list",))
 
 
 def only_administrator(reason: str) -> Problem:
+    """The problem when a change would leave no administrator; `reason` says who the only one is."""
     return Problem(
         Level.ERROR, reason, ("Make another user an administrator: fcon users set-role <name> administrator",)
     )

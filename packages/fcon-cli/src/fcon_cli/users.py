@@ -1,8 +1,9 @@
-"""`fcon users add`, `list`, `disable`, `enable` and `set-role` (design §
-How it is built): the users service, called as `system:cli` in the
-request's tenant (`default` until M2). The password is asked twice on a
-terminal, else read as one line of stdin; it is never printed. Every
-refusal is a problem through the error helper."""
+"""The `fcon users` commands: `add`, `list`, `disable`, `enable` and `set-role` (design § How it is built).
+
+They call the users service as `system:cli` in the request's tenant (`default` until M2). The password is asked twice
+on a terminal, else read as one line of stdin; it is never printed. Every refusal is a problem through the error
+helper.
+"""
 
 import getpass
 from collections.abc import Callable, Generator
@@ -38,6 +39,10 @@ type Ask = Callable[[str], str]
 
 
 def read_password(stdin: TextIO, ask: Ask = getpass.getpass) -> str:
+    """The new user's password: asked twice through `ask` on a terminal, else one line of `stdin`.
+
+    Raises ProblemError when the two typed differ or no password is given.
+    """
     if stdin.isatty():
         password = ask("Password: ")
         if ask("The same again: ") != password:
@@ -50,13 +55,16 @@ def read_password(stdin: TextIO, ask: Ask = getpass.getpass) -> str:
 
 
 def _caller() -> Caller:
-    """The command line acts with every right, as whoever can run it can
-    reach the database anyway."""
+    """The command line as a caller with every right, as `system:cli` in the request's tenant.
+
+    Whoever can run it can reach the database anyway.
+    """
     context = Context(tenant_id=request_tenant(), actor=ACTOR, request_id=f"cli-{new_id()}")
     return Caller(context, Role.ADMINISTRATOR)
 
 
 def _store(settings: DatabaseSettings) -> Store:
+    """The store on the app's address; raises ProblemError when the database is not ready for a command."""
     check = diagnose_database(settings.database_url)
     if check.problem is not None:
         raise ProblemError(problems.database_not_ready_for_command(check))
@@ -64,12 +72,17 @@ def _store(settings: DatabaseSettings) -> Store:
 
 
 def _with_article(role: Role) -> str:
+    """The role with its article: "an administrator", "a viewer"."""
     return f"{'an' if role.value[0] in 'aeiou' else 'a'} {role}"
 
 
-def add(
+def add(  # noqa: PLR0913  # the command's own arguments, plus where it reads and writes like every command
     settings: DatabaseSettings, name: str, role: Role, display_name: str | None, stdin: TextIO, out: TextIO
 ) -> None:
+    """Add a user with the password read from `stdin`, and say on `out` who was added.
+
+    Raises ProblemError when the database is not ready, no password is given, or the name or password is refused.
+    """
     store = _store(settings)
     password = read_password(stdin)
     try:
@@ -89,6 +102,7 @@ HEADINGS = ("NAME", "ROLE", "STATE", "DISPLAY NAME")
 
 
 def show_list(settings: DatabaseSettings, out: TextIO) -> None:
+    """Print the users on `out` as a table of name, role, state and display name."""
     listed = list_users(_store(settings), _caller())
     if not listed:
         print("no users yet.", file=out)
@@ -102,6 +116,7 @@ def show_list(settings: DatabaseSettings, out: TextIO) -> None:
 
 @contextmanager
 def _refusals() -> Generator[None]:
+    """Turn the users service's refusals, no such user or the last administrator, into problems."""
     try:
         yield
     except NoSuchUserError as err:
@@ -111,6 +126,7 @@ def _refusals() -> Generator[None]:
 
 
 def disable(settings: DatabaseSettings, name: str, out: TextIO) -> None:
+    """Disable the user `name`, ending every session of theirs, and say on `out` whether that changed anything."""
     store = _store(settings)
     with _refusals():
         changed = disable_user(store, SystemClock(), _caller(), name)
@@ -122,6 +138,7 @@ def disable(settings: DatabaseSettings, name: str, out: TextIO) -> None:
 
 
 def enable(settings: DatabaseSettings, name: str, out: TextIO) -> None:
+    """Let the disabled user `name` sign in again, and say on `out` whether that changed anything."""
     store = _store(settings)
     with _refusals():
         changed = enable_user(store, _caller(), name)
@@ -130,6 +147,7 @@ def enable(settings: DatabaseSettings, name: str, out: TextIO) -> None:
 
 
 def change_role(settings: DatabaseSettings, name: str, role: Role, out: TextIO) -> None:
+    """Give the user `name` the role `role`, and say on `out` whether that changed anything."""
     store = _store(settings)
     with _refusals():
         changed = set_role(store, _caller(), name, role)

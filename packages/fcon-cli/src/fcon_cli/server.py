@@ -1,5 +1,7 @@
-"""`fcon server`: binds the port itself, starts the database watch, then
-runs Uvicorn on that socket in the same process, one process per container."""
+"""The `fcon server` command: it binds the port itself, starts the database watch, then runs Uvicorn.
+
+Uvicorn runs on that socket in the same process, one process per container.
+"""
 
 import errno
 import ipaddress
@@ -57,6 +59,7 @@ def listen_problem(err: OSError, host: str, port: int) -> Problem | None:
 
 
 def _open_and_listen(host: str, port: int) -> socket.socket:
+    """A socket listening on the host and port, bound for exclusive use; closed again when that fails."""
     family, kind, proto, _, address = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)[0]
     sock = socket.socket(family, kind, proto)
     try:
@@ -70,7 +73,10 @@ def _open_and_listen(host: str, port: int) -> socket.socket:
 
 
 def bind(host: str, port: int) -> socket.socket:
-    """The listening socket, so a taken port is found before Uvicorn starts."""
+    """The listening socket, so a taken port is found before Uvicorn starts.
+
+    Raises ProblemError for a host or port a person can fix; any other failure to listen is raised as it is.
+    """
     try:
         return _open_and_listen(host, port)
     except socket.gaierror:
@@ -83,26 +89,36 @@ def bind(host: str, port: int) -> socket.socket:
 
 
 def _stop(_signum: int, _frame: FrameType | None) -> NoReturn:
+    """End the server on a stop signal, with exit status 0."""
     raise SystemExit(0)
 
 
 def announce(host: str, port: int) -> None:
-    """Where it listens (the socket's own numeric address), and a warning
-    when other machines can reach it: it belongs behind the host's HTTPS proxy."""
+    """Log where the server listens (the socket's own numeric address), and warn when other machines can reach it.
+
+    Beyond this machine, the server belongs behind the host's HTTPS proxy.
+    """
     log.info("listening on http://%s:%d", host, port)
     if not ipaddress.ip_address(host).is_loopback:
         log_problem(log, problems.listening_beyond_machine(host, port))
 
 
 def first_administrator(database_url: str, name: str) -> FirstAdministrator:
-    """Makes `name` the first administrator, through a connection of its own
-    for each try, as `system:first-admin` in the request's tenant."""
+    """The background work that makes `name` the first administrator.
+
+    Each try goes through a connection of its own, as `system:first-admin` in the request's tenant.
+    """
     store = Store(OneConnectionEach(database_url, "fcon-first-admin"), SystemClock(), new_id)
     context = Context(tenant_id=request_tenant(), actor=FIRST_ADMIN_ACTOR, request_id=f"first-admin-{new_id()}")
     return FirstAdministrator(name, lambda: add_first_administrator(store, context, name))
 
 
 def run_server(settings: Settings) -> None:
+    """Serve the app until a stop signal: bind the port, start the background work, then run Uvicorn on the socket.
+
+    The background work is the database watch, and the first administrator when FCON_FIRST_ADMIN names one; it is
+    stopped when the server ends. Raises ProblemError when the host or port cannot be used.
+    """
     sock = bind(settings.host, settings.port)
     host, port = sock.getsockname()[:2]
     for sig in _STOP_SIGNALS:

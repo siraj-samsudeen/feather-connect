@@ -1,6 +1,8 @@
-"""The store's writes (design decision 1, points 7, 13 and 16): `tx.insert` and
-`tx.update` fill the tenant, the who-and-when columns and the row version, and
-write one audit record in the same transaction."""
+"""The store's writes (design decision 1, points 7, 13 and 16).
+
+`tx.insert` and `tx.update` fill the tenant, the who-and-when columns and the
+row version, and write one audit record in the same transaction.
+"""
 
 from collections.abc import Callable
 from dataclasses import dataclass, replace

@@ -1,6 +1,8 @@
-"""Signing in through the pages, and the pages behind it (design points 4, 5,
-6 and 9, decisions 1 and 2): the sign-in form's own token, the session's
-cookie, the gate in front of every route, and the overview."""
+"""Signing in through the pages, and the pages behind it (design points 4, 5, 6 and 9, decisions 1 and 2).
+
+The sign-in form's own token, the session's cookie, the gate in front of every
+route, and the overview.
+"""
 
 from collections.abc import Iterator
 
@@ -33,8 +35,10 @@ REFUSAL = "The user name or password is wrong."
 
 @pytest.fixture
 def site_database(empty_database_url: str) -> str:
-    """A database of the test's own, upgraded, with "ann" as its first user:
-    the pages work in the tenant `default`, which the session's database shares."""
+    """A database of the test's own, upgraded, with "ann" as its first user.
+
+    The pages work in the tenant `default`, which the session's database shares.
+    """
     upgrade(empty_database_url, SystemClock())
     store = Store(OneConnectionEach(empty_database_url, "fcon-test"), SystemClock(), new_id)
     context = Context(tenant_id=request_tenant(), actor="system:test", request_id="test-setup")

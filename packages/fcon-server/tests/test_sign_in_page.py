@@ -1,5 +1,7 @@
-"""The front door and the sign-in page, as a browser is answered; signing in
-itself is in test_signing_in.py."""
+"""The front door and the sign-in page, as a browser is answered.
+
+Signing in itself is in test_signing_in.py.
+"""
 
 import pytest
 from bs4 import BeautifulSoup, Tag
