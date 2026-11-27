@@ -105,7 +105,7 @@ class Gate:
     form.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913  # the site's pages and paths, by keyword; tests build a gate of their own
         self,
         app: FastAPI,
         *,
@@ -158,7 +158,7 @@ class Gate:
         with bind(context):
             changes = scope["method"] in CHANGES
             if changes and comes_from_another_site(Headers(scope=scope)):
-                await self._refuse(scope, receive, send, context, None, FOREIGN_ORIGIN)
+                await self._refuse(scope, receive, send, None, FOREIGN_ORIGIN)
                 return
             if self._is_open(scope["path"]):
                 await self.app(scope, receive, send)
@@ -179,17 +179,16 @@ class Gate:
                 if changes:
                     token, receive = await form_token(scope, receive)
                     if not hmac.compare_digest(token.encode(), found.form_token.encode()):
-                        await self._refuse(scope, receive, send, found.caller.context, found, WRONG_FORM_TOKEN)
+                        await self._refuse(scope, receive, send, found, WRONG_FORM_TOKEN)
                         return
                 if found.must_choose_password and scope["path"] not in self.while_choosing:
                     await RedirectResponse(self.choose_password_path, status_code=303)(scope, receive, send)
                     return
                 await self.app(scope, receive, send)
 
-    async def _refuse(
-        self, scope: Scope, receive: Receive, send: Send, context: Context, found: SignedIn | None, reason: str
-    ) -> None:
-        """The form-expired page (403), with a refused audit record."""
+    async def _refuse(self, scope: Scope, receive: Receive, send: Send, found: SignedIn | None, reason: str) -> None:
+        """The form-expired page (403), with a refused audit record in the request's context as the gate set it."""
+        context: Context = scope["state"]["context"]
         session_id = None if found is None else found.session_id
         try:
             await run_in_threadpool(refuse_form, self.store, context, session_id, reason)
