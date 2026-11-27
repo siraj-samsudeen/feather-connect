@@ -107,7 +107,7 @@ _LOCK = """
 """
 
 
-def _change(
+def _change(  # noqa: PLR0913  # one change, named by keyword; each caller passes only its own
     store: Store,
     caller: Caller,
     typed_name: str,

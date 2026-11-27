@@ -21,7 +21,7 @@ DEFAULT_ENVIRONMENT = "development"
 _SYSTEM_CLOCK = SystemClock()
 
 
-def create_app(
+def create_app(  # noqa: PLR0913  # keyword-only settings with defaults: each caller names only the few that differ
     database_url: str,
     *,
     keys: SecretKeys,
@@ -80,7 +80,7 @@ def _lifespan(pool: Pool) -> Callable[[FastAPI], AbstractAsyncContextManager[Non
     return lifespan
 
 
-def build_app(
+def build_app(  # noqa: PLR0913  # keyword-only settings with defaults: each caller names only the few that differ
     database_url: str,
     *,
     keys: SecretKeys,

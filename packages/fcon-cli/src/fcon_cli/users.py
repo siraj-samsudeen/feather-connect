@@ -76,7 +76,7 @@ def _with_article(role: Role) -> str:
     return f"{'an' if role.value[0] in 'aeiou' else 'a'} {role}"
 
 
-def add(
+def add(  # noqa: PLR0913  # the command's own arguments, plus where it reads and writes like every command
     settings: DatabaseSettings, name: str, role: Role, display_name: str | None, stdin: TextIO, out: TextIO
 ) -> None:
     """Add a user with the password read from `stdin`, and say on `out` who was added.

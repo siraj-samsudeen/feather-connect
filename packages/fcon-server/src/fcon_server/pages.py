@@ -382,7 +382,7 @@ def _sign_in_form(request: Request, view: SignInView) -> HTMLResponse:
     return response
 
 
-def router() -> APIRouter:
+def router() -> APIRouter:  # noqa: C901  # ruff counts each nested route; each one is short
     """The dashboard's routes: the overview, signing in and out, and choosing a password."""
     routes = APIRouter()
 
