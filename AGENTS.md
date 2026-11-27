@@ -95,8 +95,8 @@ them from one dashboard.
   page objects.
 
 **Tooling defaults, never asked**, added to those of the `change-modes` skill (§ Defaults): ruff to lint and
-format (the defaults plus `S`, `B`, `I`, `UP`), pyright in strict mode, vulture, deptry, pytest
-for inner tests with 100% coverage, behave with Playwright for the acceptance suite
+format (the defaults plus `S`, `B`, `I`, `UP` and the checks of convention 17), pyright in strict
+mode, vulture, deptry, pytest for inner tests with 100% coverage, behave with Playwright for the acceptance suite
 (`stack: python`), `uv run` for every command. The end-of-change checks are the Python column of
 the table in the `outside-in-tdd` skill, § Reconcile, and CI runs them (`.github/workflows/`).
 deptry reads one package's `pyproject.toml`: run it from each package's directory,
@@ -140,6 +140,12 @@ weekly as a report, the Windows and macOS tests do not block, Dependabot propose
     edited. The code review checks every migration against this.
 16. Flow and package code never reaches the store or gets the product's database address; only
     the server and the worker do.
+17. Code follows the `maintainable-code` skill. Checked by ruff: every public file, class and
+    function outside the tests has a description (`D`, Google style), complexity at
+    most 10 (`C90`), few branches, statements and parameters (`PLR0912`, `PLR0915`, `PLR0913`),
+    no commented-out code (`ERA`), no swallowed error (`BLE`). A kept finding carries
+    `# noqa: <code>  # <reason>`. Private functions' and test files' descriptions, and whether a
+    description is true, are checked by review only.
 
 **Who decides** (owner, 23-Nov-2026; the full table is in [`docs/process.md`](docs/process.md)).
 The owner decides scope, the agreed design, the proposal and specs, every ADR, and the merge. The
