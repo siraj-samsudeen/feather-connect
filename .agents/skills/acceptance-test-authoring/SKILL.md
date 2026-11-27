@@ -115,4 +115,8 @@ Step definitions must read as intent; all UI knowledge lives in page objects.
 
 Implement one pending step definition at a time: run the suite so the step fails for the right reason, implement until it passes, then commit. The effective suite's red scenarios at propose time are the change's work list. Finish only when every scenario passes with zero pending or undefined steps and the HTML report is generated.
 
+**Every page a scenario opens is checked for accessibility** (`support/quality`): the step that opens a page calls the check, and one Then step per feature asserts no problem was found. A spec may give a page a **response-time budget** ("the overview opens within a second"); its Then step compares `load_ms` with it.
+
+**Scenarios never flake** (the `test-driven-development` skill, § Tests that never flake): wait for what the person would see, never a fixed time; each scenario creates its own people and data. A flaky scenario is fixed the same day or quarantined with a tag and an issue.
+
 **While building, run the scenarios being worked on, not the whole suite:** a feature path or a tag. A long whole-suite run in the background can stall an agent without any report, leaving its work uncommitted. The whole suite runs before each push and at the end.

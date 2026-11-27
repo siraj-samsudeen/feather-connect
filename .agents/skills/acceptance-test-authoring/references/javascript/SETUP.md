@@ -19,6 +19,7 @@ Then copy these starting points into `acceptance-tests/support/` and fill in the
 | `javascript/support/stack.js` | `support/stack.js` | Boots the app on its own database and ports (`ACCEPTANCE_API_PORT`, `ACCEPTANCE_WEB_PORT`), so it runs beside the dev server and other worktrees; refuses to start, naming the port, while another run holds them |
 | `javascript/support/auth.js` | `support/auth.js` | People start signed in: a Playwright `storageState` from the same request the sign-in form makes, so the form is typed only in sign-in scenarios; one API session per run for setup |
 | `javascript/support/world.js` | `support/world.js` | The World: one browser context per person, desktop at the answers' `ui_verifier_width`, `usePhone()`, a screenshot of every failed scenario, and the watching and debugging switches below |
+| `javascript/support/quality.js` | `support/quality.js` | Two checks on every page a scenario opens: axe-core's accessibility rules (WCAG 2.1 A and AA) through `@axe-core/playwright`, and `loadMs(page)` for a spec's response-time budget. Copy verbatim |
 | `javascript/support/captions.js` | `support/captions.js` | `VIDEO=1` only: each step's text as a caption over every open page, a hold after each Then, and a pulsing dot so Playwright keeps recording (it records frames only on repaint, so a still page's pause and a clip's end were cut). Copy verbatim |
 | `javascript/scripts/video-journey.cjs` | `scripts/video-journey.cjs` | `npm run video:journey`: joins the last `VIDEO=1` run's clips into one `reports/videos/journey.mp4`. Copy verbatim |
 
@@ -28,7 +29,7 @@ Then copy these starting points into `acceptance-tests/support/` and fill in the
 
 `acceptance-tests/` is an independent Node project with its own `package.json`. Its hooks boot the application before the suite and shut it down after, so the suite runs with one command.
 
-devDependencies: `@cucumber/cucumber` (^13.3), `glob` (^14), `cheerio`, and `playwright` pinned to the exact version the project already uses, so the browsers it downloads match. No spec linter (the skill's "No Separate Spec Lint").
+devDependencies: `@cucumber/cucumber` (^13.3), `glob` (^14), `cheerio`, `@axe-core/playwright`, and `playwright` pinned to the exact version the project already uses, so the browsers it downloads match. No spec linter (the skill's "No Separate Spec Lint").
 
 ```json
 "scripts": {

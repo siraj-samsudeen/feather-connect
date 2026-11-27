@@ -111,6 +111,10 @@ A change a person can see goes this way instead of a code review:
    and returns a "spec vs built" table: each checklist point, what it saw, pass or fail, with a
    screenshot. With `desktop_first: true`, UI is built and verified at that desktop width only;
    phone widths are added only when the piece of work asks for them.
+   Beside the checklist, the verifier always checks two things: every page can be used with
+   the keyboard alone (each control reached with Tab, in a sensible order, with a visible
+   focus), and the acceptance suite's automatic accessibility check found nothing
+   (`support/quality`, the `acceptance-test-authoring` skill).
 5. **Fix the differences** before the owner sees the screenshots, the code or a PR.
 
 Put the verifier's screenshots in the PR body only when `screenshots_in_prs` is true; otherwise
