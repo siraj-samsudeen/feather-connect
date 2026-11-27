@@ -1,5 +1,7 @@
-"""The gate's own pieces (decision 1, design point 5): where a form's token is
-read from, and a refusal the database cannot record."""
+"""The gate's own pieces (decision 1, design point 5).
+
+Where a form's token is read from, and a refusal the database cannot record.
+"""
 
 import asyncio
 import logging

@@ -26,15 +26,19 @@ FRESH_S = 1.0  # a result younger than this answers the next request too
 
 
 def readiness(check: DatabaseCheck | None) -> tuple[int, dict[str, Any]]:
-    """The status and body /readyz answers: one word for every problem, and
-    for no answer in time."""
+    """The status and body /readyz answers.
+
+    It says one word for every problem, and for no answer in time.
+    """
     return (200, READY) if check is not None and check.problem is None else (503, NOT_READY)
 
 
 class SharedCheck:
-    """One check for every request that comes while it runs, and its result
-    for a second after: a flood of requests holds one worker thread and one
-    database connection at most."""
+    """One check for every request that comes while it runs, and its result for a second after.
+
+    A flood of requests holds one worker thread and one database connection at
+    most.
+    """
 
     def __init__(
         self,
@@ -51,12 +55,14 @@ class SharedCheck:
         self._last: tuple[float, DatabaseCheck] | None = None
 
     def _run(self) -> DatabaseCheck:
+        """Run the check, and keep its result with the time it came."""
         check = self._check()
         with self._lock:
             self._last = (self._clock(), check)
         return check
 
     def _current(self) -> Future[DatabaseCheck]:
+        """A recent result, else the check running now, else a check started now."""
         with self._lock:
             if self._last is not None and self._clock() - self._last[0] < FRESH_S:
                 done: Future[DatabaseCheck] = Future()
@@ -67,8 +73,10 @@ class SharedCheck:
             return self._running
 
     async def result(self) -> DatabaseCheck | None:
-        """The check's result, or None when it gives none within
-        answer_within_s; it carries on, and its result serves the next request."""
+        """The check's result, or None when it gives none within `answer_within_s`.
+
+        The check carries on, and its result serves the next request.
+        """
         try:
             async with asyncio.timeout(self._answer_within_s):
                 # shield: one request giving up does not cancel the others' check
@@ -78,14 +86,17 @@ class SharedCheck:
 
 
 def router(database_url: str) -> APIRouter:
+    """The routes /healthz and /readyz, readiness checking the database at `database_url`."""
     routes = APIRouter()
     database = SharedCheck(lambda: check_database(database_url))
 
     @routes.get(LIVENESS_PATH)
     async def healthz() -> dict[str, str]:
-        """Up while the process is: never touches the database, so an outage
-        does not make the host restart the server. Async, so it answers even
-        when every worker thread is busy."""
+        """Say the process is alive, without touching the database.
+
+        An outage then does not make the host restart the server. Async, so it
+        answers even when every worker thread is busy.
+        """
         return {"status": "alive"}
 
     @routes.get(READINESS_PATH)

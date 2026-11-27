@@ -1,7 +1,9 @@
-"""The store's own errors (design point 14, decision 2): raw database errors
-never leave it; a deadlock or serialization failure is "busy, try again",
-which `Store.run` retries twice and `Store.transaction` never does; slow
-statements are logged with their text only."""
+"""The store's own errors (design point 14, decision 2).
+
+Raw database errors never leave it; a deadlock or serialization failure is
+"busy, try again", which `Store.run` retries twice and `Store.transaction` never
+does; slow statements are logged with their text only.
+"""
 
 import itertools
 import logging

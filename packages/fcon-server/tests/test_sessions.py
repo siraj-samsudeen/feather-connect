@@ -1,6 +1,8 @@
-"""Signing in and the session it makes (design points 4 and 7, § How it is
-built): every attempt is recorded; a session lives in the database, the
-browser holds only its random id, and it ends after 12 hours idle or 7 days."""
+"""Signing in and the session it makes (design points 4 and 7, § How it is built).
+
+Every attempt is recorded; a session lives in the database, the browser holds
+only its random id, and it ends after 12 hours idle or 7 days.
+"""
 
 import hashlib
 from dataclasses import replace

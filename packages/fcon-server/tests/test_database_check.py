@@ -102,8 +102,10 @@ def test_any_other_driver_error_is_unreachable_with_its_first_line(monkeypatch: 
 
 
 def test_a_timeout_on_a_port_that_refuses_is_reported_as_refused():
-    """Windows' psycopg reports a refused port as a timeout; the probe corrects
-    it on every system, whatever the driver says there."""
+    """Windows' psycopg reports a refused port as a timeout.
+
+    The probe corrects it on every system, whatever the driver says there.
+    """
     url = "postgresql://feather:feather@127.0.0.1:5999/feather"
     timed_out = check_database_result(url, reason="timed out")
 

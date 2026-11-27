@@ -1,5 +1,7 @@
-"""The visitor's real address behind the host's proxy (design point 8):
-forwarded headers are believed only from a trusted proxy."""
+"""The visitor's real address behind the host's proxy (design point 8).
+
+Forwarded headers are believed only from a trusted proxy.
+"""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -76,8 +78,10 @@ def test_an_ipv4_peer_written_as_ipv6_is_trusted_as_ipv4():
 
 
 def test_everyone_trusts_any_peer_but_no_hop():
-    """`*`: only the proxy can reach the container, so the peer is it; the
-    address it saw is the last hop, whatever the visitor sent before it."""
+    """`*`: only the proxy can reach the container, so the peer is it.
+
+    The address it saw is the last hop, whatever the visitor sent before it.
+    """
     assert real_address(CADDY, f"198.51.100.1, {VISITOR}", read("*")) == VISITOR
 
 

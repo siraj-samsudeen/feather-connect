@@ -1,5 +1,4 @@
-"""The product's own pages for an address it does not have and for a failure
-inside the server."""
+"""The product's own pages for an address it does not have and for a failure inside the server."""
 
 import logging
 
@@ -19,8 +18,10 @@ FAILURE = "a made-up failure inside the server"
 
 @pytest.fixture
 def client() -> TestClient:
-    """The routes without the gate, as a signed-in user reaches them: the gate
-    sends anyone else to sign-in (test_signing_in.py)."""
+    """The routes without the gate, as a signed-in user reaches them.
+
+    The gate sends anyone else to sign-in (test_signing_in.py).
+    """
     return TestClient(with_middleware(build_app(NO_DATABASE, keys=KEYS)))
 
 

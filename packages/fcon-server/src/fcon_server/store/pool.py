@@ -1,7 +1,8 @@
-"""The store's connections (design point 14): psycopg's pool, the same
-number kept open at all times, each replaced after 30 minutes and checked
-before it is handed out, so one the database dropped is replaced. Every
-connection starts with the product's limits and names itself."""
+"""The store's connections (design point 14): psycopg's pool, the same number kept open at all times.
+
+Each is replaced after 30 minutes and checked before it is handed out, so one the database
+dropped is replaced. Every connection starts with the product's limits and names itself.
+"""
 
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -19,9 +20,11 @@ type Pool = ConnectionPool[psycopg.Connection[Any]]
 
 
 def make_pool(url: str, size: int = DEFAULT_SIZE, *, prepare: bool = True) -> Pool:
-    """Not open yet: the server opens it when it starts, without waiting for
-    the database. `prepare=False` turns prepared statements off, for a
-    connection pooler in front of Postgres."""
+    """Makes the server's pool of `size` connections to `url`, not open yet.
+
+    The server opens it when it starts, without waiting for the database. `prepare=False` turns
+    prepared statements off, for a connection pooler in front of Postgres.
+    """
     kwargs: dict[str, Any] = {"options": OPTIONS, "application_name": APPLICATION_NAME}
     if not prepare:
         kwargs["prepare_threshold"] = None
@@ -37,8 +40,10 @@ def make_pool(url: str, size: int = DEFAULT_SIZE, *, prepare: bool = True) -> Po
 
 
 class OneConnectionEach:
-    """A new connection for each transaction, with the same limits: for a
-    command that runs a few transactions and ends (`fcon users`)."""
+    """A new connection for each transaction, with the pool's limits.
+
+    For a command that runs a few transactions and ends (`fcon users`).
+    """
 
     def __init__(self, url: str, application_name: str) -> None:
         self._url = url
@@ -46,5 +51,6 @@ class OneConnectionEach:
 
     @contextmanager
     def connection(self) -> Generator[psycopg.Connection[Any]]:
+        """Opens a new connection with the product's limits, closed when the block ends."""
         with psycopg.connect(self._url, options=OPTIONS, application_name=self._application_name) as connection:
             yield connection

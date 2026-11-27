@@ -1,5 +1,7 @@
-"""Passwords are kept as argon2id hashes at OWASP's recommended strength
-(design point 3, ADR 0018), the settings stored with each hash."""
+"""Passwords are kept as argon2id hashes at OWASP's recommended strength (design point 3, ADR 0018).
+
+The settings are stored with each hash.
+"""
 
 from argon2 import PasswordHasher
 

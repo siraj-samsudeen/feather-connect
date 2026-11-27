@@ -1,5 +1,8 @@
-"""The store's reads (design decision 1): plain SQL, the tenant bound from the
-context, results as frozen dataclasses, and SQL that forgets the tenant refused."""
+"""The store's reads (design decision 1).
+
+They are plain SQL, with the tenant bound from the context and results as frozen
+dataclasses; SQL that forgets the tenant is refused.
+"""
 
 import dataclasses
 from dataclasses import dataclass

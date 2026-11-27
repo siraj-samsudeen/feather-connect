@@ -1,7 +1,9 @@
-"""Managing users (design points 2 and 10): list, disable, enable and a new
-role, each audited through the store. Disabling ends every session at once;
-the last active administrator is never disabled or demoted, checked in the
-same transaction as the change."""
+"""Managing users (design points 2 and 10): list, disable, enable and a new role.
+
+Each is audited through the store. Disabling ends every session at once; the
+last active administrator is never disabled or demoted, checked in the same
+transaction as the change.
+"""
 
 import threading
 from collections.abc import Callable
@@ -350,8 +352,10 @@ def test_the_only_administrator_keeps_the_role_it_has(fixed_store: Store, admin:
 def test_two_administrators_demoting_each_other_at_once_leave_one(
     fixed_store: Store, admin: Caller, ann: AddedUser, ben: AddedUser, database_url: str
 ):
-    """One demotion holds the rows while the other waits on them; the second
-    then sees the first's change and is refused."""
+    """One demotion holds the rows while the other waits on them.
+
+    The second then sees the first's change and is refused.
+    """
     set_role(fixed_store, admin, "ben@example.com", Role.ADMINISTRATOR)
     outcome: list[object] = []
     with psycopg.connect(database_url) as first:

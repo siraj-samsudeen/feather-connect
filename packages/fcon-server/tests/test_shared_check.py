@@ -1,6 +1,8 @@
-"""/readyz's check, shared: requests that come together wait for one check,
-and a result is reused for a second, so a flood of requests opens no more
-database connections than one request a second does."""
+"""/readyz's check, shared: requests that come together wait for one check.
+
+A result is reused for a second, so a flood of requests opens no more database
+connections than one request a second does.
+"""
 
 import asyncio
 import threading

@@ -1,6 +1,8 @@
-"""Adding a user (design points 1 to 3): the first user is always an
-administrator, and a password set for someone else works for one sign-in,
-except the first user's, who typed it for themselves."""
+"""Adding a user (design points 1 to 3).
+
+The first user is always an administrator, and a password set for someone else
+works for one sign-in, except the first user's, who typed it for themselves.
+"""
 
 from dataclasses import replace
 from typing import Any

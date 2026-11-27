@@ -1,6 +1,8 @@
-"""The sign-in form's own token, against login CSRF (design point 5, § How it
-is built): a random value, the time and an HMAC-SHA-256 of both under the
-secret key, valid 2 hours; one signed by the previous key is accepted too."""
+"""The sign-in form's own token, against login CSRF (design point 5, § How it is built).
+
+A random value, the time and an HMAC-SHA-256 of both under the secret key, valid
+2 hours; one signed by the previous key is accepted too.
+"""
 
 from datetime import UTC, datetime, timedelta
 

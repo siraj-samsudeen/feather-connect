@@ -1,6 +1,7 @@
-"""The upgrade runner (design point 2): plain SQL files in `migrations/`,
-applied forwards only, each recorded in `fcon.migration` with its checksum.
-It returns facts; the command line words them.
+"""The upgrade runner (design point 2): applies the plain SQL files in `migrations/`, forwards only.
+
+Each file is recorded in `fcon.migration` with its checksum. The runner returns facts; the
+command line words them.
 
 - Every file not recorded is waiting, applied in name order, even one older
   than the newest applied (expand-only files do not depend on their order).
@@ -41,18 +42,20 @@ type Connection = psycopg.Connection[tuple[object, ...]]
 
 
 def checksum(text: str) -> str:
-    """SHA-256 of the text with its line endings made `\\n`, so a Windows
-    checkout and a Linux one agree."""
+    r"""SHA-256 of the text with its line endings made `\n`, so a Windows checkout and a Linux one agree."""
     return hashlib.sha256(text.replace("\r\n", "\n").encode()).hexdigest()
 
 
 @dataclass(frozen=True)
 class Migration:
+    """One upgrade file: its name and its text."""
+
     name: str
     text: str
 
     @property
     def in_transaction(self) -> bool:
+        """Whether the file runs in a transaction: not when its first line is `-- fcon: no-transaction`."""
         return self.text.split("\n", 1)[0].strip() != NO_TRANSACTION
 
     @property
@@ -63,8 +66,10 @@ class Migration:
 
 
 def read_migrations(directory: Path = MIGRATIONS) -> tuple[Migration, ...]:
-    """The files, in name order, with their line endings made `\\n` and any
-    byte order mark an editor saved left out."""
+    r"""Reads the upgrade files in `directory`, in name order.
+
+    Their line endings are made `\n` and any byte order mark an editor saved is left out.
+    """
     paths = sorted(directory.glob("*.sql"), key=lambda path: path.name)
     return tuple(Migration(path.name, path.read_bytes().decode("utf-8-sig").replace("\r\n", "\n")) for path in paths)
 
@@ -79,8 +84,11 @@ class Ran:
 
 @dataclass(frozen=True)
 class MigrationStatus:
-    """Each list in name order. `applied` and `changed` ran; `changed` no
-    longer matches its file; `newer` ran but has no file in this version."""
+    """What has run and what waits, each list in name order.
+
+    `applied` and `changed` ran; `changed` no longer matches its file; `waiting` has not run;
+    `newer` ran but has no file in this version.
+    """
 
     applied: tuple[Ran, ...]
     waiting: tuple[str, ...]
@@ -90,18 +98,22 @@ class MigrationStatus:
 
 @dataclass(frozen=True)
 class UpgradeResult:
-    """What one upgrade did: the files it applied, or, when a file changed
-    since it ran, those files and nothing applied."""
+    """What one upgrade did.
+
+    The files it applied, or, when a file changed since it ran, those files and nothing applied.
+    """
 
     applied: tuple[str, ...]
     changed: tuple[str, ...] = ()
 
 
 def _connect(url: str) -> Connection:
+    """Opens a connection of the runner's own: autocommit, in UTC, named `fcon-migration`."""
     return psycopg.connect(url, autocommit=True, options=_OPTIONS)
 
 
 def _records(connection: Connection) -> dict[str, tuple[str, datetime]]:
+    """The recorded upgrades by name, each with its checksum and when it ran; none on a new database."""
     row = connection.execute("SELECT to_regclass('fcon.migration') IS NOT NULL").fetchone()
     if row is None or not row[0]:  # a new database: nothing ran yet
         return {}
@@ -112,6 +124,7 @@ def _records(connection: Connection) -> dict[str, tuple[str, datetime]]:
 
 
 def read_status(connection: Connection, migrations: tuple[Migration, ...]) -> MigrationStatus:
+    """Compares the recorded upgrades with the files: what ran, what waits, what changed, what is newer."""
     records = _records(connection)
     files = {migration.name: migration for migration in migrations}
     applied: list[Ran] = []
@@ -134,6 +147,7 @@ def migration_status(url: str, directory: Path = MIGRATIONS) -> MigrationStatus:
 
 
 def _lock(connection: Connection, on_wait: Callable[[], None]) -> None:
+    """Takes the one-upgrade-at-a-time lock for the session, calling `on_wait` first if another holds it."""
     row = connection.execute("SELECT pg_try_advisory_lock(%s)", [LOCK_KEY]).fetchone()
     if row is None or not row[0]:
         on_wait()
@@ -141,7 +155,14 @@ def _lock(connection: Connection, on_wait: Callable[[], None]) -> None:
 
 
 def _apply(connection: Connection, migration: Migration, now: datetime) -> None:
+    """Runs one upgrade file with `fcon.now` set to `now`, and records it in `fcon.migration`.
+
+    A file marked `-- fcon: no-transaction` runs outside a transaction; its record is then written
+    after it, in a transaction of its own.
+    """
+
     def record() -> None:
+        """Writes the file's name and checksum to `fcon.migration`."""
         connection.execute(
             "INSERT INTO fcon.migration (name, checksum, created_at, created_by) VALUES (%s, %s, %s, %s)",
             [migration.name, checksum(migration.text), now, ACTOR],
@@ -160,6 +181,7 @@ def _apply(connection: Connection, migration: Migration, now: datetime) -> None:
 
 
 def _next_month(month: date) -> date:
+    """The first day of the month after the one `month` falls in."""
     return date(month.year + month.month // 12, month.month % 12 + 1, 1)
 
 
@@ -173,6 +195,7 @@ def audit_months(now: datetime) -> tuple[date, ...]:
 
 
 def _make_audit_months(connection: Connection, now: datetime) -> None:
+    """Creates the audit log's missing monthly partitions, from the clock's month through 24 ahead."""
     for month in audit_months(now):
         connection.execute(
             sql.SQL("CREATE TABLE IF NOT EXISTS {} PARTITION OF fcon.audit FOR VALUES FROM ({}) TO ({})").format(
@@ -184,6 +207,10 @@ def _make_audit_months(connection: Connection, now: datetime) -> None:
 
 
 def _grant(connection: Connection, app_user: str) -> None:
+    """Gives `app_user` the app's rights, unless it is the owner this connection signs in as.
+
+    It reads and writes every `fcon` table, and only reads and adds to `fcon.audit` and its months.
+    """
     owner = connection.execute("SELECT current_user").fetchone()
     if owner is not None and owner[0] == app_user:
         return
@@ -209,12 +236,13 @@ def upgrade(
     on_wait: Callable[[], None] = lambda: None,
     app_user: str | None = None,
 ) -> UpgradeResult:
-    """Applies every waiting file, unless one that ran has changed. `on_wait`
-    is called once when another upgrade holds the lock, before waiting for it.
-    `app_user`, when it is not the owner `url` signs in as, is granted the
-    app's rights. A file that fails raises the driver's error; the ones before
-    it stay. A file outside a transaction holding more than one statement
-    raises `ValueError` before anything is applied."""
+    """Applies every waiting upgrade file, unless one that ran has changed.
+
+    `on_wait` is called once when another upgrade holds the lock, before waiting for it.
+    `app_user`, when it is not the owner `url` signs in as, is granted the app's rights. A file
+    that fails raises the driver's error; the ones before it stay. A file outside a transaction
+    holding more than one statement raises `ValueError` before anything is applied.
+    """
     migrations = read_migrations(directory)
     for migration in migrations:
         if not migration.in_transaction and migration.statements > 1:

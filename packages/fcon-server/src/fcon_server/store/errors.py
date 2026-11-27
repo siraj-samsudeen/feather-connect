@@ -1,5 +1,7 @@
-"""The store's own errors (design point 14): a database error never reaches
-pages or the API raw. Each keeps the driver's error as its cause, for the log."""
+"""The store's own errors (design point 14): a database error never reaches pages or the API raw.
+
+Each keeps the driver's error as its cause, for the log.
+"""
 
 
 class StoreError(Exception):
@@ -10,6 +12,8 @@ class StoreError(Exception):
 
 
 class AlreadyExistsError(StoreError):
+    """A unique rule found a row like this one there already."""
+
     def __init__(self) -> None:
         super().__init__("already exists")
 
@@ -22,6 +26,8 @@ class ChangedBySomeoneElseError(StoreError):
 
 
 class NotFoundError(StoreError):
+    """The row is not there."""
+
     def __init__(self) -> None:
         super().__init__("not found")
 

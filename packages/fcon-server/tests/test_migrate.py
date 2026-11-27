@@ -1,6 +1,8 @@
-"""The upgrade runner against a real Postgres 18: each test has a database of
-its own and a migrations folder of its own, the product's files plus any it
-adds."""
+"""The upgrade runner against a real Postgres 18.
+
+Each test has a database of its own and a migrations folder of its own, the
+product's files plus any it adds.
+"""
 
 import shutil
 from datetime import UTC, datetime, timedelta, timezone

@@ -1,5 +1,7 @@
-"""Rights are checked in one place (design point 2, ADR 0016): a table maps
-each action to the least role it needs, and a refusal is audited."""
+"""Rights are checked in one place (design point 2, ADR 0016).
+
+A table maps each action to the least role it needs, and a refusal is audited.
+"""
 
 from dataclasses import replace
 

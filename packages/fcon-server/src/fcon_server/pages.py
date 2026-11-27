@@ -1,9 +1,11 @@
-"""The dashboard's pages: what each one shows, computed here, and the routes
-that answer them. Templates only print what these functions hand them.
+"""The dashboard's pages: what each one shows, computed here, and the routes that answer them.
+
+Templates only print what these functions hand them.
 
 Every route but the open ones sits behind the gate (fcon_server.gate), which
-puts the request's context and session on `request.state`. A refused
-sign-in uses the same words for a wrong name and a wrong password."""
+puts the request's context and session on `request.state`. A refused sign-in
+uses the same words for a wrong name and a wrong password.
+"""
 
 import hmac
 import logging
@@ -66,8 +68,11 @@ type Attributes = dict[str, str | None]
 
 @dataclass(frozen=True)
 class Site:
-    """What every page needs to know about the install: the secret keys, the
-    environment's name, and whether cookies are sent over https only."""
+    """What every page needs to know about the install.
+
+    The secret keys, the environment's name, and whether cookies are sent over
+    https only.
+    """
 
     keys: SecretKeys
     environment: str
@@ -76,8 +81,7 @@ class Site:
 
 @pass_context
 def csrf_field(context: TemplateContext) -> Markup:
-    """The hidden field with the session's form token, for every form behind
-    sign-in (design point 5)."""
+    """The hidden field with the session's form token, for every form behind sign-in (design point 5)."""
     signed_in: SignedIn = context["request"].state.signed_in
     return Markup('<input type="hidden" name="{}" value="{}">').format(FORM_TOKEN_FIELD, signed_in.form_token)
 
@@ -87,12 +91,16 @@ cast(dict[str, Any], templates.globals)["csrf_field"] = csrf_field
 
 @dataclass(frozen=True)
 class Alert:
+    """A message shown on a page; its `id` lets the form or field it is about point to it."""
+
     id: str
     text: str
 
 
 @dataclass(frozen=True)
 class SignInView:
+    """What the sign-in page shows: its texts and the attributes of its form and fields."""
+
     title: str
     lead: str
     form: Attributes
@@ -106,9 +114,12 @@ class SignInView:
 
 
 def page_on_this_site(asked: str) -> str:
-    """The page asked for, when it is a path on this site: one `/`, not two
-    (or a backslash, which browsers read as one), and no space or control
-    character, which browsers drop; otherwise "" (design point 9)."""
+    """The page asked for, when it is a path on this site; otherwise "" (design point 9).
+
+    A path on this site starts with one `/`, not two (or a backslash, which
+    browsers read as one), and has no space or control character, which browsers
+    drop.
+    """
     if not asked.startswith("/") or asked.startswith("//"):
         return ""
     if any(ord(c) <= 0x20 or ord(c) == 0x7F or c == BACKSLASH for c in asked):
@@ -117,13 +128,16 @@ def page_on_this_site(asked: str) -> str:
 
 
 def page_title(name: str) -> str:
+    """The browser's title for the page called `name`, followed by the product's name."""
     return f"{name} – {PRODUCT}"
 
 
 def sign_in_view(user_name: str = "", *, refused: bool = False, token: str = "", next_page: str = "") -> SignInView:
-    """The sign-in page, fresh or after a refused sign-in. The password is never
-    put back; the user name is, so it need not be typed again. The page to go
-    on to is kept only when it is on this site."""
+    """The sign-in page, fresh or after a refused sign-in.
+
+    The password is never put back; the user name is, so it need not be typed
+    again. The page to go on to is kept only when it is on this site.
+    """
     alerts = (Alert(REFUSAL_ID, REFUSAL),) if refused else ()
     invalid = "true" if refused else None
     return SignInView(
@@ -155,8 +169,7 @@ def sign_in_view(user_name: str = "", *, refused: bool = False, token: str = "",
 
 @dataclass(frozen=True)
 class OverviewView:
-    """The dashboard's first frame: the product, the environment, who is
-    signed in with which role, and a way to sign out."""
+    """The dashboard's first frame: the product, the environment, who is signed in, and a way to sign out."""
 
     title: str
     environment: str
@@ -169,6 +182,7 @@ class OverviewView:
 
 
 def overview_view(signed_in: SignedIn, environment: str) -> OverviewView:
+    """The overview for `signed_in`: their display name (else their user name) and their role."""
     return OverviewView(
         title=page_title("Overview"),
         environment=environment,
@@ -205,8 +219,10 @@ class ChoosePasswordView:
 
 
 def choose_password_view(problem: PasswordProblem | ChoiceProblem | None = None) -> ChoosePasswordView:
-    """Fresh, or after a refused password, saying which rule it broke; what
-    was typed is never put back."""
+    """The choose-password page, fresh or after a refused password, saying which rule it broke.
+
+    What was typed is never put back.
+    """
     refused = problem is not None
     alerts = () if problem is None else (Alert(CHOICE_REFUSED_ID, CHOICE_REFUSALS[problem]),)
     described = f"{PASSWORD_HINT_ID} {CHOICE_REFUSED_ID}" if refused else PASSWORD_HINT_ID
@@ -241,7 +257,7 @@ class MessageView:
 
 
 def not_found_view() -> MessageView:
-    """Never names the address asked for: it is the visitor's own text."""
+    """The not-found page, which never names the address asked for: it is the visitor's own text."""
     return MessageView(
         title=page_title("Page not found"),
         heading="Page not found",
@@ -252,7 +268,7 @@ def not_found_view() -> MessageView:
 
 
 def error_view() -> MessageView:
-    """Never says what failed: that goes to the server's log only."""
+    """The error page, which never says what failed: that goes to the server's log only."""
     return MessageView(
         title=page_title("Something went wrong"),
         heading="Something went wrong",
@@ -261,6 +277,7 @@ def error_view() -> MessageView:
 
 
 def form_expired_view() -> MessageView:
+    """The page for a refused form, asking the visitor to reload it and try again."""
     return MessageView(
         title=page_title("Form expired"),
         heading="This form has expired",
@@ -271,21 +288,23 @@ def form_expired_view() -> MessageView:
 
 
 def render(name: str, view: object, status_code: int = 200, request: Request | None = None) -> HTMLResponse:
+    """The template `name` filled with `view` (and `request`, for the form token), as an HTML answer."""
     html = templates.get_template(name).render(view=view, request=request)
     return HTMLResponse(html, status_code=status_code)
 
 
 def error_page() -> HTMLResponse:
+    """The error page, answered with status 500."""
     return render("message.html", error_view(), status_code=500)
 
 
 def form_expired_page() -> HTMLResponse:
+    """The form-expired page, answered with status 403."""
     return render("message.html", form_expired_view(), status_code=403)
 
 
 async def http_error(request: Request, exc: Exception) -> Response:
-    """An unknown address gets the not-found page; other refusals (405) keep
-    FastAPI's own answer."""
+    """An unknown address gets the not-found page; other refusals (405) keep FastAPI's own answer."""
     exc = cast(HTTPException, exc)  # registered for HTTPException alone
     if exc.status_code == 404:
         return render("message.html", not_found_view(), status_code=404)
@@ -293,12 +312,13 @@ async def http_error(request: Request, exc: Exception) -> Response:
 
 
 async def server_error(request: Request, exc: Exception) -> Response:
-    """A bug: one line here; Uvicorn logs the traceback as the error goes on up."""
+    """Answer a bug with the error page and one log line; Uvicorn logs the traceback as it goes on up."""
     logger.error("a bug: %s %s failed inside the server (%s)", request.method, request.url.path, type(exc).__name__)
     return error_page()
 
 
 def install_error_pages(app: FastAPI) -> None:
+    """Register the not-found and error pages on `app`."""
     app.add_exception_handler(HTTPException, http_error)
     app.add_exception_handler(Exception, server_error)
 
@@ -307,38 +327,44 @@ def install_error_pages(app: FastAPI) -> None:
 
 
 def _site(request: Request) -> Site:
+    """The install's settings the app was built with."""
     return cast(Site, request.app.state.site)
 
 
 def _store(request: Request) -> Store:
+    """The app's store."""
     return cast(Store, request.app.state.store)
 
 
 def _clock(request: Request) -> Clock:
+    """The app's clock."""
     return cast(Clock, request.app.state.clock)
 
 
 def _context(request: Request) -> Context:
+    """The request's context, which the gate put on it."""
     return cast(Context, request.state.context)
 
 
 def _signed_in(request: Request) -> SignedIn:
+    """The signed-in user, which the gate put on a request behind sign-in."""
     return cast(SignedIn, request.state.signed_in)
 
 
 def _same(given: str, expected: str) -> bool:
+    """Whether the two texts are equal, compared in constant time."""
     return hmac.compare_digest(given.encode(), expected.encode())
 
 
 def _sign_in_token(request: Request) -> str:
-    """The token of the visitor's sign-in cookie while it is valid, so two
-    tabs share it; a new one otherwise."""
+    """The token of the visitor's sign-in cookie while it is valid, so two tabs share it; else a new one."""
     site, now = _site(request), _clock(request).now()
     kept = request.cookies.get(SIGN_IN_COOKIE, "")
     return kept if sign_in_token_valid(site.keys, kept, now) else make_sign_in_token(site.keys, now)
 
 
 def _cookie_options(request: Request, path: str, life: timedelta) -> dict[str, Any]:
+    """The options for a cookie at `path` that lasts `life`: http-only, lax, secure as the site says."""
     return {
         "max_age": int(life.total_seconds()),
         "path": path,
@@ -349,6 +375,7 @@ def _cookie_options(request: Request, path: str, life: timedelta) -> dict[str, A
 
 
 def _sign_in_form(request: Request, view: SignInView) -> HTMLResponse:
+    """The sign-in page for `view`, setting the sign-in cookie to its form's token."""
     token = str(view.token_field["value"])
     response = render("sign_in.html", view)
     response.set_cookie(SIGN_IN_COOKIE, token, **_cookie_options(request, SIGN_IN_PATH, SIGN_IN_TOKEN_LIFE))
@@ -356,16 +383,19 @@ def _sign_in_form(request: Request, view: SignInView) -> HTMLResponse:
 
 
 def router() -> APIRouter:
+    """The dashboard's routes: the overview, signing in and out, and choosing a password."""
     routes = APIRouter()
 
     @routes.get(OVERVIEW_PATH)
     def overview(request: Request) -> HTMLResponse:
+        """Show the overview to a signed-in user whose role may see it."""
         signed_in = _signed_in(request)
         require(_store(request), signed_in.caller, Action.SEE_OVERVIEW)
         return render("overview.html", overview_view(signed_in, _site(request).environment), request=request)
 
     @routes.get(SIGN_IN_PATH)
     def sign_in_page(request: Request) -> HTMLResponse:
+        """Show the sign-in form, keeping the page asked for to go on to after signing in."""
         next_page = request.query_params.get(NEXT_FIELD, "")
         return _sign_in_form(request, sign_in_view(token=_sign_in_token(request), next_page=next_page))
 
@@ -377,9 +407,12 @@ def router() -> APIRouter:
         sign_in_token: Annotated[str, Form()] = "",
         next_page: Annotated[str, Form(alias=NEXT_FIELD)] = "",
     ) -> Response:
-        """A form without the token of the visitor's own sign-in cookie is
-        refused as expired (login CSRF). A refused sign-in gets the form
-        again, with the message: 200, as the page shown is the sign-in form."""
+        """Sign the visitor in, then send them on to the page asked for, else the overview.
+
+        A form without the token of the visitor's own sign-in cookie is refused
+        as expired (login CSRF). A refused sign-in gets the form again, with the
+        message: 200, as the page shown is the sign-in form.
+        """
         site, clock = _site(request), _clock(request)
         kept = request.cookies.get(SIGN_IN_COOKIE, "")
         if not (_same(sign_in_token, kept) and sign_in_token_valid(site.keys, sign_in_token, clock.now())):
@@ -398,8 +431,11 @@ def router() -> APIRouter:
 
     @routes.get(CHOOSE_PASSWORD_PATH)
     def choose_password_page(request: Request) -> Response:
-        """Only while the user must choose one: changing one's own password
-        later asks for the old one, on a page of its own."""
+        """Show the choose-password form while the user must choose one, else the overview.
+
+        Changing one's own password later asks for the old one, on a page of its
+        own.
+        """
         if not _signed_in(request).must_choose_password:
             return RedirectResponse(OVERVIEW_PATH, status_code=303)
         return render("choose_password.html", choose_password_view(), request=request)
@@ -410,6 +446,7 @@ def router() -> APIRouter:
         new_password: Annotated[str, Form()] = "",
         password_again: Annotated[str, Form()] = "",
     ) -> Response:
+        """Keep the password the user chose and go to the overview, or show what was wrong."""
         signed_in = _signed_in(request)
         if not signed_in.must_choose_password:
             return RedirectResponse(OVERVIEW_PATH, status_code=303)

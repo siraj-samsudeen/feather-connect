@@ -1,5 +1,6 @@
-"""The store (design decisions 1 and 2): every query runs in a transaction
-opened by `Store.transaction`, carrying the context's tenant and actor.
+"""The store (design decisions 1 and 2): every query runs in a transaction opened by `Store.transaction`.
+
+The transaction carries the context's tenant and actor.
 
 - `tx.execute`, `tx.fetch_one` and `tx.fetch_all` take plain SQL, bind
   `%(tenant_id)s` from the context, and refuse SQL that names an `fcon` table
@@ -70,24 +71,30 @@ _AUDIT = """
 
 
 class ConnectionSource(Protocol):
-    """Where the store's connections come from: psycopg_pool's
-    `ConnectionPool` in the product."""
+    """Where the store's connections come from: psycopg_pool's `ConnectionPool` in the product."""
 
-    def connection(self) -> AbstractContextManager[psycopg.Connection[Any]]: ...
+    def connection(self) -> AbstractContextManager[psycopg.Connection[Any]]:
+        """Lends one connection for the block."""
+        ...
 
 
 @dataclass(frozen=True)
 class _Changed:
+    """A written row as it was before and as it is after; `before` is None for an insert."""
+
     before: Row | None
     after: Row
 
 
 @dataclass(frozen=True)
 class _Version:
+    """A row's current version, read to tell a missing row from one changed by someone else."""
+
     row_version: int
 
 
 def _translate(err: psycopg.Error) -> StoreError:
+    """The store's error for a driver's error: already exists, busy, or a plain `StoreError`."""
     if isinstance(err, pg_errors.UniqueViolation):
         return AlreadyExistsError()
     if isinstance(err, pg_errors.DeadlockDetected | pg_errors.SerializationFailure):
@@ -96,8 +103,11 @@ def _translate(err: psycopg.Error) -> StoreError:
 
 
 def _hide_secrets(table: Table, changed: _Changed) -> tuple[Row | None, Row]:
-    """A secret column that changed shows as `(secret changed)`; one that did
-    not is left out. Its value is never written."""
+    """The row before and after as the audit log shows them, without the secrets' values.
+
+    A secret column that changed shows as `(secret changed)`; one that did not is left out. Its
+    value is never written.
+    """
     before = None if changed.before is None else dict(changed.before)
     after = dict(changed.after)
     for column in table.secret:
@@ -112,8 +122,12 @@ def _hide_secrets(table: Table, changed: _Changed) -> tuple[Row | None, Row]:
 
 
 def _refuse_filled(values: Params) -> None:
-    """The tenant, the who-and-when columns and the row version are the
-    store's to fill: a caller's value for one is a bug, never written."""
+    """Refuses a caller's values for the columns the store fills itself.
+
+    The tenant, the who-and-when columns and the row version are the store's to fill: a caller's
+    value for one is a bug, never written. Raises `UnscopedQueryError` for the tenant and
+    `ValueError` for the others.
+    """
     if "tenant_id" in values:
         raise UnscopedQueryError("the tenant comes from the context, never from the values")
     if given := [column for column in _FILLED if column in values]:
@@ -121,10 +135,12 @@ def _refuse_filled(values: Params) -> None:
 
 
 def _table(table: Table) -> sql.Identifier:
+    """The table's full name as an SQL identifier."""
     return sql.Identifier(*table.name.split("."))
 
 
 def _equal(columns: list[str], prefix: str) -> list[sql.Composable]:
+    """A `column = placeholder` piece for each column, its placeholder named `prefix` and the column."""
     return [sql.SQL("{} = {}").format(sql.Identifier(column), sql.Placeholder(prefix + column)) for column in columns]
 
 
@@ -148,39 +164,52 @@ class Transaction:
         self._timer = timer
 
     def execute(self, query: LiteralString, params: Params | None = None) -> None:
+        """Runs one statement scoped to the context's tenant, with no rows back."""
         self._run(self._connection.cursor(), query, self._scoped(query, params))
 
     def fetch_one[R](self, row: type[R], query: LiteralString, params: Params | None = None) -> R | None:
+        """Runs one query scoped to the context's tenant and gives its first row as a `row`, or None."""
         cursor = self._connection.cursor(row_factory=class_row(row))
         self._run(cursor, query, self._scoped(query, params))
         return cursor.fetchone()
 
     def fetch_all[R](self, row: type[R], query: LiteralString, params: Params | None = None) -> list[R]:
+        """Runs one query scoped to the context's tenant and gives all its rows, each as a `row`."""
         cursor = self._connection.cursor(row_factory=class_row(row))
         self._run(cursor, query, self._scoped(query, params))
         return cursor.fetchall()
 
     def insert(self, table: Table, values: Params) -> Row:
-        """Adds one row and its audit record; gives the row's key besides the
-        tenant, with the `id` made by `new_id()` when the key has one."""
+        """Adds one row and its audit record, and gives the row's key besides the tenant.
+
+        The `id` is made by `new_id()` when the key has one and the values give none.
+        """
         key = self._insert(table, values, if_absent=False)
         if key is None:  # pragma: no cover - an INSERT ... VALUES always returns its row
             raise StoreError
         return key
 
     def insert_if_absent(self, table: Table, values: Params) -> Row | None:
-        """What must happen once (convention 13): adds the row and its audit
-        record unless a unique rule finds one there already
-        (`ON CONFLICT DO NOTHING`); gives its key, or None when nothing went in."""
+        """Adds the row and its audit record unless a unique rule finds one there already.
+
+        For what must happen once (convention 13, `ON CONFLICT DO NOTHING`); gives its key, or None
+        when nothing went in.
+        """
         return self._insert(table, values, if_absent=True)
 
     def refuse(self, table: Table, row_key: str, reason: str) -> None:
-        """A change refused for a rule (design decision 3): a `refused` audit
-        record naming the row and why, and nothing else. An empty `row_key`
-        names the tenant."""
+        """Records a change refused for a rule (design decision 3), and writes nothing else.
+
+        The `refused` audit record names the row and why. An empty `row_key` names the tenant.
+        """
         self._write_audit(table, "refused", row_key, None, None, reason)
 
     def _insert(self, table: Table, values: Params, *, if_absent: bool) -> Row | None:
+        """Adds one row, with the columns the store fills, and its audit record; gives its key.
+
+        With `if_absent` the row goes in with `ON CONFLICT DO NOTHING`, and None comes back when
+        nothing went in.
+        """
         _refuse_filled(values)
         now = self._clock.now()
         filled: Row = {**values, "tenant_id": self._context.tenant_id, "created_at": now}
@@ -204,9 +233,12 @@ class Transaction:
         return {column: filled[column] for column in table.key if column != "tenant_id"}
 
     def update(self, table: Table, key: Params, values: Params, row_version: int) -> int:
-        """Changes one row if it is still at `row_version`, and writes its audit
-        record; gives the row's new version. `key` names the key's columns
-        besides the tenant."""
+        """Changes one row if it is still at `row_version`, writes its audit record, and gives its new version.
+
+        `key` names the key's columns besides the tenant. Raises `NotFoundError` when there is no
+        such row, `ChangedBySomeoneElseError` when it is at another version, and `ValueError` for a
+        table whose rows are only added.
+        """
         if not table.changes:
             raise ValueError(f"the rows of {table.name} are only added")
         _refuse_filled(values)
@@ -230,11 +262,13 @@ class Transaction:
         return int(str(changed.after["row_version"]))
 
     def _changed(self, query: sql.Composed, params: Row) -> _Changed | None:
+        """Runs a write that returns the row before and after; None when it wrote nothing."""
         cursor = self._connection.cursor(row_factory=class_row(_Changed))
         self._run(cursor, query, params)
         return cursor.fetchone()
 
     def _audit(self, table: Table, action: str, changed: _Changed) -> None:
+        """Writes the audit record of one insert or update, secrets hidden, with the context's reason."""
         before, after = _hide_secrets(table, changed)
         row_key = "/".join(str(changed.after[column]) for column in table.key if column != "tenant_id")
         self._write_audit(table, action, row_key, before, after, self._context.reason)
@@ -242,6 +276,10 @@ class Transaction:
     def _write_audit(
         self, table: Table, action: str, row_key: str, before: Row | None, after: Row | None, reason: str | None
     ) -> None:
+        """Writes one audit record, stamped by the clock, the context's actor and its request id.
+
+        An empty `row_key` names the tenant.
+        """
         self._run(
             self._connection.cursor(),
             _AUDIT,
@@ -261,6 +299,11 @@ class Transaction:
         )
 
     def _scoped(self, query: LiteralString, params: Params | None) -> Row:
+        """Gives the params with the context's tenant bound, once the SQL is checked to scope it.
+
+        Raises `UnscopedQueryError` when the params give a tenant, or when the SQL names an `fcon`
+        table with a tenant without `tenant_id = %(tenant_id)s` for each.
+        """
         if params and "tenant_id" in params:
             raise UnscopedQueryError("the tenant comes from the context, never from the values")
         code = _NOISE.sub(lambda found: found[1] or " ", query)
@@ -270,6 +313,10 @@ class Transaction:
         return {**(params or {}), "tenant_id": self._context.tenant_id}
 
     def _run(self, cursor: psycopg.Cursor[Any], query: Query, params: Row) -> None:
+        """Runs one statement, turning a driver's error into the store's own.
+
+        A statement slower than `slow_after` seconds is logged with its text, never its values.
+        """
         started = self._timer()
         try:
             cursor.execute(query, params)
@@ -283,6 +330,8 @@ class Transaction:
 
 
 class Store:
+    """The way into the database: transactions scoped to a context, with the clock and the id maker."""
+
     def __init__(
         self,
         source: ConnectionSource,
@@ -300,8 +349,10 @@ class Store:
 
     @contextmanager
     def transaction(self, context: Context) -> Generator[Transaction]:
-        """Commits when the block ends, rolls back when it raises. Never
-        retries: a deadlock or serialization failure is `BusyError`."""
+        """Opens a transaction for `context`: commits when the block ends, rolls back when it raises.
+
+        Never retries: a deadlock or serialization failure is `BusyError`.
+        """
         try:
             with self._source.connection() as connection, connection.transaction():
                 yield Transaction(connection, context, self._clock, self._new_id, self._slow_after, self._timer)
@@ -309,8 +360,7 @@ class Store:
             raise _translate(err) from err
 
     def run[T](self, context: Context, work: Callable[[Transaction], T]) -> T:
-        """Runs `work(tx)` in a transaction; on `BusyError`, runs all of it
-        again, up to twice, then lets the error through."""
+        """Runs `work(tx)` in a transaction; on `BusyError`, all of it again, up to twice, then lets it through."""
         for _ in range(RETRIES):
             try:
                 with self.transaction(context) as tx:

@@ -1,5 +1,4 @@
-"""The database check's rules that need no server: the version rule, and how
-the driver's text is read."""
+"""The database check's rules that need no server: the version rule, and how the driver's text is read."""
 
 import pytest
 
