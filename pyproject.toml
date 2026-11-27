@@ -67,14 +67,29 @@ target-version = "py314"
 extend-exclude = ["acceptance-tests", ".agents", ".opencode", ".claude", "openspec", "docs", "adr"]
 
 [tool.ruff.lint]
-extend-select = ["S", "B", "I", "UP"]
+# The maintainable-code skill's checks: descriptions (D), complexity (C90,
+# PLR0912, PLR0915), parameter count (PLR0913), commented-out code (ERA) and
+# swallowed errors (BLE).
+extend-select = ["S", "B", "I", "UP", "D", "C90", "PLR0912", "PLR0913", "PLR0915", "ERA", "BLE"]
+# A class's description covers its magic methods and its __init__.
+extend-ignore = ["D105", "D107"]
+
+[tool.ruff.lint.pydocstyle]
+# Google style, so a first line may say what comes back.
+convention = "google"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
 
 [tool.ruff.lint.isort]
 known-first-party = ["fcon_sdk", "fcon_server", "fcon_cli", "worktree_env", "check_migrations"]
 
 [tool.ruff.lint.per-file-ignores]
 # Tests assert, start the command they test, and use made-up passwords.
-"**/tests/**" = ["S101", "S105", "S106", "S603"]
+# A test's name says what it proves, so test modules, classes and functions need
+# no description of their own (the file's description is checked by review).
+# A test's parameters are the fixtures it needs, so PLR0913 does not apply.
+"**/tests/**" = ["S101", "S105", "S106", "S603", "D100", "D101", "D102", "D103", "D104", "PLR0913"]
 
 [tool.pyright]
 typeCheckingMode = "strict"
