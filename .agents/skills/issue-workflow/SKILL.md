@@ -27,11 +27,15 @@ Rating: **red** (blocker). Part of #<n>. Blocked by #<n>. Blocks #<n>. Related: 
 
 Not in this issue: <what was split off, with its issue number>.
 
+Touches: openspec/specs/<capability>, ... ADR <number, when the change takes one>.
+
 Review route: <UI, so an independent verifier at <width> against this checklist | code review>.
 ```
 
 The first line carries the rating and the links, so a reader sees at once how urgent the issue
-is and what it waits on.
+is and what it waits on. The "Touches" line claims the spec capabilities and the ADR number the
+change will take, so two changes that would collide at archive are seen before either is built.
+The project's issue form (`.github/ISSUE_TEMPLATE/work.md`) has the same sections.
 
 ## Ratings — every issue gets one
 
@@ -88,7 +92,7 @@ git worktree add ../<repo-name>-issue-<n> -b issue-<n>-<change-name> main
 ```
 
 The worktree has its own ports and its own database, so it runs beside the main checkout and
-other worktrees without clashing; how to set them is a project fact (`CLAUDE.md` § Project).
+other worktrees without clashing; how to set them is a project fact (`AGENTS.md` § Project).
 One branch and one PR per change, from proposal to archive (the `change-modes` skill). Remove
 the worktree after the owner merges.
 

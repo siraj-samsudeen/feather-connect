@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(gh issue view:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(openspec list:*)",
+      "Bash(openspec show:*)",
+      "Bash(openspec status:*)",
+      "Bash(openspec validate:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run ruff check:*)",
+      "Bash(uv run ruff format --check:*)",
+      "Bash(uv run pyright:*)",
+      "Bash(uv run vulture:*)",
+      "Bash(uv run deptry:*)",
+      "Bash(uv run --project acceptance-tests python acceptance-tests/run_acceptance.py:*)"
+    ]
+  }
+}

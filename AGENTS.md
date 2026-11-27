@@ -6,6 +6,8 @@
 - Work starts from a GitHub issue and goes one issue at a time per worker; the manager session
   stays on `main`. See the `issue-workflow` skill (issue body, red/yellow/green rating, blocked by,
   task sessions and worktrees, the UI route).
+- Who decides what is in the `change-modes` skill, § Who decides. A product question the agreed
+  design does not answer goes to the owner as a comment on the issue, never decided in code.
 
 ## Review guidelines
 
@@ -14,6 +16,10 @@ GitHub reviewer reads this section).
 
 **Stance.** The product evolves fast. Getting the functionality to fit the need matters more than
 perfect code. Do not add code, or follow-up issues, for things unlikely to happen.
+
+**Rules are checked by machines where they can be.** Each convention in § Project names the
+check that enforces it (an import contract, a schema test, a scan in CI) or says it is checked
+by review only. A review spends its time on what no check can see.
 
 **Who reviews locally.** Codex, if it is available (`codex review --base main`); otherwise a
 review by a different Claude model than the one that wrote the code.

@@ -180,6 +180,9 @@ Ran: <exact generator or install commands>
 
 ## Rules
 
+- **A bug starts as a failing scenario.** A fix opens with a scenario that fails because of the
+  bug (an inner test, for code no user sees), committed red; the fix makes it pass, and the
+  scenario stays in the specs, so the bug cannot come back unnoticed.
 - A dependency arrives in the red/green pair whose test needs it.
 - Generator output is committed raw, with the exact command, then trimmed in its own commit.
 - Merge with merge commits. Never squash — it erases the steps.
@@ -208,6 +211,8 @@ one of three fates — **ratify** (a `specs:` commit adds the scenario, then a t
 | Unused files, exports and dependencies | `knip` | `vulture <src> <tests>` for code, `deptry <src>` for dependencies |
 | Types | `tsc --noEmit` | `pyright` |
 | Mutation testing — every surviving mutant is a missing test or code nobody needs | Stryker | `mutmut run` |
+| Complexity and length limits (`change-modes` § Defaults) | eslint `complexity` | `ruff check --select C90` |
+| Known vulnerabilities in the locked dependencies | `npm audit` | `pip-audit` |
 
 The project's stack is `stack:` in `openspec/config.yaml`; the tools it really uses, when they
 differ from this table, are a project fact (`AGENTS.md` § Project).
