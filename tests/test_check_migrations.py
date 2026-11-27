@@ -1,6 +1,8 @@
-"""`scripts/check_migrations.py [base]` (design decision 6): a migration on the
-base branch is never edited, renamed or removed; each file has a timestamp of
-its own and a name of the pattern. Each test makes a git repository of its own."""
+"""Tests of `scripts/check_migrations.py [base]` (design decision 6).
+
+A migration on the base branch is never edited, renamed or removed; each file has a timestamp of
+its own and a name of the pattern. Each test makes a git repository of its own.
+"""
 
 import subprocess
 from pathlib import Path

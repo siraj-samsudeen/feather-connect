@@ -1,11 +1,11 @@
-"""Check the migrations against the base branch (design decision 6).
+r"""Check the migrations against the base branch (design decision 6).
 
     uv run scripts/check_migrations.py            # against origin/main
     uv run scripts/check_migrations.py <base>     # against another ref
 
 A migration on the base is never edited, renamed or removed; no two files
 share a timestamp; each name is <UTC time>_<words>.sql. Files are compared
-with their line endings made `\\n`, as the runner's checksum does, so a
+with their line endings made `\n`, as the runner's checksum does, so a
 Windows checkout agrees. Exit 1 with a line per mistake, else 0. CI runs it
 in the checks job, with main fetched.
 """
@@ -24,10 +24,11 @@ EXAMPLE = "20261121T1530Z_first_tables.sql"
 
 
 class GitError(Exception):
-    pass
+    """A git command failed, for example because the base ref is not there to read."""
 
 
 def _git(root: Path, *args: str) -> bytes:
+    """Runs git in `root` with `args` and gives back what it printed; raises GitError when git fails."""
     done = subprocess.run(["git", "-C", str(root), *args], capture_output=True, check=False)  # noqa: S603, S607
     if done.returncode != 0:
         raise GitError
@@ -35,18 +36,26 @@ def _git(root: Path, *args: str) -> bytes:
 
 
 def _normal(text: bytes) -> bytes:
+    """The text with each CRLF line ending made LF, as the runner's checksum reads it."""
     return text.replace(b"\r\n", b"\n")
 
 
 def base_files(root: Path, base: str) -> dict[str, bytes]:
-    """The migrations on `base`, by name, with their text; none when the
-    base has no migrations folder yet."""
+    """The migrations on `base`, by name, with their text; none when the base has no migrations folder yet.
+
+    Raises GitError when `base` is not a commit git can read.
+    """
     _git(root, "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}")
     listed = _git(root, "ls-tree", "--name-only", base, "--", f"{FOLDER}/").decode().splitlines()
     return {path.rsplit("/", 1)[1]: _git(root, "show", f"{base}:{path}") for path in listed}
 
 
 def mistakes(files: dict[str, bytes], on_base: dict[str, bytes], base: str) -> list[str]:
+    """A line for each mistake in the migration `files` compared with those `on_base`; empty when there are none.
+
+    A mistake is a base migration removed, renamed or edited, a name not of the pattern, or a
+    timestamp two files share.
+    """
     found: list[str] = []
     for name, text in sorted(on_base.items()):
         if name not in files:
@@ -68,6 +77,7 @@ def mistakes(files: dict[str, bytes], on_base: dict[str, bytes], base: str) -> l
 
 
 def main(argv: Sequence[str], root: Path = ROOT) -> int:
+    """Checks the migrations under `root` against the base the arguments name; 1 when there is a mistake, else 0."""
     parser = argparse.ArgumentParser(prog="check_migrations.py", description="Check the migrations against a base.")
     parser.add_argument("base", nargs="?", default="origin/main", help="the ref to compare with (origin/main)")
     base = parser.parse_args(argv).base
