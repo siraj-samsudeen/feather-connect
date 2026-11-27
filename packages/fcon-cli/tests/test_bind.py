@@ -1,5 +1,7 @@
-"""The port is bound before Uvicorn starts, so a port or address it cannot
-use is said through the error helper."""
+"""Tests of binding the port before Uvicorn starts.
+
+A port or address it cannot use is said through the error helper.
+"""
 
 import errno
 import socket

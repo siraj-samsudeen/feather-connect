@@ -1,5 +1,7 @@
-"""The one logger: text on a terminal, one JSON object per line elsewhere;
-Uvicorn's lines go through it; successful health checks are left out."""
+"""Tests of the one logger: text on a terminal, one JSON object per line elsewhere.
+
+Uvicorn's lines go through it; successful health checks are left out.
+"""
 
 import io
 import json

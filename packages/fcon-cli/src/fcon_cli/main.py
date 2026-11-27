@@ -1,5 +1,7 @@
-"""The `fcon` command. Every problem it stops for is said through the error
-helper (fcon_cli.problems) on stderr, with exit code 2."""
+"""The `fcon` command.
+
+Every problem it stops for is said through the error helper (fcon_cli.problems) on stderr, with exit code 2.
+"""
 
 import argparse
 import os
@@ -27,14 +29,18 @@ TEXT_WIDTH = 100  # usage and help wrap here, whatever the terminal's width
 
 
 class Formatter(argparse.HelpFormatter):
+    """argparse's help layout, wrapped at TEXT_WIDTH whatever the terminal's width."""
+
     def __init__(self, prog: str) -> None:
         super().__init__(prog, width=TEXT_WIDTH)
 
 
 class Parser(argparse.ArgumentParser):
-    """argparse, with its usage errors said through the error helper. Its text
-    is the same on a terminal, in CI and in a log: no colour (Python 3.14
-    colours it when FORCE_COLOR is set) and a fixed width."""
+    """argparse, with its usage errors said through the error helper.
+
+    Its text is the same on a terminal, in CI and in a log: no colour (Python 3.14 colours it when FORCE_COLOR is set)
+    and a fixed width.
+    """
 
     def __init__(self, **kwargs: Any) -> None:
         kwargs["color"] = False
@@ -42,10 +48,12 @@ class Parser(argparse.ArgumentParser):
         super().__init__(**kwargs)
 
     def error(self, message: str) -> NoReturn:
+        """Stop with a usage problem: argparse's message and the command's usage."""
         raise ProblemError(problems.usage(message, self.format_usage()))
 
 
 def _parser() -> argparse.ArgumentParser:
+    """The command line's parser: `server`, `db upgrade|status` and `users add|list|disable|enable|set-role`."""
     parser = Parser(prog="fcon", description="Feather Connect's command line.")
     commands = parser.add_subparsers(dest="command", required=True, metavar="command")
     server = commands.add_parser("server", help="start the server")
@@ -79,6 +87,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _users_command(args: argparse.Namespace) -> None:
+    """Run the `fcon users` command in `args` against the database the settings name."""
     settings = load_database_settings(os.environ, Path.cwd())
     match args.users_command:
         case "add":
@@ -95,6 +104,7 @@ def _users_command(args: argparse.Namespace) -> None:
 
 
 def _database_command(command: str, clock: Clock) -> None:
+    """Run `fcon db upgrade`, or `fcon db status` for any other command, against the database the settings name."""
     settings = load_database_settings(os.environ, Path.cwd())
     if command == "upgrade":
         upgrade_database(settings, clock, sys.stdout, sys.stderr)
@@ -105,8 +115,11 @@ def _database_command(command: str, clock: Clock) -> None:
 def main(
     argv: Sequence[str] | None = None, serve: Callable[[Settings], None] = run_server, clock: Clock | None = None
 ) -> int:
-    """`serve` starts the server once the settings are read, and `clock` says
-    when upgrades ran (a test gives its own of each)."""
+    """Run the command in `argv` (else the process's arguments) and give its exit code.
+
+    0 when it succeeds, 2 for a problem a person can fix, 1 for a bug, said on stderr with its traceback. `serve`
+    starts the server once the settings are read, and `clock` says when upgrades ran (a test gives its own of each).
+    """
     try:
         args = _parser().parse_args(argv)
         if args.command == "db":
@@ -131,4 +144,5 @@ def main(
 
 
 def entry() -> NoReturn:
+    """Run the command and end the process with its exit code."""
     sys.exit(main())

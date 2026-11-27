@@ -1,6 +1,8 @@
-"""`fcon users add` (design point 1, § How it is built): the password asked on
-a terminal, else one line of stdin; every refusal through the error helper,
-exit code 2. It acts as `system:cli` in the tenant `default`."""
+"""Tests of `fcon users add` (design point 1, § How it is built).
+
+The password is asked on a terminal, else read as one line of stdin; every refusal goes through the error helper,
+exit code 2. It acts as `system:cli` in the tenant `default`.
+"""
 
 import io
 from collections.abc import Callable, Iterator

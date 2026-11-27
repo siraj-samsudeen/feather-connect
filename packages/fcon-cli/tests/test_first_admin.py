@@ -1,6 +1,8 @@
-"""The first administrator from FCON_FIRST_ADMIN (design decision 4): tried
-at start, and again every few seconds in the background while the database
-is not ready; only the copy that made it logs the one-time password."""
+"""Tests of the first administrator from FCON_FIRST_ADMIN (design decision 4).
+
+It is tried at start, and again every few seconds in the background while the database is not ready; only the copy
+that made it logs the one-time password.
+"""
 
 import logging
 import threading
@@ -13,8 +15,10 @@ from fcon_server.store.errors import StoreError
 
 
 class Database:
-    """Not ready for the first `not_ready` tries; then it makes the
-    administrator, or finds one there already (`gives` None)."""
+    """A stand-in database, not ready for the first `not_ready` tries.
+
+    Then it makes the administrator, or finds one there already (`gives` None).
+    """
 
     def __init__(self, not_ready: int = 0, gives: str | None = "one-time-pw") -> None:
         self.not_ready = not_ready

@@ -83,8 +83,10 @@ def start_server(directory: Path, port: int, database_url: str, **settings: str)
 
 @pytest.fixture
 def running(tmp_path: Path, free_port: int) -> Iterator[Running]:
-    """`fcon server` on a free port, its database address pointing nowhere
-    (/healthz does not need it), in an empty directory (no .env)."""
+    """`fcon server` on a free port, in an empty directory (no .env).
+
+    Its database address points nowhere: /healthz does not need it.
+    """
     server = start_server(tmp_path, free_port, "postgresql://feather:feather@127.0.0.1:9/feather")
     yield server
     if server.process.poll() is None:

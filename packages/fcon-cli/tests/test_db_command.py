@@ -1,5 +1,7 @@
-"""`fcon db upgrade` and `fcon db status`: what the operator is told, against a
-database of each test's own."""
+"""Tests of `fcon db upgrade` and `fcon db status`: what the operator is told.
+
+Each test runs against a database of its own.
+"""
 
 import io
 import threading
