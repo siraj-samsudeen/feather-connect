@@ -185,6 +185,7 @@ In the order a person meets them. **M** is the milestone.
 | R3.21 | When a run reads several slices in full, deletes are decided only after all of them are read. | M1 |
 | R3.22 | When one read holds two copies of a record, the last one counts. | M1 |
 | R3.23 | Another system can ask for a dataset's data on demand, read-only: the latest record by its key, and the records changed since a point it got earlier, so it can catch up from where it left off. Each answer says which version and time it comes from. The same rights, tenant checks, masking of personal data, rate limits and audit apply as everywhere else. | M2 |
+| R3.24 | The hub can stand between two systems as a middleman. A flow package declares an endpoint: what it accepts, what it answers, and the code that calls the other system and transforms the answer, so the caller never needs to know that system. The caller waits for the answer within a set time limit, or gets a clear failure. A write through an endpoint takes the caller's idempotency key, so a retry takes effect once. An endpoint may answer from a dataset's stored copy instead of calling the other system. It uses the same connectors, call budgets, rights, tenant checks, masking and audit as everything else. Writes that must never be lost are better sent as webhooks, which are stored at once and delivered reliably. | M2 |
 
 ### Area 4 — Transforming
 
@@ -476,7 +477,7 @@ A piece moves into a milestone only when the owner brings it forward.
 | Milestone | In one line |
 |---|---|
 | **M1** | The whole core: writing, packaging, moving and transforming data, scheduling, reliability, the dashboard that watches and acts, environments with protection, security, alerts, read-only AI, general-purpose connectors, and what a release needs |
-| **M2** | Database change events, the object-storage spool, running-time overrides, freshness views, export of metrics, secret services, the private-network program, AI that acts, an in-dashboard assistant, full tenancy, sign-in through an identity provider, the multi-environment page, a cluster chart, a data API that other systems ask for data, and more connectors |
+| **M2** | Database change events, the object-storage spool, running-time overrides, freshness views, export of metrics, secret services, the private-network program, AI that acts, an in-dashboard assistant, full tenancy, sign-in through an identity provider, the multi-environment page, a cluster chart, a data API that other systems ask for data, endpoints through which the hub stands between two systems, and more connectors |
 
 M1 is large. It is built one issue at a time, in the order of areas 1 to 15, starting with a
 walking skeleton: the app starts, answers a health check and shows a sign-in page.
