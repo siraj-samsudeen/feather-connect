@@ -111,7 +111,7 @@ management beyond approvals.
 | UC-15 | An agent acts within its rights, and asks in production | An agent asks for a retry; a person approves | P4 | M2 |
 | UC-16 | Follow changes in a database as they are committed | New rows reach a destination in seconds, no polling | P1 | M2 |
 | UC-17 | Reach a system that can only be called from inside a private network | A database behind a firewall | P1, P3 | M2 |
-| UC-18 | Serve several tenants from one environment, kept apart | Two business units, each with its own connections and users | P3 | M2 |
+| UC-18 | Serve several tenants from one environment, kept apart | Two business units, each with its own connections and users | P3 | M3 |
 
 ## 7. Requirements
 
@@ -185,12 +185,12 @@ In the order a person meets them. **M** is the milestone.
 | R3.21 | When a run reads several slices in full, deletes are decided only after all of them are read. | M1 |
 | R3.22 | When one read holds two copies of a record, the last one counts. | M1 |
 | R3.23 | Another system can ask for a dataset's data on demand, read-only: the latest record by its key, and the records changed since a point it got earlier, so it can catch up from where it left off. Each answer says which version and time it comes from. The same rights, tenant checks, masking of personal data, rate limits and audit apply as everywhere else. Each such caller is a route of its own whose destination collects the data: the ledger knows what it has collected, data it hasn't collected yet is kept for it, and the dashboard shows when it falls behind. A caller that falls behind past the keeping time is told so and starts again from the current state. Its token sees only the datasets it is given. | M2 |
-| R3.24 | The hub can stand between two systems as a middleman. A flow package declares an endpoint: what it accepts, what it answers, and the code that calls the other system and transforms the answer, so the caller never needs to know that system. The caller waits for the answer within a set time limit, or gets a clear failure. A write through an endpoint takes the caller's idempotency key, so a retry takes effect once. An endpoint may answer from a dataset's stored copy instead of calling the other system. It uses the same connectors, call budgets, rights, tenant checks, masking and audit as everything else. Writes that must never be lost are better sent as webhooks, which are stored at once and delivered reliably. | M2 |
+| R3.24 | The hub can stand between two systems as a middleman. A flow package declares an endpoint: what it accepts, what it answers, and the code that calls the other system and transforms the answer, so the caller never needs to know that system. The caller waits for the answer within a set time limit, or gets a clear failure. A write through an endpoint takes the caller's idempotency key, so a retry takes effect once. An endpoint may answer from a dataset's stored copy instead of calling the other system. It uses the same connectors, call budgets, rights, tenant checks, masking and audit as everything else. Writes that must never be lost are better sent as webhooks, which are stored at once and delivered reliably. | M3 |
 | R3.25 | The hub keeps, for each route, the id a destination gave each record, against the record's key, so a later change updates that same record there instead of creating another. Ids come from the destination's answers. They can be looked up and corrected by an operator, and are kept while the dataset exists. | M1 |
 | R3.26 | A route can wait until a related record has reached the same destination: an order's lines after the order, a customer before their orders. The route names the related dataset and the key that links them; a record whose parent hasn't arrived waits, visibly, and goes once it has. Routes that don't ask are never held up. | M1 |
-| R3.27 | Documents and other large files attached to records, such as invoices' PDFs, pass through the hub, kept in object storage (R3.16). | M2 |
+| R3.27 | Documents and other large files attached to records, such as invoices' PDFs, pass through the hub, kept in object storage (R3.16). | M3 |
 | R3.28 | A dataset can subscribe to an event bus or a change stream (a business application's events, a message broker, a database's change log): it holds the connection, takes events in order, and resumes from its replay position after a restart. When the bus no longer holds the events since that position, the gap is reported and the scheduled full comparison (R3.3) catches up. | M2 |
-| R3.29 | Another system can subscribe itself to the hub's events (a record delivered, a record changed in a dataset), naming where to send them and which datasets and kinds of event; each subscription is a route of its own, with the same guarantees, keeping times and history, and its token sees only the datasets it is given. | M2 |
+| R3.29 | Another system can subscribe itself to the hub's events (a record delivered, a record changed in a dataset), naming where to send them and which datasets and kinds of event; each subscription is a route of its own, with the same guarantees, keeping times and history, and its token sees only the datasets it is given. | M3 |
 | R3.30 | Events in and out can use the CloudEvents format, the open standard for an event's envelope (its id, source, type and time), so no custom code is needed to read or write one. | M3 |
 | R3.31 | The events the hub publishes have a declared, versioned shape. Adding a field keeps the version; a change that would break a subscriber is a new version, and the old one goes on until no subscriber uses it. | M3 |
 | R3.32 | A destination that sends statuses over time (received, then processed, or failed hours later), as business documents exchanged with an application often do, keeps each delivery's state up to date from those statuses; a failure that arrives later fails the delivery, which can then be retried like any other. It extends R3.17. | M3 |
@@ -205,7 +205,7 @@ In the order a person meets them. **M** is the milestone.
 | R4.3 | A transform can look up another dataset's latest state. One delivery uses one state of it throughout, and records which. | M1 |
 | R4.4 | A dataset can be a query over other datasets, recomputed on a schedule, so a change that takes effect on a date is delivered on that date. | M1 |
 | R4.5 | Records are checked against a declared shape. Invalid ones are set aside with the reason while the rest go on; a flow can ask for the whole version to fail instead. | M1 |
-| R4.6 | A dataset that is a query over others can itself be partitioned. | M2 |
+| R4.6 | A dataset that is a query over others can itself be partitioned. | M3 |
 | R4.7 | A query can read only the batch and the datasets it names, never files or web addresses. | M1 |
 
 ### Area 5 — Starting and scheduling
@@ -224,7 +224,7 @@ In the order a person meets them. **M** is the milestone.
 | R5.10 | A flow that polls every few seconds shows as one run a day, with each poll inside it, so the list of runs stays readable. | M1 |
 | R5.11 | With several servers running, exactly one schedules. | M1 |
 | R5.12 | A pause can be given an end, after which it lifts by itself. | M1 |
-| R5.13 | Schedules and readiness can follow a business calendar: working days and public holidays, per environment. | M2 |
+| R5.13 | Schedules and readiness can follow a business calendar: working days and public holidays, per environment. | M3 |
 
 ### Area 6 — Reliability
 
@@ -259,8 +259,8 @@ In the order a person meets them. **M** is the milestone.
 | R7.9 | Every view has an address that can be shared; filters are part of it. | M1 |
 | R7.10 | Pages that only show information work with JavaScript off. | M1 |
 | R7.11 | Light and dark themes, and a keyboard command menu. | M1 |
-| R7.12 | Views of freshness against a target and of unusual volumes. | M2 |
-| R7.13 | One page summarising several environments, each opening its own dashboard. | M2 |
+| R7.12 | Views of freshness against a target and of unusual volumes. | M3 |
+| R7.13 | One page summarising several environments, each opening its own dashboard. | M3 |
 | R7.14 | The workers connected, the code version each runs, and when each was last heard from. | M1 |
 | R7.15 | A task's log and the dashboard's charts come from the product's own stored data; no separate logging or metrics system is needed. | M1 |
 | R7.16 | A partition is shown in business words ("Shop 12 · 18 Oct"), not as a key string. | M1 |
@@ -269,7 +269,7 @@ In the order a person meets them. **M** is the milestone.
 | R7.19 | A delivery shows each attempt, and what the destination answered for each record, with secrets removed. | M1 |
 | R7.20 | A flow found running on two versions of the code at once is flagged. | M1 |
 | R7.21 | A run's whole log on one page: every task's lines in the order they were written, each naming its task, partition and route and linking to that task's own log. It can be narrowed to warnings and errors, and is paged. | M1 |
-| R7.22 | Pages that work on a narrow screen, such as a phone's. Operators use the dashboard on laptops and desktops, so it is built for those first (owner, 21-Nov-2026). | M2 |
+| R7.22 | Pages that work on a narrow screen, such as a phone's. Operators use the dashboard on laptops and desktops, so it is built for those first (owner, 21-Nov-2026). | M3 |
 
 ### Area 8 — Dashboard: acting
 
@@ -341,7 +341,7 @@ In the order a person meets them. **M** is the milestone.
 | R12.4 | A fixed set of flow-writing tasks with hidden tests, to measure goal G2. | M1 |
 | R12.5 | Agent tools that act, under the same rights and audit as a person. | M2 |
 | R12.6 | In a protected environment an agent may only ask; what it asks for waits for a person. | M2 |
-| R12.7 | An assistant inside the dashboard. | M2 |
+| R12.7 | An assistant inside the dashboard. | M3 |
 | R12.8 | Data handed to an agent is masked like any other, even when the agent's user may see it unmasked, and marked as untrusted content. Secrets are never handed over. Lists are capped, and each token has its own rate limit. | M1 |
 | R12.9 | Agent tools that start a flow or a connector from a template and run it locally, and ready-made procedures for writing a new flow and a new connector. | M2 |
 
@@ -367,9 +367,9 @@ In the order a person meets them. **M** is the milestone.
 | ID | Requirement | M |
 |---|---|---|
 | R14.1 | Every stored item carries a tenant. An install with one tenant never shows it. Nothing built may assume there is only one. | M1 |
-| R14.2 | Each tenant has its own connections, secrets, budgets, limits, alert channels, users and roles. | M2 |
-| R14.3 | Tenants are kept apart by the database as well as by the application, and one tenant can't starve another of workers or budget. | M2 |
-| R14.4 | A sandbox tenant is created, and refreshed, from production in one step: it copies the setup, never production's secrets, and its changes are promoted back to production after a preview. | M2 |
+| R14.2 | Each tenant has its own connections, secrets, budgets, limits, alert channels, users and roles. | M3 |
+| R14.3 | Tenants are kept apart by the database as well as by the application, and one tenant can't starve another of workers or budget. | M3 |
+| R14.4 | A sandbox tenant is created, and refreshed, from production in one step: it copies the setup, never production's secrets, and its changes are promoted back to production after a preview. | M3 |
 
 ### Area 15 — Running it
 
@@ -383,14 +383,14 @@ In the order a person meets them. **M** is the milestone.
 | R15.6 | A documentation site: getting started, concepts, an operating guide, and a reference for every connector, template, command and API, with examples that are tested. | M1 |
 | R15.7 | Releases are versioned by meaning, published as packages and as signed container images with a list of what they contain. | M1 |
 | R15.8 | A contribution guide, a code of conduct, a way to report a security problem privately, and named owners for security-sensitive code. | M1 |
-| R15.9 | A deployment chart for a cluster manager. | M2 |
+| R15.9 | A deployment chart for a cluster manager. | M3 |
 | R15.10 | Each kind of stored data has its own default keeping time, which can be changed: read data until every route has taken it and some days more, delivery history for months, the audit log for years. | M1 |
 | R15.11 | Capacity grows by adding worker processes. A worker asked to stop finishes what it is doing first. | M1 |
 | R15.12 | Written procedures for the common troubles: failed deliveries, a budget used up, database growth, a restore, an upgrade, changing a secret. | M1 |
 | R15.13 | A sizing guide: what volume each deployment size carries. | M1 |
 | R15.15 | The server listens only on its own machine unless told otherwise, and warns when it is. It is reached through a proxy that encrypts traffic. Images hold no secret, and the setup refuses to start without its secret key. | M1 |
 | R15.16 | When the database is missing, out of date or unreachable, or a port is taken, every command says what is wrong and what to do, never a stack trace. | M1 |
-| R15.14 | The one-command local stack runs without a container runtime. | M2 |
+| R15.14 | The one-command local stack runs without a container runtime. | M3 |
 
 ## 8. Hard cases
 
@@ -441,7 +441,7 @@ Each must pass before the milestone it belongs to is released.
 | Q-14 | Every connector and template has reference documentation and an example that CI runs | Documentation CI | M1 |
 | Q-15 | The smallest production deployment runs on one machine, with no paid licence | Design review | M1 |
 | Q-16 | A 100-million-row extract completes using the object-storage spool | Performance tests | M2 |
-| Q-17 | With several tenants, a request with another tenant's ids is refused on every address and tool | Cross-tenant tests | M2 |
+| Q-17 | With several tenants, a request with another tenant's ids is refused on every address and tool | Cross-tenant tests | M3 |
 | Q-18 | A webhook is acknowledged within 200 ms, whatever its destinations are doing | Performance tests | M1 |
 
 ## 10. Limits the product keeps
@@ -490,8 +490,8 @@ A piece moves into a milestone only when the owner brings it forward.
 | Milestone | In one line |
 |---|---|
 | **M1** | The whole core: writing, packaging, moving and transforming data, scheduling, reliability, the dashboard that watches and acts, environments with protection, security, alerts, read-only AI, general-purpose connectors, and what a release needs |
-| **M2** | Database change events, the object-storage spool, running-time overrides, freshness views, export of metrics, secret services, the private-network program, AI that acts, an in-dashboard assistant, full tenancy, sign-in through an identity provider, the multi-environment page, a cluster chart, a data API that other systems ask for data, endpoints through which the hub stands between two systems, erasing a person's data (by early 2027), business calendars, documents passing through, subscribing to event buses, other systems subscribing to the hub's events, and more connectors |
-| **M3** | Events in the CloudEvents format, versioned shapes for the events the hub publishes, statuses that arrive over time, and request and reply over events: the design leaves room for each today |
+| **M2** | Database change events and subscribing to event buses, the object-storage spool, destinations that confirm later, the data API, erasing a person's data (by early 2027), sign-in through an identity provider, secret services, the private-network program, metrics export and "expected by" alerts, running-time overrides, comparing and refreshing environments, AI that acts, and more connectors |
+| **M3** | What the design already leaves room for: the hub as a middleman between two systems, other systems subscribing to the hub's events, documents passing through, partitioned derived datasets, business calendars, freshness views, the multi-environment page, phone widths, an in-dashboard assistant, full tenancy and the sandbox, a cluster chart, a local stack without containers, and events in the CloudEvents format with versioned shapes, statuses over time and request and reply |
 
 M1 is large. It is built one issue at a time, in the order of areas 1 to 15, starting with a
 walking skeleton: the app starts, answers a health check and shows a sign-in page.

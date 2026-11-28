@@ -30,9 +30,9 @@ history.
 | Pull by API | The same, through a shared web client with retries, call budgets and secrets kept out of logs (R13.10, R6.5) | M1 |
 | Push by webhook | Stored at once and acknowledged within 200 ms (Q-18); the event either carries the record or names it, and the hub fetches the latest copy from the source | M1 |
 | Change stream (CDC) | One more source of events, resumed from where it stopped (R3.15) | M2 |
-| Event bus (publish and subscribe) | The hub subscribes and resumes from its replay position, reporting a gap when the bus no longer holds the events (R3.28); other systems subscribe to the hub's own events (R3.29) | M2 |
-| Files | Object storage connector (UC-05); large files and documents in object storage (R3.16, R3.27) | M1, large files M2 |
-| Request and reply | Other systems ask the hub for its data (R3.23), or the hub stands between two systems (R3.24) | M2 |
+| Event bus (publish and subscribe) | The hub subscribes and resumes from its replay position, reporting a gap when the bus no longer holds the events (R3.28); other systems subscribe to the hub's own events (R3.29, M3) | M2, M3 |
+| Files | Object storage connector (UC-05); large files in object storage (R3.16), documents attached to records (R3.27) | M1; large files M2; documents M3 |
+| Request and reply | Other systems ask the hub for its data (R3.23, M2), or the hub stands between two systems (R3.24, M3) | M2, M3 |
 | Event formats and contracts | Events in the CloudEvents format (R3.30); versioned shapes for the events the hub publishes (R3.31); statuses that arrive over time (R3.32); request and reply over events (R3.33) | M3 |
 
 ## Integration scenarios with the hub
@@ -77,23 +77,23 @@ history.
 | **When data is complete** | A flow starts once the data it needs is ready, per period, per shop | The daily report once yesterday's orders and lines are in | R3.13, R3.19 | M1 |
 | **Opening hours** | A system is read or written only in the hours it allows; work waits visibly | An ERP open to writes 06:00–22:00 | R5.6, HC-21 | M1 |
 | **Shared call limits** | Several flows share a system's call limit, with a share reserved for urgent work | One daily API limit for all flows | R6.5, HC-07 | M1 |
-| **Business calendars** | Working days and public holidays | First working day of the month | R5.13 | M2 |
+| **Business calendars** | Working days and public holidays | First working day of the month | R5.13 | M3 |
 
 ### Other systems asking the hub
 
 | Scenario | What happens | Example | Covered by | M |
 |---|---|---|---|---|
 | **The hub writes where they read** | A destination they read on their own: a database table, files | A table a reporting tool queries | Any route | M1 |
-| **Subscribe to the hub** | A system registers itself for the hub's events and receives them as they happen | A billing system told whenever an order is delivered | R3.29 | M2 |
+| **Subscribe to the hub** | A system registers itself for the hub's events and receives them as they happen | A billing system told whenever an order is delivered | R3.29 | M3 |
 | **Data API** | A system asks the hub for the latest record, or for changes since its last call | A mobile app gets a customer's current record | R3.23 | M2 |
-| **Middleman** | A system asks the hub; the hub calls the system that holds the data and answers in the shape asked for | "Stock of item 42", answered from the warehouse system | R3.24 | M2 |
+| **Middleman** | A system asks the hub; the hub calls the system that holds the data and answers in the shape asked for | "Stock of item 42", answered from the warehouse system | R3.24 | M3 |
 
 ### Running across boundaries
 
 | Scenario | What happens | Example | Covered by | M |
 |---|---|---|---|---|
 | **Systems inside a private network** | A small program inside the network connects out to the hub and reads or writes there for it | A database with no access from outside | R13.7 | M2 |
-| **Several business units** | Tenants kept apart, each with its own connections, users and budgets | Two companies of one group | R14.1–R14.3 | M1 (one tenant) / M2 |
+| **Several business units** | Tenants kept apart, each with its own connections, users and budgets | Two companies of one group | R14.1–R14.3 | M1 (one tenant) / M3 |
 | **Erasing a person's data** | A person's data erased from every copy the hub keeps | A customer asks to be forgotten | R10.16 | M2, by early 2027 |
 
 ## Choosing a pattern
