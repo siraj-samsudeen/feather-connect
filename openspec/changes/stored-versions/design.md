@@ -117,6 +117,12 @@ under 20,000 rows/s); a narrower key without `id` (no faster once updates are HO
 convention 14). Undone by `ALTER TABLE … SET (fillfactor = 100)`, which only affects pages
 written later.
 
+For the same reason the last-changed version is a plain id with no index and no foreign key, an
+exception to convention 14's "every reference is indexed": it changes on every update, and an
+index on it would make no update HOT, a constraint would check every row. Nothing looks records
+up by it; following a record reads it from the record's own row. The partition is indexed and
+constrained: it changes only when a record moves.
+
 ### 3. Bulk data rows are written set-based and audited once per version
 
 Record state and blocks are written by set-based SQL inside the sealing transaction, through a
@@ -231,12 +237,30 @@ sorted, no spaces, times as UTC ISO 8601, decimals as their text, `1` and `1.0` 
 
 ### 12. A developer's command until the SDK and pages exist
 
-`fcon data read <dataset> <file>` reads a JSON-lines file into a dataset as one read (`--key`,
-`--by` for the scheme, `--complete`, `--allow-empty`), `fcon data versions <dataset>` lists the
-versions per slice with kind, counts and commit number, and `fcon data record <dataset> <key>
-[--as-of N]` follows one record. The dataset is found by its full name in the catalog. The
-scenarios use these commands; they are a developer's tool, not the SDK's surface. Decided during
-the build, for the owner to confirm.
+The scenarios use these commands; they are a developer's tool, not the SDK's surface. Decided
+during the build, for the owner to confirm. The dataset is found by its full name among the
+catalog's datasets (issue 34); the tenant is `default` and the actor `system:fcon-data`; the
+database is `FCON_DATABASE_URL`, as for `fcon users`. Problems go through the error helper.
+
+- `fcon data read <dataset> <file> --key FIELD [--by SCHEME] [--time-zone ZONE] [--fields A,B]
+  [--complete --slice VALUES ... ] [--allow-empty]` reads a JSON-lines file (one JSON object a
+  line; numbers with a fraction are kept as decimals, so `12.00` stays `12.00`) as one read.
+  `--by` is the scheme, comma-separated, in order: `shop` (a field's value), `day:ordered_at`
+  or `month:ordered_at` (of a time field, in `--time-zone`, default UTC), `bucket:32` (of the
+  key's hash). `--fields` declares the shape the fingerprint covers. `--complete` makes it a
+  complete read of the slices named by `--slice shop=12,day=2026-10-18` (repeatable): a record
+  found in another slice is a change there, in a changes-only version sealed with them. It
+  prints one line per slice:
+  `sealed version 2 of "Shop 12 · 18 Oct 2026" (commit 2, complete): 3 read, 0 added, 1 changed, 0 deleted, 2 unchanged`
+  or `nothing changed in "Shop 12 · 18 Oct 2026": 3 read, 3 unchanged; no version stored`.
+- `fcon data versions <dataset> [--records]` prints each slice by name, then a line per sealed
+  version: `  version 2  commit 2  complete  3 read, 0 added, 1 changed, 0 deleted, 2 unchanged`;
+  a slice with none says `  no versions`. With `--records`, each version's records follow, one
+  a line: `    1002 changed` (or `added`, `deleted`).
+- `fcon data record <dataset> <key> [--as-of N]` prints a header, `record 1002`,
+  then `slice: Shop 12 · 18 Oct 2026`, `last changed by: version 2 (commit 2)` (now only),
+  `at the source: present` or `removed`, then the fields, one a line, sorted:
+  `  amount: 12.00`. As of N, a record not in the dataset then says so.
 
 ### Tables
 
