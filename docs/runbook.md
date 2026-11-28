@@ -26,6 +26,16 @@ not build the feature. A change that adds an alert adds its entry here (`change-
 - **What to do:** start or reach the database; or run `fcon db upgrade`. The server becomes ready
   by itself once the database is.
 
+### The record blocks are running out of days
+
+- **What it means:** the server's log warns that the record blocks have partitions for fewer
+  than 30 days after today. The stored data keeps each read's records in a table split by UTC
+  day, and each upgrade makes the days from today through 90 ahead. When today's is missing,
+  the server is not ready: no read can be stored.
+- **First checks:** `fcon db status`; when the last upgrade ran.
+- **What to do:** run `fcon db upgrade`, even with no upgrade waiting: it makes the missing
+  days. The warning goes once the days are there.
+
 ### A person says they can't sign in
 
 - **What it means:** usually a mistyped password, or repeated failures being slowed: after 3

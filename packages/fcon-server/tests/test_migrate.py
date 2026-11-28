@@ -305,3 +305,45 @@ def test_the_months_are_counted_in_utc_whatever_the_clocks_zone(empty_database_u
     upgrade(empty_database_url, FixedClock(late_in_october_west_of_utc), directory=folder)
 
     assert query(empty_database_url, AUDIT_PARTITIONS)[0] == ("audit_2026_11",)
+
+
+RECORD_DAYS = """
+    SELECT child.relname::text FROM pg_inherits
+    JOIN pg_class child ON child.oid = pg_inherits.inhrelid
+    WHERE pg_inherits.inhparent = 'fcon.record_block'::regclass ORDER BY 1
+"""
+
+
+def test_an_upgrade_makes_the_record_block_days_through_90_ahead(empty_database_url: str, folder: Path):
+    upgrade(empty_database_url, FixedClock(NOW), directory=folder)
+
+    days = [name for (name,) in query(empty_database_url, RECORD_DAYS)]
+
+    assert (len(days), days[0], days[-1]) == (91, "record_block_20261121", "record_block_20270219")
+
+
+def test_an_upgrade_with_nothing_waiting_still_makes_the_days_ahead(empty_database_url: str, folder: Path):
+    upgrade(empty_database_url, FixedClock(NOW), directory=folder)
+
+    upgrade(empty_database_url, FixedClock(NOW + timedelta(days=1)), directory=folder)
+
+    assert [name for (name,) in query(empty_database_url, RECORD_DAYS)][-1] == "record_block_20270220"
+
+
+def test_a_record_block_day_runs_from_its_first_instant_in_utc(empty_database_url: str, folder: Path):
+    upgrade(empty_database_url, FixedClock(NOW), directory=folder)
+
+    bounds = query(
+        empty_database_url,
+        "SELECT pg_get_expr(relpartbound, oid, true) FROM pg_class WHERE oid = 'fcon.record_block_20261122'::regclass",
+    )
+
+    assert bounds == [("FOR VALUES FROM ('2026-11-22 00:00:00+00') TO ('2026-11-23 00:00:00+00')",)]
+
+
+def test_the_days_are_counted_in_utc_whatever_the_clocks_zone(empty_database_url: str, folder: Path):
+    late_on_the_31st_west_of_utc = datetime(2026, 10, 31, 22, 0, tzinfo=timezone(timedelta(hours=-5)))
+
+    upgrade(empty_database_url, FixedClock(late_on_the_31st_west_of_utc), directory=folder)
+
+    assert query(empty_database_url, RECORD_DAYS)[0] == ("record_block_20261101",)

@@ -11,7 +11,8 @@ command line words them.
 - Each file runs in its own transaction, with `fcon.now` set from the clock,
   unless its first line is `-- fcon: no-transaction`: such a file holds one
   statement, since Postgres runs several sent together in one transaction.
-- Then the audit log's months, through 24 ahead of the clock's (UTC).
+- Then the audit log's months, through 24 ahead of the clock's (UTC), and
+  the record blocks' days, through 90 ahead of the clock's (UTC; ADR 0023).
 - Then the rights (design point 17): an app user other than the owner reads
   and writes every `fcon` table, and only reads and adds to `fcon.audit`
   and its months.
@@ -21,7 +22,7 @@ import hashlib
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import psycopg
@@ -33,6 +34,7 @@ MIGRATIONS = Path(__file__).parent / "migrations"
 NO_TRANSACTION = "-- fcon: no-transaction"
 ACTOR = "system:migration"
 MONTHS_AHEAD = 24
+RECORD_DAYS_AHEAD = 90  # stored-versions, design decision 4
 # A literal, a quoted name or a comment: a `;` inside one ends no statement.
 _NOISE = re.compile(r"""'(?:[^']|'')*'|"(?:[^"]|"")*"|--[^\n]*|/\*.*?\*/|\$(\w*)\$.*?\$\1\$""", re.DOTALL)
 LOCK_KEY = 0x66636F6E_6462  # "fcondb": the one upgrade at a time
@@ -206,6 +208,24 @@ def _make_audit_months(connection: Connection, now: datetime) -> None:
         )
 
 
+def record_days(now: datetime) -> tuple[date, ...]:
+    """The clock's day in UTC and each of the 90 after it: the record blocks' day partitions."""
+    today = now.astimezone(UTC).date()
+    return tuple(today + timedelta(days=ahead) for ahead in range(RECORD_DAYS_AHEAD + 1))
+
+
+def _make_record_days(connection: Connection, now: datetime) -> None:
+    """Creates the record blocks' missing daily partitions, from the clock's day through 90 ahead."""
+    for day in record_days(now):
+        connection.execute(
+            sql.SQL("CREATE TABLE IF NOT EXISTS {} PARTITION OF fcon.record_block FOR VALUES FROM ({}) TO ({})").format(
+                sql.Identifier("fcon", f"record_block_{day:%Y%m%d}"),
+                sql.Literal(f"{day.isoformat()} 00:00:00+00"),
+                sql.Literal(f"{(day + timedelta(days=1)).isoformat()} 00:00:00+00"),
+            )
+        )
+
+
 def _grant(connection: Connection, app_user: str) -> None:
     """Gives `app_user` the app's rights, unless it is the owner this connection signs in as.
 
@@ -259,6 +279,7 @@ def upgrade(
         for migration in waiting:
             _apply(connection, migration, clock.now())
         _make_audit_months(connection, clock.now())
+        _make_record_days(connection, clock.now())
         if app_user is not None:
             _grant(connection, app_user)
     return UpgradeResult(applied=tuple(migration.name for migration in waiting))

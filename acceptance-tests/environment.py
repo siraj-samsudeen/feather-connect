@@ -9,6 +9,7 @@ from pages.another_site import AnotherSite
 from pages.audit_log import AuditLog
 from pages.choose_password_page import ChoosePasswordPage
 from pages.container_host import ContainerHost
+from pages.data_commands import DataCommands
 from pages.database_commands import DatabaseCommands
 from pages.first_admin import FirstAdministrator
 from pages.form_expired_page import FormExpiredPage
@@ -26,7 +27,7 @@ from support import auth, captions, docker, run_database, stack, world
 
 # Capabilities whose scenarios open no web page: with VIDEO=1 they are shown on
 # a terminal-like page of the test's own (support/screen.py).
-SCREEN_FEATURES = ("Database upgrades", "Logs and health")
+SCREEN_FEATURES = ("Database upgrades", "Logs and health", "Stored data")
 
 
 def before_all(context):
@@ -73,6 +74,7 @@ def before_scenario(context, scenario):
     context.accessibility = AccessibilityCheck()
     context.terminal = Terminal(context.world)
     context.database_commands = DatabaseCommands(context.world)
+    context.data_commands = DataCommands(context.world)
     context.server_log = ServerLog(context.world)
     context.container_host = ContainerHost(context.world)
     context.standard_setup = StandardSetup(context.world, context.container_host)

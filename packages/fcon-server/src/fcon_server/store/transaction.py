@@ -12,6 +12,12 @@ The transaction carries the context's tenant and actor.
   who-and-when columns and the row version, and write its audit record in the
   same transaction. `tx.insert_if_absent` is `tx.insert` for what must happen
   once; `tx.refuse` records a change refused for a rule, and writes nothing else.
+- For set-based bulk writes (ADR 0022), which write no audit record per row:
+  `tx.copy_rows` copies rows into a temporary table, each with the context's
+  tenant in its `tenant_id` column, and `tx.stamp()` gives `stamped_at` and
+  `stamped_by`, the clock's time and the context's actor, for the SQL that
+  writes from it to name. That SQL runs through `tx.execute`, so it is
+  checked like any other: `WHERE rows.tenant_id = %(tenant_id)s` scopes it.
 - `Store.transaction` never retries; `Store.run` runs a whole unit of work
   again, up to twice, on a deadlock or a serialization failure.
 - Database errors become the store's own (`errors`); a statement slower than
@@ -21,7 +27,7 @@ The transaction carries the context's tenant and actor.
 import logging
 import re
 import time
-from collections.abc import Callable, Generator, Mapping
+from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from typing import Any, LiteralString, Protocol
@@ -179,6 +185,28 @@ class Transaction:
         cursor = self._connection.cursor(row_factory=class_row(row))
         self._run(cursor, query, self._scoped(query, params))
         return cursor.fetchall()
+
+    def stamp(self) -> Row:
+        """The who-and-when values for a set-based write: `stamped_at` from the clock, `stamped_by` the actor."""
+        return {"stamped_at": self._clock.now(), "stamped_by": self._context.actor}
+
+    def copy_rows(self, temporary_table: str, columns: Sequence[str], rows: Iterable[Sequence[object]]) -> None:
+        """Copies rows into the temporary table `temporary_table`, each with the context's tenant first.
+
+        The table is in `pg_temp`, made by the caller, with a `tenant_id` column besides `columns`;
+        rows are sent with `COPY`, far faster than one statement each. Only a temporary table can
+        be named, so no product table is written without the tenant-scope check.
+        """
+        query = sql.SQL("COPY {} ({}) FROM STDIN").format(
+            sql.Identifier("pg_temp", temporary_table),
+            sql.SQL(", ").join(sql.Identifier(column) for column in ("tenant_id", *columns)),
+        )
+        try:
+            with self._connection.cursor().copy(query) as copy:
+                for row in rows:
+                    copy.write_row((self._context.tenant_id, *row))
+        except psycopg.Error as err:
+            raise _translate(err) from err
 
     def insert(self, table: Table, values: Params) -> Row:
         """Adds one row and its audit record, and gives the row's key besides the tenant.
