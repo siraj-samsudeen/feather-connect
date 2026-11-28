@@ -5,7 +5,7 @@ filed from (issue #2). It holds no specs and no design: the spec of a capability
 OpenSpec change that builds it, and a technology choice is made by the change that needs it (§11).
 
 - **Status:** draft for the owner's review, 17-Nov-2026 (second pass: 36 requirements, a quality target and two decisions added; third pass: 4 requirements; fourth pass, from a full inventory of what was built: 21 requirements and 12 widened; fifth pass: 1 requirement and 1 widened).
-- **Milestones:** **M1** is the first release. **M2** is everything after it. Each requirement names one.
+- **Milestones:** **M1** is the first release. **M2** comes after it. **M3** is what the design already leaves room for, built after M2. Each requirement names one.
 - **Numbers:** `G` goals, `P` people, `UC` use cases, `R` requirements (`R3.2` is the second of area 3),
   `HC` hard cases, `Q` quality targets, `D` decisions to make. A number is never reused.
 
@@ -191,6 +191,10 @@ In the order a person meets them. **M** is the milestone.
 | R3.27 | Documents and other large files attached to records, such as invoices' PDFs, pass through the hub, kept in object storage (R3.16). | M2 |
 | R3.28 | A dataset can subscribe to an event bus or a change stream (a business application's events, a message broker, a database's change log): it holds the connection, takes events in order, and resumes from its replay position after a restart. When the bus no longer holds the events since that position, the gap is reported and the scheduled full comparison (R3.3) catches up. | M2 |
 | R3.29 | Another system can subscribe itself to the hub's events (a record delivered, a record changed in a dataset), naming where to send them and which datasets and kinds of event; each subscription is a route of its own, with the same guarantees, keeping times and history, and its token sees only the datasets it is given. | M2 |
+| R3.30 | Events in and out can use the CloudEvents format, the open standard for an event's envelope (its id, source, type and time), so no custom code is needed to read or write one. | M3 |
+| R3.31 | The events the hub publishes have a declared, versioned shape. Adding a field keeps the version; a change that would break a subscriber is a new version, and the old one goes on until no subscriber uses it. | M3 |
+| R3.32 | A destination that sends statuses over time (received, then processed, or failed hours later), as business documents exchanged with an application often do, keeps each delivery's state up to date from those statuses; a failure that arrives later fails the delivery, which can then be retried like any other. It extends R3.17. | M3 |
+| R3.33 | Request and reply over events: a flow sends a request as an event and waits, within a time limit, for the reply that names it. | M3 |
 
 ### Area 4 — Transforming
 
@@ -476,7 +480,9 @@ follow from them.
 
 A visual flow designer; turning the whole dashboard into a single-page application; a hosted
 service; an API gateway or developer portal; full business-process management; a marketplace of
-connectors; column-level lineage; an optional streaming transport; a visual data-mapping assistant.
+connectors; column-level lineage; an optional streaming transport; a visual data-mapping assistant;
+finding patterns across many events within a time window (complex event processing): transforms
+filter and route record by record, which covers the simple cases.
 A piece moves into a milestone only when the owner brings it forward.
 
 ## 13. Milestones at a glance
@@ -485,6 +491,7 @@ A piece moves into a milestone only when the owner brings it forward.
 |---|---|
 | **M1** | The whole core: writing, packaging, moving and transforming data, scheduling, reliability, the dashboard that watches and acts, environments with protection, security, alerts, read-only AI, general-purpose connectors, and what a release needs |
 | **M2** | Database change events, the object-storage spool, running-time overrides, freshness views, export of metrics, secret services, the private-network program, AI that acts, an in-dashboard assistant, full tenancy, sign-in through an identity provider, the multi-environment page, a cluster chart, a data API that other systems ask for data, endpoints through which the hub stands between two systems, erasing a person's data (by early 2027), business calendars, documents passing through, subscribing to event buses, other systems subscribing to the hub's events, and more connectors |
+| **M3** | Events in the CloudEvents format, versioned shapes for the events the hub publishes, statuses that arrive over time, and request and reply over events: the design leaves room for each today |
 
 M1 is large. It is built one issue at a time, in the order of areas 1 to 15, starting with a
 walking skeleton: the app starts, answers a health check and shows a sign-in page.

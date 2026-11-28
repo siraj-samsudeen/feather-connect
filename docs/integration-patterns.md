@@ -3,7 +3,8 @@
 How one system gets data from another, how Feather Connect does each, and the integration
 scenarios the hub supports. For developers writing flows and for anyone deciding whether the hub
 fits a need. The numbers (R3.2, UC-04) point to [`requirements.md`](requirements.md); **M1** is
-the first release, **M2** the one after it.
+the first release, **M2** the one after it, and **M3** what the design leaves room for, built
+after M2.
 
 ## How one system gets data from another
 
@@ -32,6 +33,7 @@ history.
 | Event bus (publish and subscribe) | The hub subscribes and resumes from its replay position, reporting a gap when the bus no longer holds the events (R3.28); other systems subscribe to the hub's own events (R3.29) | M2 |
 | Files | Object storage connector (UC-05); large files and documents in object storage (R3.16, R3.27) | M1, large files M2 |
 | Request and reply | Other systems ask the hub for its data (R3.23), or the hub stands between two systems (R3.24) | M2 |
+| Event formats and contracts | Events in the CloudEvents format (R3.30); versioned shapes for the events the hub publishes (R3.31); statuses that arrive over time (R3.32); request and reply over events (R3.33) | M3 |
 
 ## Integration scenarios with the hub
 
