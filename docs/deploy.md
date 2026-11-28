@@ -241,6 +241,7 @@ The same image runs twice per deploy: once for the upgrade, then as the product.
 | `FCON_SECRET_KEY_PREVIOUS` | Both, while changing the key | The old key, so sign-in forms already open still work. Remove it a day later. |
 | `FCON_FIRST_ADMIN` | Either | A user name: on a start with no users, made an administrator with a one-time password, written in the log once. |
 | `FCON_TRUSTED_PROXIES` | Both | The proxies whose `X-Forwarded-For` is believed: addresses or ranges, comma-separated, or `*` where only the proxy can reach the server. Unset: none. The setup on one machine sets Docker's private ranges. |
+| `FCON_PROTECTED` | Either | `on` marks a protected environment: every change to an operator setting needs a reason (`--reason`), and a change without one is refused and recorded. Default `off`; the one-machine template sets it `on`. |
 | `FCON_ENVIRONMENT` | Either | The install's name, shown on every page, such as `production` or `staging`. Default `development`. |
 | `FCON_DATABASE_POOL_SIZE` | Either | The product's connections to the database. Default 5. |
 | `FCON_DATABASE_PREPARE` | Either | `off` behind a connection pooler that cannot keep prepared statements. Default `on`. |

@@ -63,3 +63,28 @@ def test_a_refusal_is_audited_as_refused_against_the_tenant(store: Store, tenant
             (tenant.tenant_id,),
         ).fetchall()
     assert records == [("fcon.tenant", tenant.tenant_id, "user:7", "not allowed to manage users")]
+
+
+@pytest.mark.parametrize(
+    ("action", "least"),
+    [
+        ("SEE_SETTINGS", Role.VIEWER),
+        ("CHANGE_SETTINGS", Role.OPERATOR),
+        ("RECORD_CATALOG", Role.DEVELOPER),
+    ],
+    ids=["see-settings", "change-settings", "record-the-catalog"],
+)
+def test_the_catalogs_actions_need_their_least_role(action: str, least: Role):
+    assert RIGHTS[Action[action]] == least
+
+
+@pytest.mark.database
+def test_a_viewer_cannot_change_settings(store: Store, tenant: Context):
+    with pytest.raises(NotAllowedError):
+        require(store, Caller(tenant, Role.VIEWER), Action.CHANGE_SETTINGS)
+
+
+@pytest.mark.database
+def test_an_operator_cannot_record_the_catalog(store: Store, tenant: Context):
+    with pytest.raises(NotAllowedError):
+        require(store, Caller(tenant, Role.OPERATOR), Action.RECORD_CATALOG)

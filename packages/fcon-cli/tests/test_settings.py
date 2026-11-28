@@ -279,3 +279,20 @@ def test_the_settings_shown_hold_no_secret(settings: Settings | DatabaseSettings
     shown = repr(settings)
 
     assert [secret for secret in SECRETS if secret in shown] == []
+
+
+# -- a protected environment (catalog-and-settings, design decision 8) ----------
+
+
+@pytest.mark.parametrize(("text", "protected"), [("", False), ("off", False), ("on", True)], ids=["unset", "off", "on"])
+def test_an_environment_is_protected_only_by_on(tmp_path: Path, text: str, protected: bool):
+    environ = {"FCON_DATABASE_URL": URL} | ({"FCON_PROTECTED": text} if text else {})
+
+    assert load_database_settings(environ, tmp_path).protected is protected
+
+
+def test_a_protected_setting_other_than_on_or_off_is_a_settings_mistake(tmp_path: Path):
+    with pytest.raises(SettingsError) as raised:
+        load_database_settings({"FCON_DATABASE_URL": URL, "FCON_PROTECTED": "yes"}, tmp_path)
+
+    assert raised.value.problem == problems.protected_unknown("yes")

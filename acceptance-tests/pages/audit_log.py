@@ -9,6 +9,12 @@ visitor's address and the outcome (design, decision 3; point 8). The run's
 database serves every scenario and its audit is never emptied, so only the
 records written since the scenario began are read there (World.audit_mark);
 a database of the scenario's own is read whole.
+
+A setting an operator sets is an `insert` (the first time) or `update` of
+`fcon.operator_setting`, its `after` holding the setting and the value, by
+`system:cli` from the command line, with the reason given; a change a
+protected environment refuses is a `refused` record of that table whose
+`row_key` is the entry's name and the setting, and whose reason is the refusal.
 """
 
 import json
@@ -19,6 +25,9 @@ ATTEMPT_TABLE = "fcon.sign_in_attempt"
 INSERT = "insert"
 REFUSED = "refused"
 SUCCEEDED = "succeeded"
+SETTING_TABLE = "fcon.operator_setting"
+SETTING_CHANGES = ("insert", "update")
+BY_THE_COMMAND_LINE = "system:cli"
 # Every browser of the run is on this machine and talks to 127.0.0.1.
 USER_ADDRESS = "127.0.0.1"
 # The fields of a record a password could hide in.
@@ -97,3 +106,30 @@ class AuditLog:
                     problems.append("a password appears in the %s %s record by %s"
                                     % (record.get("table_name"), record.get("action"), record.get("created_by")))  # fmt: skip
         return problems
+
+    def setting_change_problems(self, setting, value, reason):
+        """Why the log does not hold a change of `setting` to `value` by the
+        command line, with `reason`, if it does not."""
+        records = self.records()
+        changes = [
+            r for r in records
+            if r.get("table_name") == SETTING_TABLE and r.get("action") in SETTING_CHANGES
+            and isinstance(r.get("after"), dict)
+            and r["after"].get("setting") == setting and r["after"].get("value") == value
+        ]  # fmt: skip
+        good = [r for r in changes if r.get("created_by") == BY_THE_COMMAND_LINE and r.get("reason") == reason]
+        return None if good else "no change of the %s to %r by %s with the reason %r; %s" % (
+            setting, value, BY_THE_COMMAND_LINE, reason, self._show(records))  # fmt: skip
+
+    def setting_refusal_problems(self, name, setting, refusal):
+        """Why the log does not hold a refused change of `setting` of `name`,
+        by the command line, whose reason holds `refusal`, if it does not."""
+        records = self.records()
+        refused = [
+            r for r in records
+            if r.get("table_name") == SETTING_TABLE and r.get("action") == REFUSED
+            and r.get("row_key") == "%s/%s" % (name, setting) and r.get("created_by") == BY_THE_COMMAND_LINE
+            and refusal in (r.get("reason") or "")
+        ]  # fmt: skip
+        return None if refused else "no refused change of the %s of %s saying %r; %s" % (
+            setting, name, refusal, self._show(records))  # fmt: skip

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from fcon_server import database
+from fcon_server.catalog.known_settings import Kind, settings_of
 from fcon_server.database import ICU_COLLATION, DatabaseAddress, DatabaseCheck
 from fcon_server.store.migrate import MigrationStatus
 from fcon_server.users import rules
@@ -108,6 +109,15 @@ def prepare_unknown(text: str) -> Problem:
         Level.ERROR,
         f"FCON_DATABASE_PREPARE is not on or off: {text}.",
         ("Set it to off when a connection pooler sits in front of Postgres; leave it unset otherwise.",),
+    )
+
+
+def protected_unknown(text: str) -> Problem:
+    """The problem when FCON_PROTECTED is neither on nor off."""
+    return Problem(
+        Level.ERROR,
+        f"FCON_PROTECTED is not on or off: {text}.",
+        ("Set it to on where every change of a setting needs a reason; leave it unset otherwise.",),
     )
 
 
@@ -414,3 +424,86 @@ def only_administrator(reason: str) -> Problem:
     return Problem(
         Level.ERROR, reason, ("Make another user an administrator: fcon users set-role <name> administrator",)
     )
+
+
+# -- the catalog and settings --------------------------------------------
+
+
+def not_definitions_file(file: str, what: str, expected: str) -> Problem:
+    """The problem when `file` is not a package version's definitions: `what` is wrong, `expected` is wanted."""
+    return Problem(Level.ERROR, f"{file} is not a definitions file: {what}.", (expected,))
+
+
+def definitions_file_unreadable(file: str) -> Problem:
+    """The problem when `file` cannot be read at all."""
+    return not_definitions_file(file, "it cannot be read", "Give the path of a definitions file, JSON in UTF-8.")
+
+
+def recorded_with_other_definitions(package: str, version: str) -> Problem:
+    """The problem when a package version is recorded already with other definitions."""
+    return Problem(
+        Level.ERROR,
+        f"{package} {version} is recorded already, with other definitions.",
+        ("A recorded version never changes: give the changed code a new version.",),
+    )
+
+
+def _settings_of(kind: Kind) -> str:
+    """Every setting of `kind`, in the list's order, as a line of what to do."""
+    return f"A {kind}'s settings: {', '.join(setting.name for setting in settings_of(kind))}"
+
+
+def decided_by_code(name: str, kind: Kind, setting: str) -> Problem:
+    """The problem when `setting` of the entry `name` is the code's to decide."""
+    return Problem(
+        Level.ERROR, f"the {setting} of {name} is decided by the code, not by a setting.", (_settings_of(kind),)
+    )
+
+
+def no_such_setting(kind: Kind, setting: str) -> Problem:
+    """The problem when a `kind` has no setting named `setting`."""
+    return Problem(Level.ERROR, f"a {kind} has no setting named {setting}.", (_settings_of(kind),))
+
+
+def bad_setting_value(value: str, setting: str, expected: str) -> Problem:
+    """The problem when `value` is not a value of `setting`; `expected` says what is."""
+    article = "an" if setting[0] in "aeiou" else "a"
+    return Problem(Level.ERROR, f'"{value}" is not {article} {setting}.', (expected,))
+
+
+def kind_changed(reason: str) -> Problem:
+    """The problem when a package version declares a known name as another kind; `reason` says which."""
+    return Problem(Level.ERROR, f"{reason}.", ("A name keeps its kind: give the new one a name of its own.",))
+
+
+def rename_across_kinds(reason: str) -> Problem:
+    """The problem when a package version renames an entry of one kind to a name of another."""
+    return Problem(
+        Level.ERROR,
+        f"{reason}.",
+        ("A rename keeps the kind: give the new one a name of its own, without renamed_from.",),
+    )
+
+
+def flagged_value(name: str, setting: str) -> Problem:
+    """The warning for an operator's value of `name`, which the code no longer has."""
+    return Problem(
+        Level.WARNING,
+        f"the operator's {setting} of {name} is for a name the code no longer has.",
+        (f"Clear it with: fcon settings clear {name} {setting}",),
+    )
+
+
+def no_such_entry(name: str) -> Problem:
+    """The problem when no flow, dataset or route has the name."""
+    return Problem(Level.ERROR, f"no flow, dataset or route is named {name}.", ("fcon catalog list shows the names.",))
+
+
+def not_in_code(reason: str) -> Problem:
+    """The problem when a value is set on an entry the code no longer has; `reason` names it."""
+    return Problem(Level.ERROR, f"{reason}.")
+
+
+def needs_a_reason(reason: str) -> Problem:
+    """The problem when a protected environment refuses a change without a reason; `reason` says which."""
+    return Problem(Level.ERROR, f"{reason}.", ("Say why with --reason.",))
