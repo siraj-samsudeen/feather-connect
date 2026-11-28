@@ -32,11 +32,17 @@ class Action(StrEnum):
 
     SEE_OVERVIEW = "see the overview"
     MANAGE_USERS = "manage users"
+    SEE_SETTINGS = "see settings"
+    CHANGE_SETTINGS = "change settings"
+    RECORD_CATALOG = "record the catalog"
 
 
 RIGHTS = {
     Action.SEE_OVERVIEW: Role.VIEWER,
     Action.MANAGE_USERS: Role.ADMINISTRATOR,
+    Action.SEE_SETTINGS: Role.VIEWER,
+    Action.CHANGE_SETTINGS: Role.OPERATOR,
+    Action.RECORD_CATALOG: Role.DEVELOPER,
 }
 
 
