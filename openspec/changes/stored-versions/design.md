@@ -58,12 +58,20 @@ theirs), and runs varied by up to 40%: each figure is the best of the runs.
 Every case reaches 20,000 but one: a change-stamp read of a million changed records sealed as one
 version (19,147), where the seal's update of record state took 22 s of the 52. Two changes fix it
 (decision 2, a fillfactor of 50, measured four times faster on that update: 5 s for a million rows,
-every update HOT), and decision 6's cap on a changes-only version (200,000 changes). The
-million-row figure with both is measured again below once the machine is idle.
+every update HOT), and decision 6a's cap on a changes-only version (200,000 changes).
 
-The machine is a 4-core laptop processor shared with five other sessions and the database's
-virtual machine; later runs got as little as a tenth of a core and are not comparable. A worker on
-a host of its own does at least as well.
+**With both fixes**, the million-row change-stamp read was measured twice more, but by then the
+laptop was on battery, its processor at about a third of the clock of the runs above, so the
+absolute numbers are not comparable. In the same run, the change-stamp read of a million changed
+records went exactly as fast as the first load of a million new ones (10,541 and 10,599 rows/s;
+10,527 and 10,777), where without the fixes it went at 0.65 of the first load's rate. On mains
+power the first load measured 29,508, so the change-stamp read with both fixes is about 29,000:
+**every case reaches Q-02's 20,000**, the last one by that same-run ratio rather than by a direct
+measurement on mains. Re-running the prototype on mains power settles it; it is kept outside the
+repo, beside the build's notes.
+
+The machine is a 4-core laptop processor (i7-1185G7) shared with five other sessions and the
+database's virtual machine. A worker on a host of its own does at least as well.
 
 **What the prototype changed in the design:** decisions 2 and 6a below. A first version looked
 up a block's keys with a filter on the slice too, and the planner chose the slice's index: a
