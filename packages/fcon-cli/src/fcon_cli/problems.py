@@ -112,6 +112,15 @@ def prepare_unknown(text: str) -> Problem:
     )
 
 
+def protected_unknown(text: str) -> Problem:
+    """The problem when FCON_PROTECTED is neither on nor off."""
+    return Problem(
+        Level.ERROR,
+        f"FCON_PROTECTED is not on or off: {text}.",
+        ("Set it to on where every change of a setting needs a reason; leave it unset otherwise.",),
+    )
+
+
 MAKE_A_KEY = 'python -c "import secrets; print(secrets.token_urlsafe(32))"'
 
 

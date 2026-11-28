@@ -24,6 +24,7 @@ ENV_FILE = ".env"
 LOG_FORMATS = ("text", "json")  # unset: text on a terminal, json elsewhere
 DEFAULT_POOL_SIZE = 5
 PREPARE = {"on": True, "off": False}  # off: for a connection pooler in front of Postgres
+PROTECTED = {"on": True, "off": False}  # on: every change of a setting needs a reason (design decision 8)
 SHORTEST_SECRET_KEY = 32  # characters
 DEFAULT_ENVIRONMENT = "development"
 
@@ -51,13 +52,15 @@ class Settings:
 
 @dataclass(frozen=True)
 class DatabaseSettings:
-    """The database addresses of `fcon db` and `fcon users`.
+    """What the commands that reach the database run with: `fcon db`, `fcon users`, `fcon catalog` and `fcon settings`.
 
-    The app's address, and the owner's for upgrades (FCON_MIGRATION_DATABASE_URL, else the app's).
+    The app's address, the owner's for upgrades (FCON_MIGRATION_DATABASE_URL, else the app's), and whether the
+    environment is protected (FCON_PROTECTED).
     """
 
     database_url: str = field(repr=False)  # may hold a password
     migration_database_url: str = field(repr=False)
+    protected: bool = False
 
 
 def read_env_file(path: Path) -> dict[str, str]:
@@ -139,6 +142,14 @@ def _prepare(variables: Mapping[str, str]) -> bool:
     return PREPARE[text]
 
 
+def _protected(variables: Mapping[str, str]) -> bool:
+    """Whether the environment is protected: FCON_PROTECTED on, or off (the default)."""
+    text = variables.get("FCON_PROTECTED", "") or "off"
+    if text not in PROTECTED:
+        raise SettingsError(problems.protected_unknown(text))
+    return PROTECTED[text]
+
+
 def _secret_key(variables: Mapping[str, str], name: str) -> str | None:
     """The secret key in the setting `name`, or None when it is unset.
 
@@ -202,7 +213,8 @@ def load_settings(
 def load_database_settings(environ: Mapping[str, str], directory: Path) -> DatabaseSettings:
     """The database addresses: `environ` over the .env file in `directory`.
 
-    Raises SettingsError when FCON_DATABASE_URL is unset, or when an address is not a Postgres one.
+    Raises SettingsError when FCON_DATABASE_URL is unset, when an address is not a Postgres one, or when
+    FCON_PROTECTED is not on or off.
     """
     variables = {**read_env_file(directory / ENV_FILE), **environ}
     database_url = _database_url(variables)
@@ -212,4 +224,5 @@ def load_database_settings(environ: Mapping[str, str], directory: Path) -> Datab
         migration_database_url=_checked_database_url("FCON_MIGRATION_DATABASE_URL", owner_url)
         if owner_url
         else database_url,
+        protected=_protected(variables),
     )
