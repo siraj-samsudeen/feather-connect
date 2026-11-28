@@ -18,10 +18,10 @@
 
 ### The operator's value is in force, else the code's
 
-- [x] 2.7 catalog-and-settings: Given "shop-flows 1.0" has been recorded, its code giving the dataset … a look-back of "1d" (and a batch size of "5000"; no retries) — red → green → commit
+- [x] 2.7 catalog-and-settings: Given "shop-flows 1.0" has been recorded, its code giving the dataset … a look-back of "1d" (and a batch size of "5000"; no number of tries) — red → green → commit
 - [x] 2.8 catalog-and-settings: When the operator sets the look-back of … to "3d" (with or without a reason) — red → green → commit
 - [x] 2.9 catalog-and-settings: Then the settings of … show the look-back "3d", set by the operator / And they show the batch size "5000", set by the code — red → green → commit
-- [x] 2.10 catalog-and-settings: When the operator looks at the settings of … / Then they show the retries "3", set by the product's default — red → green → commit
+- [x] 2.10 catalog-and-settings: When the operator looks at the settings of … / Then they show the number of tries "6", set by the product's default — red → green → commit
 - [x] 2.11 catalog-and-settings: And the operator has set the look-back … / When the operator clears the look-back … / Then … "1d", set by the code — red → green → commit
 
 ### An operator's value outlives an upgrade; a rename is explicit

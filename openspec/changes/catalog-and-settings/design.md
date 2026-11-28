@@ -149,11 +149,19 @@ The list (first version; each a line, so adding one is a one-line change and no 
 
 | Kind | Settings (default) |
 |---|---|
-| Flow | `on` (off, R2.3), `schedule` (none), `time-zone` (UTC), `paused-until` (none), `retries` (3), `time-limit` (1h), `parallel-work` (1), `overlap` (skip), `catch-up` (latest), `alert-after-failures` (1) |
-| Dataset | `look-back` (0s), `full-comparison-schedule` (none), `batch-size` (5000), `retries` (3), `time-limit` (1h), `readiness-interval` (5m), `late-data` (warn), `schema-changes` (ask), `alert-when-stale-after` (none), `keep-records` (14d), `keep-versions` (400d), `fetch-batch-size` (100), `fetch-retries` (5), `fetch-time-limit` (30s) |
-| Route | `on` (on), `paused-until` (none), `retries` (3), `time-limit` (1h), `batch-size` (5000), `parallel-partitions` (1), `approval` (never), `supersede-automatically` (off), `parent-wait-limit` (1d), `alert-after-failures` (1), `keep-deliveries` (180d), `keep-answers` (30d) |
+| Flow | `on` (off, R2.3), `schedule` (none), `time-zone` (UTC), `paused-until` (none), `tries` (6), `time-limit` (1h), `parallel-work` (1), `overlap` (skip), `catch-up` (latest), `alert-after-failures` (1) |
+| Dataset | `look-back` (0s), `full-comparison-schedule` (none), `batch-size` (5000), `tries` (6), `time-limit` (1h), `readiness-interval` (5m), `late-data` (warn), `schema-changes` (ask), `alert-when-stale-after` (none), `keep-records` (14d), `keep-versions` (400d), `fetch-batch-size` (100), `fetch-tries` (6), `fetch-time-limit` (30s) |
+| Route | `on` (on), `paused-until` (none), `tries` (6), `time-limit` (1h), `batch-size` (5000), `parallel-partitions` (1), `approval` (never), `supersede-automatically` (off), `parent-wait-limit` (1d), `alert-after-failures` (1), `keep-deliveries` (180d), `keep-answers` (30d) |
 
-Keeping times follow #31 point 10's defaults. Values are stored as text in their canonical
+Keeping times follow #31 point 10's defaults. Aligned with the engine design (#42, owner,
+28-Nov-2026): `tries` counts every try, the first included, 6 by default (#42 point 4; the
+engine spreads them over about 30 minutes with growing randomised waits, and adds the first and
+longest wait and the "retry after" cap as settings when it is built); `overlap` is R5.8's
+`queue` (the new run waits behind), `skip` (recorded as skipped, "previous run still going") or
+`cancel` (the running run stops at its tasks' next safe point and the new one starts), with
+parallel work its own setting (R6.8); `catch-up` is `latest` (one run, the others recorded as
+skipped, "caught up as one run"), `each` (one run per missed start, up to the engine's cap of
+1,000) or `none` (#42 point 5). Values are stored as text in their canonical
 spelling; the readers that act on them (the worker, the engine) parse them with the same parsers.
 
 Rejected: a table of setting kinds in the database (a migration per new setting, and rules

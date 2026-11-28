@@ -8,7 +8,7 @@ the contract is issue #31 point 2 with its review rounds).
 
 What people get: each flow, dataset and route the code declares is recorded once per package
 version, under a name that keeps its identity across versions, so history and settings follow it.
-An operator changes what is theirs (a schedule, a look-back, retries, a pause) per environment
+An operator changes what is theirs (a schedule, a look-back, the number of tries, a pause) per environment
 with no new package; they see each value in force and whether the operator, the code or the
 product's default set it (R1.9, R2.9); every change says who made it and why, with a reason
 required in a protected environment (R9.2, R10.4); and an operator's value for a name the code

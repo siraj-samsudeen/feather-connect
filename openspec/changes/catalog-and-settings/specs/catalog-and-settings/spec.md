@@ -11,7 +11,7 @@ the package's versions, so its history and its settings follow it.
 Code decides the logic: where data comes from, its key, how it is split, how it is changed and
 written. Operators own the rest: a setting is something an operator changes per environment (a
 deployment such as production) without a new package, such as a schedule, a look-back (how far
-back each read starts again), the number of retries, or a pause with an end. For every setting the operator sees the
+back each read starts again), the number of tries, or a pause with an end. For every setting the operator sees the
 value in force and who set it: the operator, the code, or the product's default. Covers R1.9,
 R2.6, R2.9, R2.12, R9.2 (for settings), R10.4 (for settings).
 
@@ -55,9 +55,9 @@ And they show the batch size "5000", set by the code
 #### Scenario: The product's default applies when neither gives a value
 
 ```gherkin
-Given "shop-flows 1.0" has been recorded, its code giving the dataset "shop-flows.orders" no retries
+Given "shop-flows 1.0" has been recorded, its code giving the dataset "shop-flows.orders" no number of tries
 When the operator looks at the settings of "shop-flows.orders"
-Then they show the retries "3", set by the product's default
+Then they show the number of tries "6", set by the product's default
 ```
 
 #### Scenario: Clearing the operator's value brings back the code's
