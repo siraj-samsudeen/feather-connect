@@ -131,6 +131,7 @@ In the order a person meets them. **M** is the milestone.
 | R1.8 | A template for comparing a warehouse query and pushing the differences. | M2 |
 | R1.9 | Settings are layered: defaults in code, then the project, then the environment. The dashboard shows each value in force and which layer set it. | M1 |
 | R1.10 | A validation error says what is wrong and how to fix it. | M1 |
+| R1.11 | A developer can query a dataset's stored data with plain SQL, read-only, from the command line: its versions, what each contained, and its current state, as ordinary tables. The same rights apply, personal fields are masked unless the developer has the grant, and each query is audited. For reporting, the data is delivered to a database the team queries with its own tools. | M1 |
 
 ### Area 2 — Packaging and deploying
 
@@ -270,6 +271,7 @@ In the order a person meets them. **M** is the milestone.
 | R7.20 | A flow found running on two versions of the code at once is flagged. | M1 |
 | R7.21 | A run's whole log on one page: every task's lines in the order they were written, each naming its task, partition and route and linking to that task's own log. It can be narrowed to warnings and errors, and is paged. | M1 |
 | R7.22 | Pages that work on a narrow screen, such as a phone's. Operators use the dashboard on laptops and desktops, so it is built for those first (owner, 21-Nov-2026). | M3 |
+| R7.23 | Record counts for each flow, dataset and route over a chosen period (today, the last 24 hours, a given day): records received, of which new, changed, deleted and unchanged (not sent again); and per route, delivered, already current at the destination, set aside, waiting for approval or a parent, and failed. The overview shows the totals and the flow page splits them by route, from the product's own records. | M1 |
 
 ### Area 8 — Dashboard: acting
 

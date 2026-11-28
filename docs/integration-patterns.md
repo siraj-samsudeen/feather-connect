@@ -83,6 +83,7 @@ history.
 
 | Scenario | What happens | Example | Covered by | M |
 |---|---|---|---|---|
+| **Reporting** | A route delivers to a reporting database or a warehouse, which the team queries with its own tools and indexes; developers query the hub's own stored data with SQL for debugging (R1.11) | Sales by shop in a BI tool | Any route, R1.11 | M1 |
 | **The hub writes where they read** | A destination they read on their own: a database table, files | A table a reporting tool queries | Any route | M1 |
 | **Subscribe to the hub** | A system registers itself for the hub's events and receives them as they happen | A billing system told whenever an order is delivered | R3.29 | M3 |
 | **Data API** | A system asks the hub for the latest record, or for changes since its last call | A mobile app gets a customer's current record | R3.23 | M2 |
