@@ -186,6 +186,9 @@ In the order a person meets them. **M** is the milestone.
 | R3.22 | When one read holds two copies of a record, the last one counts. | M1 |
 | R3.23 | Another system can ask for a dataset's data on demand, read-only: the latest record by its key, and the records changed since a point it got earlier, so it can catch up from where it left off. Each answer says which version and time it comes from. The same rights, tenant checks, masking of personal data, rate limits and audit apply as everywhere else. | M2 |
 | R3.24 | The hub can stand between two systems as a middleman. A flow package declares an endpoint: what it accepts, what it answers, and the code that calls the other system and transforms the answer, so the caller never needs to know that system. The caller waits for the answer within a set time limit, or gets a clear failure. A write through an endpoint takes the caller's idempotency key, so a retry takes effect once. An endpoint may answer from a dataset's stored copy instead of calling the other system. It uses the same connectors, call budgets, rights, tenant checks, masking and audit as everything else. Writes that must never be lost are better sent as webhooks, which are stored at once and delivered reliably. | M2 |
+| R3.25 | The hub keeps, for each route, the id a destination gave each record, against the record's key, so a later change updates that same record there instead of creating another. Ids come from the destination's answers. They can be looked up and corrected by an operator, and are kept while the dataset exists. | M1 |
+| R3.26 | A route can wait until a related record has reached the same destination: an order's lines after the order, a customer before their orders. The route names the related dataset and the key that links them; a record whose parent hasn't arrived waits, visibly, and goes once it has. Routes that don't ask are never held up. | M1 |
+| R3.27 | Documents and other large files attached to records, such as invoices' PDFs, pass through the hub, kept in object storage (R3.16). | M2 |
 
 ### Area 4 — Transforming
 
@@ -215,6 +218,7 @@ In the order a person meets them. **M** is the milestone.
 | R5.10 | A flow that polls every few seconds shows as one run a day, with each poll inside it, so the list of runs stays readable. | M1 |
 | R5.11 | With several servers running, exactly one schedules. | M1 |
 | R5.12 | A pause can be given an end, after which it lifts by itself. | M1 |
+| R5.13 | Schedules and readiness can follow a business calendar: working days and public holidays, per environment. | M2 |
 
 ### Area 6 — Reliability
 
@@ -308,6 +312,7 @@ In the order a person meets them. **M** is the milestone.
 | R10.13 | There is always an administrator: the last one cannot lose the role. A token never acts above its user: when a user is demoted, disabled or removed, their tokens follow at once. | M1 |
 | R10.14 | The key that encrypts stored secrets can be changed; every secret is then sealed again under the new key. | M1 |
 | R10.15 | Building a package warns when a secret is written out in plain instead of being named. | M1 |
+| R10.16 | A person's data can be erased on request from every copy the hub keeps, and from what a destination holds when its route can delete. Fields marked as personal data are encrypted with a key for each person, and erasing destroys that key, so no sealed version is rewritten. Each erasure is recorded without the data, and applied again after a restore. Planned no later than early 2027, ahead of India's data protection duties (owner, 28-Nov-2026). | M2 |
 
 ### Area 11 — Alerts and visibility
 
@@ -477,7 +482,7 @@ A piece moves into a milestone only when the owner brings it forward.
 | Milestone | In one line |
 |---|---|
 | **M1** | The whole core: writing, packaging, moving and transforming data, scheduling, reliability, the dashboard that watches and acts, environments with protection, security, alerts, read-only AI, general-purpose connectors, and what a release needs |
-| **M2** | Database change events, the object-storage spool, running-time overrides, freshness views, export of metrics, secret services, the private-network program, AI that acts, an in-dashboard assistant, full tenancy, sign-in through an identity provider, the multi-environment page, a cluster chart, a data API that other systems ask for data, endpoints through which the hub stands between two systems, and more connectors |
+| **M2** | Database change events, the object-storage spool, running-time overrides, freshness views, export of metrics, secret services, the private-network program, AI that acts, an in-dashboard assistant, full tenancy, sign-in through an identity provider, the multi-environment page, a cluster chart, a data API that other systems ask for data, endpoints through which the hub stands between two systems, erasing a person's data (by early 2027), business calendars, documents passing through, and more connectors |
 
 M1 is large. It is built one issue at a time, in the order of areas 1 to 15, starting with a
 walking skeleton: the app starts, answers a health check and shows a sign-in page.
