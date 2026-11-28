@@ -14,6 +14,7 @@ from fcon_cli import problems
 from fcon_cli.problems import ProblemError
 from fcon_cli.services import cli_caller, open_store
 from fcon_cli.settings import DatabaseSettings
+from fcon_cli.table import print_table
 from fcon_server.catalog.definitions import LARGEST, CodeValueError, NotDefinitionsError, parse_definitions
 from fcon_server.catalog.known_settings import DecidedByCodeError, UnknownSettingError
 from fcon_server.catalog.listing import list_catalog
@@ -93,8 +94,5 @@ def show_list(settings: DatabaseSettings, out: TextIO) -> None:
     if not listed:
         print("the catalog is empty.", file=out)
         return
-    lines = [HEADINGS, *((entry.name, entry.kind.value, f"{entry.package} {entry.version}") for entry in listed)]
-    widths = [max(len(line[column]) for line in lines) for column in range(len(HEADINGS) - 1)]
-    for line in lines:
-        cells = [cell.ljust(width) for cell, width in zip(line[:-1], widths, strict=True)]
-        print("  ".join([*cells, line[-1]]), file=out)
+    rows = [(entry.name, entry.kind.value, f"{entry.package} {entry.version}") for entry in listed]
+    print_table([HEADINGS, *rows], out)
