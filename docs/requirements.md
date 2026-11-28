@@ -184,6 +184,7 @@ In the order a person meets them. **M** is the milestone.
 | R3.20 | A long read that is interrupted resumes from where it had got to. | M1 |
 | R3.21 | When a run reads several slices in full, deletes are decided only after all of them are read. | M1 |
 | R3.22 | When one read holds two copies of a record, the last one counts. | M1 |
+| R3.23 | Another system can ask for a dataset's data on demand, read-only: the latest record by its key, and the records changed since a point it got earlier, so it can catch up from where it left off. Each answer says which version and time it comes from. The same rights, tenant checks, masking of personal data, rate limits and audit apply as everywhere else. | M2 |
 
 ### Area 4 — Transforming
 
@@ -475,7 +476,7 @@ A piece moves into a milestone only when the owner brings it forward.
 | Milestone | In one line |
 |---|---|
 | **M1** | The whole core: writing, packaging, moving and transforming data, scheduling, reliability, the dashboard that watches and acts, environments with protection, security, alerts, read-only AI, general-purpose connectors, and what a release needs |
-| **M2** | Database change events, the object-storage spool, running-time overrides, freshness views, export of metrics, secret services, the private-network program, AI that acts, an in-dashboard assistant, full tenancy, sign-in through an identity provider, the multi-environment page, a cluster chart, and more connectors |
+| **M2** | Database change events, the object-storage spool, running-time overrides, freshness views, export of metrics, secret services, the private-network program, AI that acts, an in-dashboard assistant, full tenancy, sign-in through an identity provider, the multi-environment page, a cluster chart, a data API that other systems ask for data, and more connectors |
 
 M1 is large. It is built one issue at a time, in the order of areas 1 to 15, starting with a
 walking skeleton: the app starts, answers a health check and shows a sign-in page.
