@@ -214,6 +214,44 @@ def test_a_set_on_a_name_no_longer_in_the_code_is_refused(clocked: Store, record
         set_setting(clocked, operator(recorded), ORDERS, "look-back", "3d", protected=False)
 
 
+@pytest.mark.parametrize(
+    ("name", "setting", "value", "refused"),
+    [
+        (ORDERS, "look-back", "three days", '"three days" is not a look-back.'),
+        (ORDERS, "key", "id", "the key of shop-flows.orders is decided by the code, not by a setting."),
+        (ORDERS, "colour", "red", "a dataset has no setting named colour."),
+        ("shop-flows.nope", "look-back", "3d", "no flow, dataset or route is named shop-flows.nope."),
+    ],
+)
+def test_a_refused_set_is_audited(  # noqa: PLR0913  # the fixtures, and one refusal's four facts
+    clocked: Store, recorded: Context, database_url: str, name: str, setting: str, value: str, refused: str
+):
+    with pytest.raises(Exception, match="."):
+        set_setting(clocked, operator(recorded), name, setting, value, protected=False)
+
+    assert audit(database_url, recorded, "refused") == [(f"{name}/{setting}", "system:test", refused, None, None)]
+
+
+def test_a_refused_set_on_a_name_no_longer_in_the_code_is_audited(
+    clocked: Store, recorded: Context, database_url: str
+):
+    record(clocked, Caller(recorded, Role.DEVELOPER), shop("2.0", datasets=[]))
+
+    with pytest.raises(NotInCodeError):
+        set_setting(clocked, operator(recorded), ORDERS, "look-back", "3d", protected=False)
+
+    refused = f"{ORDERS} is no longer in the code; its values can be cleared, not set."
+    assert audit(database_url, recorded, "refused") == [(f"{ORDERS}/look-back", "system:test", refused, None, None)]
+
+
+def test_a_refused_clear_is_audited(clocked: Store, recorded: Context, database_url: str):
+    with pytest.raises(UnknownSettingError):
+        clear_setting(clocked, operator(recorded), ORDERS, "colour", protected=False)
+
+    refused = "a dataset has no setting named colour."
+    assert audit(database_url, recorded, "refused") == [(f"{ORDERS}/colour", "system:test", refused, None, None)]
+
+
 def test_a_protected_environment_refuses_a_set_without_a_reason(clocked: Store, recorded: Context):
     with pytest.raises(NeedsAReasonError):
         set_setting(clocked, operator(recorded), ORDERS, "look-back", "3d", protected=True)
