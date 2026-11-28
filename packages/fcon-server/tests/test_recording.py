@@ -11,6 +11,7 @@ from typing import Any
 
 import psycopg
 import pytest
+from psycopg import sql
 
 from fcon_server.catalog.definitions import PackageDefinitions, read_definitions
 from fcon_server.catalog.known_settings import Kind
@@ -57,7 +58,7 @@ def names(store: Store, context: Context) -> list[str]:
 def count(database_url: str, context: Context, table: str) -> int:
     with psycopg.connect(database_url) as connection:
         row = connection.execute(
-            f"SELECT count(*) FROM {table} WHERE tenant_id = %s",  # noqa: S608 - the tests' own table names
+            sql.SQL("SELECT count(*) FROM {} WHERE tenant_id = %s").format(sql.Identifier(*table.split("."))),
             (context.tenant_id,),
         ).fetchone()
     assert row is not None
@@ -235,7 +236,11 @@ def test_a_rename_across_kinds_is_refused(store: Store, tenant: Context):
     record(store, developer(tenant), shop("1.0"))
 
     with pytest.raises(RenameAcrossKindsError) as refused:
-        record(store, developer(tenant), shop("2.0", routes=[{"name": "shop-flows.to-crm", "renamed_from": ORDERS}]))
+        record(
+            store,
+            developer(tenant),
+            shop("2.0", datasets=[], routes=[{"name": "shop-flows.to-crm", "renamed_from": ORDERS}]),
+        )
 
     assert str(refused.value) == ("shop-flows.to-crm, a route, cannot be renamed from shop-flows.orders, a dataset")
 
