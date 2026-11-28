@@ -189,6 +189,8 @@ In the order a person meets them. **M** is the milestone.
 | R3.25 | The hub keeps, for each route, the id a destination gave each record, against the record's key, so a later change updates that same record there instead of creating another. Ids come from the destination's answers. They can be looked up and corrected by an operator, and are kept while the dataset exists. | M1 |
 | R3.26 | A route can wait until a related record has reached the same destination: an order's lines after the order, a customer before their orders. The route names the related dataset and the key that links them; a record whose parent hasn't arrived waits, visibly, and goes once it has. Routes that don't ask are never held up. | M1 |
 | R3.27 | Documents and other large files attached to records, such as invoices' PDFs, pass through the hub, kept in object storage (R3.16). | M2 |
+| R3.28 | A dataset can subscribe to an event bus or a change stream (a business application's events, a message broker, a database's change log): it holds the connection, takes events in order, and resumes from its replay position after a restart. When the bus no longer holds the events since that position, the gap is reported and the scheduled full comparison (R3.3) catches up. | M2 |
+| R3.29 | Another system can subscribe itself to the hub's events (a record delivered, a record changed in a dataset), naming where to send them and which datasets and kinds of event; each subscription is a route of its own, with the same guarantees, keeping times and history, and its token sees only the datasets it is given. | M2 |
 
 ### Area 4 — Transforming
 
@@ -482,7 +484,7 @@ A piece moves into a milestone only when the owner brings it forward.
 | Milestone | In one line |
 |---|---|
 | **M1** | The whole core: writing, packaging, moving and transforming data, scheduling, reliability, the dashboard that watches and acts, environments with protection, security, alerts, read-only AI, general-purpose connectors, and what a release needs |
-| **M2** | Database change events, the object-storage spool, running-time overrides, freshness views, export of metrics, secret services, the private-network program, AI that acts, an in-dashboard assistant, full tenancy, sign-in through an identity provider, the multi-environment page, a cluster chart, a data API that other systems ask for data, endpoints through which the hub stands between two systems, erasing a person's data (by early 2027), business calendars, documents passing through, and more connectors |
+| **M2** | Database change events, the object-storage spool, running-time overrides, freshness views, export of metrics, secret services, the private-network program, AI that acts, an in-dashboard assistant, full tenancy, sign-in through an identity provider, the multi-environment page, a cluster chart, a data API that other systems ask for data, endpoints through which the hub stands between two systems, erasing a person's data (by early 2027), business calendars, documents passing through, subscribing to event buses, other systems subscribing to the hub's events, and more connectors |
 
 M1 is large. It is built one issue at a time, in the order of areas 1 to 15, starting with a
 walking skeleton: the app starts, answers a health check and shows a sign-in page.
