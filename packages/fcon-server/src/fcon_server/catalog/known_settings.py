@@ -299,17 +299,27 @@ def _article(word: str) -> str:
     return "An" if word[0] in "aeiou" else "A"
 
 
-def check(kind: Kind, setting: str, value: str) -> str:
-    """The value's canonical spelling for the setting `setting` of a `kind`.
+def setting_named(kind: Kind, setting: str) -> Setting:
+    """The setting `setting` of a `kind`.
 
-    Raises `DecidedByCodeError` for a name the code decides, `UnknownSettingError` for a setting
-    the kind does not have, and `BadValueError` for a value not of the setting's type.
+    Raises `DecidedByCodeError` for a name the code decides and `UnknownSettingError` for a
+    setting the kind does not have.
     """
     if setting.replace("_", "-") in CODE_DECIDES:
         raise DecidedByCodeError(kind, setting)
     known = next((each for each in settings_of(kind) if each.name == setting), None)
     if known is None:
         raise UnknownSettingError(kind, setting)
+    return known
+
+
+def check(kind: Kind, setting: str, value: str) -> str:
+    """The value's canonical spelling for the setting `setting` of a `kind`.
+
+    Raises `DecidedByCodeError` for a name the code decides, `UnknownSettingError` for a setting
+    the kind does not have, and `BadValueError` for a value not of the setting's type.
+    """
+    known = setting_named(kind, setting)
     canonical = known.type.canonical(value)
     if canonical is None:
         raise BadValueError(value, setting, f"{_article(setting)} {setting} is {known.type.expected}.")
