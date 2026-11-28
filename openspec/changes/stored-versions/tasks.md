@@ -48,12 +48,20 @@
 
 ## 3. What no scenario drives — each arrives with the inner test that needs it
 
-- [ ] 3.1 The migration: `fcon.partition`, `fcon.version`, `fcon.record_block` (by day), `fcon.record_state` (`fillfactor = 50`), `fcon.dataset_progress`, `fcon.snapshot_base`, `fcon.snapshot_block`, `fcon.snapshot_pin`, with the checks, keys and indexes of design § Tables; the store's table descriptions; the test that checks them against the database
-- [ ] 3.2 Record-block days: the upgrade makes them from the clock's day through 90 days ahead; readiness is not ready when today's is missing and warns when fewer than 30 remain; the runbook entry
-- [ ] 3.3 The store's stamp helper for set-based writes (tenant, actor, the clock's time), refusing SQL that does not scope the tenant, as `tx.execute` does
-- [ ] 3.4 Partitions: canonical values, the scheme (value, day, month, bucket), UTC start and end through the time zone (a daylight-saving day is 23 or 25 hours), business names, labels kept, "All"; made once per dataset and values (`insert_if_absent`)
-- [ ] 3.5 Fingerprints: canonical JSON, over declared fields when a shape is given; `1` and `1.0`, times, decimals
-- [ ] 3.6 Blocks: zstd Parquet with `fcon.format = 1`, `_fcon_deleted`, `_fcon_moved_from`; another format refused; key-list blocks; the reserved marker for encrypted fields
+- [x] 3.1 The migration: `fcon.partition`, `fcon.version`, `fcon.record_block` (by day), `fcon.record_state` (`fillfactor = 50`), `fcon.dataset_progress`, `fcon.snapshot_base`, `fcon.snapshot_block`, `fcon.snapshot_pin`, with the checks, keys and indexes of design § Tables; the store's table descriptions; the test that checks them against the database
+- [x] 3.1.1 (added) inner: no index and no foreign key on record state's last-changed version (decision 2)
+- [x] 3.1.2 (added) inner: one open version per partition; a sealed version has its number; numbers unique per partition; a block in the database has its data
+- [x] 3.2 Record-block days: the upgrade makes them from the clock's day through 90 days ahead; readiness is not ready when today's is missing and warns when fewer than 30 remain; the runbook entry
+- [x] 3.2.1 (added) inner: the days are counted in UTC whatever the clock's zone; each day runs from its first instant in UTC
+- [x] 3.2.2 (added) inner: the warning and the not-ready message come from the error helper (`fcon_cli.problems`), beside the audit months'
+- [x] 3.3 The store's stamp helper for set-based writes (tenant, actor, the clock's time), refusing SQL that does not scope the tenant, as `tx.execute` does
+- [x] 3.3.1 (added) inner: `tx.copy_rows` copies rows into a temporary table with the context's tenant; copying into a table that is not there is the store's error
+- [x] 3.4 Partitions: canonical values, the scheme (value, day, month, bucket), UTC start and end through the time zone (a daylight-saving day is 23 or 25 hours), business names, labels kept, "All"; made once per dataset and values (`insert_if_absent`)
+- [x] 3.4.1 (added) inner: `--by` and `--slice` texts parsed into the scheme and typed values, each unreadable text refused naming its part; a time without an offset is in the scheme's zone
+- [x] 3.5 Fingerprints: canonical JSON, over declared fields when a shape is given; `1` and `1.0`, times, decimals
+- [x] 3.5.1 (added) inner: a decimal differs from the same text as a string; a declared field missing counts as null; a value with no JSON form is refused
+- [x] 3.6 Blocks: zstd Parquet with `fcon.format = 1`, `_fcon_deleted`, `_fcon_moved_from`; another format refused; key-list blocks; the reserved marker for encrypted fields
+- [x] 3.6.1 (added) inner: decimals with different places keep theirs; a field with mixed types or nested values is kept as JSON text marked `fcon.json = 1` and read back as it went in; a field named `_fcon_…` is refused
 - [ ] 3.7 Reading: an open version is the read lock (a second open read of a partition refused, naming it); each block with the read cursor and a renewed lease; candidates by the read-time look-up; the last copy counts across blocks; a read whose lease expired resumed from its cursor or cleaned up
 - [ ] 3.8 Sealing: the sealing lock per partition in partition id order; the comparison again under it; record state written set-based; left-out rows; the counts, records read and unchanged included; deletes over every slice of the read; an empty complete read refused unless allowed; a version with no changes removed, the position still moved; the number in its slice; the commit number last; the dataset position; one audit record per sealed version; the seal's log line, and a warning over 10 s; a changes-only read sealed every 200,000 changes, its position moved with each
 - [ ] 3.9 Concurrency: two seals of one partition serialize; seals of two partitions in opposite order do not deadlock; a commit number is never visible before a lower one; a crash (an exception) inside sealing leaves the version open and record state untouched
@@ -62,7 +70,7 @@
 - [ ] 3.12 Lost versions: a sealed version whose blocks are gone is marked lost (`sealed → lost`); only the transitions of the state machine are allowed
 - [ ] 3.13 Tenants: another tenant's dataset, versions and records are never read or written
 - [ ] 3.14 The `fcon data` commands' parsing, output and the error helper's messages (an unknown dataset, a line that is not a JSON object, a refused read, an as-of that is no longer kept)
-- [ ] 3.15 `pyarrow` added to `fcon-server` with ADR 0021; deptry, the lock file, the container image builds
+- [x] 3.15 `pyarrow` added to `fcon-server` with ADR 0021; deptry, the lock file, the container image builds
 - [ ] 3.16 Docs: `docs/architecture.md` (the stored data), `docs/runbook.md` (the record-block days warning), `AGENTS.md` § Project's convention 14 names ADR 0022's exception
 
 ## 4. Completion
