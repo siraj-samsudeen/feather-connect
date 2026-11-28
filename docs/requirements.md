@@ -131,6 +131,7 @@ In the order a person meets them. **M** is the milestone.
 | R1.8 | A template for comparing a warehouse query and pushing the differences. | M2 |
 | R1.9 | Settings are layered: defaults in code, then the project, then the environment. The dashboard shows each value in force and which layer set it. | M1 |
 | R1.10 | A validation error says what is wrong and how to fix it. | M1 |
+| R1.11 | A developer can query a dataset's stored data with plain SQL, read-only, from the command line: its versions, what each contained, and its current state, as ordinary tables. The same rights apply, personal fields are masked unless the developer has the grant, and each query is audited. For reporting, the data is delivered to a database the team queries with its own tools. | M1 |
 
 ### Area 2 — Packaging and deploying
 
