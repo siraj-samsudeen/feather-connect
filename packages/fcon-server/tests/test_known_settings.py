@@ -168,6 +168,29 @@ def test_a_choice_outside_its_set_says_the_set():
     assert refused.value.expected == "An overlap is one of skip, wait or allow."
 
 
+@pytest.mark.parametrize(
+    ("kind", "setting", "expected"),
+    [
+        (Kind.DATASET, "late-data", "A late-data is one of run-again, warn or ignore."),
+        (Kind.ROUTE, "approval", "An approval is one of never, always or per-record."),
+        (Kind.FLOW, "catch-up", "A catch-up is one of latest, all or none."),
+    ],
+)
+def test_a_choices_set_is_the_designs(kind: Kind, setting: str, expected: str):
+    with pytest.raises(BadValueError) as refused:
+        check(kind, setting, "sometimes")
+
+    assert refused.value.expected == expected
+
+
+@pytest.mark.parametrize(
+    ("kind", "setting", "default"),
+    [(Kind.DATASET, "late-data", "warn"), (Kind.ROUTE, "approval", "never"), (Kind.FLOW, "catch-up", "latest")],
+)
+def test_a_choices_default_is_the_designs(kind: Kind, setting: str, default: str):
+    assert {each.name: each.default for each in settings_of(kind)}[setting] == default
+
+
 @pytest.mark.parametrize("typed", ["UTC", "Europe/Paris", "America/New_York"])
 def test_a_time_zone_is_taken(typed: str):
     assert check(Kind.FLOW, "time-zone", typed) == typed
