@@ -217,8 +217,8 @@ def test_a_set_on_a_name_no_longer_in_the_code_is_refused(clocked: Store, record
 @pytest.mark.parametrize(
     ("name", "setting", "value", "refused"),
     [
-        (ORDERS, "look-back", "three days", '"three days" is not a look-back.'),
-        (ORDERS, "key", "id", "the key of shop-flows.orders is decided by the code, not by a setting."),
+        (ORDERS, "look-back", "three days", "'three days' is not a look-back."),
+        (ORDERS, "key", "id", "the key of a dataset is decided by the code."),
         (ORDERS, "colour", "red", "a dataset has no setting named colour."),
         ("shop-flows.nope", "look-back", "3d", "no flow, dataset or route is named shop-flows.nope."),
     ],

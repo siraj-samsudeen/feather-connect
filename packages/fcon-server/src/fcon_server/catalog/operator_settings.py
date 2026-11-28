@@ -6,20 +6,23 @@ and setting: set to a value of the setting's type, cleared to null, never delete
 
 - A value is set only on an entry the code still declares; it can be cleared on any.
 - In a protected environment a change needs a reason, the caller's context's reason, which the
-  store writes on the change's audit record. Without one the change is refused, the refusal
-  audited, and nothing else written.
+  store writes on the change's audit record. Without one the change is refused.
+- Every refused change (no reason, a wrong value, a setting the kind lacks or the code decides,
+  an unknown name, a name no longer in the code) is audited as `refused`, in a transaction of its
+  own, and nothing else is written (R10.4).
 - Seeing needs the right to see settings; setting and clearing, the right to change them.
 
 For `fcon settings` now, and the dashboard later.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, LiteralString
 from uuid import UUID
 
-from fcon_server.catalog.known_settings import Kind, Setting, check, setting_named, settings_of
+from fcon_server.catalog.known_settings import Kind, Setting, SettingRefusedError, check, setting_named, settings_of
 from fcon_server.store.tables import OPERATOR_SETTING
 from fcon_server.store.transaction import Store, Transaction
 from fcon_server.users.rights import Action, Caller, require
@@ -234,12 +237,34 @@ class _Change:
     protected: bool
 
 
-def _refused_for_no_reason(tx: Transaction, change: _Change) -> bool:
-    """Whether a protected environment refuses this change for want of a reason; the refusal is audited in `tx`."""
-    if not change.protected or (change.caller.context.reason or "").strip():
-        return False
-    tx.refuse(OPERATOR_SETTING, f"{change.name}/{change.setting}", f"{NeedsAReasonError(change.name)}.")
-    return True
+def _refuse_without_a_reason(change: _Change) -> None:
+    """Raises `NeedsAReasonError` when a protected environment refuses this change for want of a reason."""
+    if change.protected and not (change.caller.context.reason or "").strip():
+        raise NeedsAReasonError(change.name)
+
+
+type _Refusal = NoSuchEntryError | NotInCodeError | NeedsAReasonError | SettingRefusedError
+_REFUSALS = (NoSuchEntryError, NotInCodeError, NeedsAReasonError, SettingRefusedError)
+
+
+def _audit_refusals[T](store: Store, change: _Change, work: Callable[[Transaction], T]) -> T:
+    """Runs `work(tx)` for one change; a refusal is rolled back, audited in a transaction of its own, then raised.
+
+    The audit record names the entry and setting, and gives the refusal's words as its reason.
+    """
+    context = change.caller.context
+    try:
+        with store.transaction(context) as tx:
+            return work(tx)
+    except _REFUSALS as refusal:
+        _audit_refusal(store, change, refusal)
+        raise
+
+
+def _audit_refusal(store: Store, change: _Change, refusal: _Refusal) -> None:
+    """Writes the `refused` audit record of one change."""
+    with store.transaction(change.caller.context) as tx:
+        tx.refuse(OPERATOR_SETTING, f"{change.name}/{change.setting}", f"{refusal}.")
 
 
 def _write(tx: Transaction, entry: _Entry, row: _Value | None, setting: str, value: str | None) -> None:
@@ -250,8 +275,8 @@ def _write(tx: Transaction, entry: _Entry, row: _Value | None, setting: str, val
         tx.update(OPERATOR_SETTING, {"id": row.id}, {"value": value}, row.row_version)
 
 
-def _set(tx: Transaction, change: _Change, typed: str) -> Changed | None:
-    """Sets the value in `tx`; None when a protected environment refused it, the refusal audited."""
+def _set(tx: Transaction, change: _Change, typed: str) -> Changed:
+    """Sets the value in `tx`; raises one of the refusals when it cannot be taken."""
     name, setting = change.name, change.setting
     entry = _entry(tx, name, _ENTRY_HELD)
     value = check(Kind(entry.kind), setting, typed)
@@ -260,8 +285,7 @@ def _set(tx: Transaction, change: _Change, typed: str) -> Changed | None:
     row = _held_value(tx, entry, setting)
     if row is not None and row.value == value:
         return Changed(name, setting, value, already=True)
-    if _refused_for_no_reason(tx, change):
-        return None
+    _refuse_without_a_reason(change)
     _write(tx, entry, row, setting, value)
     return Changed(name, setting, value, already=False)
 
@@ -274,18 +298,15 @@ def set_setting(  # noqa: PLR0913  # who, which entry, which setting, the value,
     The value is kept in its canonical spelling; the same value again writes nothing. Raises
     `NoSuchEntryError`, a `SettingRefusedError` for a setting or value that cannot be taken,
     `NotInCodeError` for an entry no longer in the code, and, when `protected` and the caller's
-    context gives no reason, `NeedsAReasonError` once the refusal is audited.
+    context gives no reason, `NeedsAReasonError`; each once the refusal is audited.
     """
     require(store, caller, Action.CHANGE_SETTINGS)
-    with store.transaction(caller.context) as tx:
-        changed = _set(tx, _Change(caller, name, setting, protected), value)
-    if changed is None:
-        raise NeedsAReasonError(name)
-    return changed
+    change = _Change(caller, name, setting, protected)
+    return _audit_refusals(store, change, lambda tx: _set(tx, change, value))
 
 
-def _clear(tx: Transaction, change: _Change) -> Cleared | None:
-    """Clears the value in `tx`; None when a protected environment refused it, the refusal audited."""
+def _clear(tx: Transaction, change: _Change) -> Cleared:
+    """Clears the value in `tx`; raises one of the refusals when it cannot be done."""
     name, setting = change.name, change.setting
     entry = _entry(tx, name, _ENTRY_HELD)
     known = setting_named(Kind(entry.kind), setting)
@@ -293,8 +314,7 @@ def _clear(tx: Transaction, change: _Change) -> Cleared | None:
     row = _held_value(tx, entry, setting)
     if row is None or row.value is None:
         return Cleared(name, setting, had_value=False, in_force=below)
-    if _refused_for_no_reason(tx, change):
-        return None
+    _refuse_without_a_reason(change)
     _write(tx, entry, row, setting, None)
     return Cleared(name, setting, had_value=True, in_force=below)
 
@@ -308,11 +328,8 @@ def clear_setting(store: Store, caller: Caller, name: str, setting: str, *, prot
     refusal is audited.
     """
     require(store, caller, Action.CHANGE_SETTINGS)
-    with store.transaction(caller.context) as tx:
-        cleared = _clear(tx, _Change(caller, name, setting, protected))
-    if cleared is None:
-        raise NeedsAReasonError(name)
-    return cleared
+    change = _Change(caller, name, setting, protected)
+    return _audit_refusals(store, change, lambda tx: _clear(tx, change))
 
 
 def list_operator_values(store: Store, caller: Caller) -> list[OperatorValue]:
