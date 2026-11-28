@@ -41,6 +41,17 @@ not build the feature. A change that adds an alert adds its entry here (`change-
 - **What to do:** on the host, `fcon users add <name> --admin` makes another administrator; the
   command asks for the password.
 
+### An operator's value is for a name the code no longer has
+
+- **What it means:** a new package version no longer declares a flow, dataset or route that an
+  operator had set a value for. The value is kept, never dropped, and does nothing until a later
+  version declares that name again. Recording the version printed a warning, and the server's
+  log has a `fcon.catalog` warning naming it.
+- **First checks:** `fcon settings list` shows every operator value, flagged "no longer in the
+  code"; ask the package's developer whether the name was renamed without `renamed_from`.
+- **What to do:** if the name was renamed, set the value again on the new name; then, or if the
+  name is gone for good, `fcon settings clear <name> <setting> --reason "..."`.
+
 ## Alerts
 
 None yet. Each alert a change adds gets an entry here: what it means, who is affected, first
