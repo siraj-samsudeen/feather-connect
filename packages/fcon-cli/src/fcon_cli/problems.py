@@ -492,3 +492,18 @@ def flagged_value(name: str, setting: str) -> Problem:
         f"the operator's {setting} of {name} is for a name the code no longer has.",
         (f"Clear it with: fcon settings clear {name} {setting}",),
     )
+
+
+def no_such_entry(name: str) -> Problem:
+    """The problem when no flow, dataset or route has the name."""
+    return Problem(Level.ERROR, f"no flow, dataset or route is named {name}.", ("fcon catalog list shows the names.",))
+
+
+def not_in_code(reason: str) -> Problem:
+    """The problem when a value is set on an entry the code no longer has; `reason` names it."""
+    return Problem(Level.ERROR, f"{reason}.")
+
+
+def needs_a_reason(reason: str) -> Problem:
+    """The problem when a protected environment refuses a change without a reason; `reason` says which."""
+    return Problem(Level.ERROR, f"{reason}.", ("Say why with --reason.",))

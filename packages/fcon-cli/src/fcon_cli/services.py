@@ -20,9 +20,12 @@ ACTOR = "system:cli"
 APPLICATION_NAME = "fcon-cli"
 
 
-def cli_caller() -> Caller:
-    """The command line as a caller with every right, as `system:cli` in the request's tenant."""
-    context = Context(tenant_id=request_tenant(), actor=ACTOR, request_id=f"cli-{new_id()}")
+def cli_caller(reason: str | None = None) -> Caller:
+    """The command line as a caller with every right, as `system:cli` in the request's tenant.
+
+    `reason`, the one a command was given, goes on the audit records of its changes.
+    """
+    context = Context(tenant_id=request_tenant(), actor=ACTOR, request_id=f"cli-{new_id()}", reason=reason)
     return Caller(context, Role.ADMINISTRATOR)
 
 

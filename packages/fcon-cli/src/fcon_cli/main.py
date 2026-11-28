@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 from fcon_cli import catalog as catalog_commands
+from fcon_cli import operator_settings as settings_commands
 from fcon_cli import problems
 from fcon_cli import users as user_commands
 from fcon_cli.db import show_status, upgrade_database
@@ -54,7 +55,7 @@ class Parser(argparse.ArgumentParser):
 
 
 def _parser() -> argparse.ArgumentParser:
-    """The command line's parser: `server`, `db`, `users` and `catalog`, each with its own commands."""
+    """The command line's parser: `server`, `db`, `users`, `catalog` and `settings`, each with its own commands."""
     parser = Parser(prog="fcon", description="Feather Connect's command line.")
     commands = parser.add_subparsers(dest="command", required=True, metavar="command")
     server = commands.add_parser("server", help="start the server")
@@ -91,7 +92,28 @@ def _parser() -> argparse.ArgumentParser:
     )
     record.add_argument("file", help="the definitions file: JSON in UTF-8, at most 1 MB")
     catalog_commands_parser.add_parser("list", help="list every flow, dataset and route the code declares now")
+    _add_settings_parser(commands)
     return parser
+
+
+def _add_settings_parser(commands: Any) -> None:
+    """`fcon settings`: show, set, clear and list the operator's settings of flows, datasets and routes."""
+    settings = commands.add_parser("settings", help="see and change the operator's settings of the catalog")
+    settings_parser = settings.add_subparsers(dest="settings_command", required=True, metavar="command")
+    show = settings_parser.add_parser("show", help="show every setting of a flow, dataset or route, and who set it")
+    show.add_argument("name", help="the flow's, dataset's or route's full name")
+    change = settings_parser.add_parser("set", help="set the operator's value of a setting")
+    change.add_argument("name", help="the flow's, dataset's or route's full name")
+    change.add_argument("setting", help="the setting's name, such as look-back")
+    change.add_argument("value", help="the value, such as 3d")
+    clear = settings_parser.add_parser(
+        "clear", help="clear the operator's value: the code's or the default is in force"
+    )
+    clear.add_argument("name", help="the flow's, dataset's or route's full name")
+    clear.add_argument("setting", help="the setting's name, such as look-back")
+    for each in (change, clear):
+        each.add_argument("--reason", help="why, for the audit log (needed when FCON_PROTECTED is on)")
+    settings_parser.add_parser("list", help="list every value operators have set, flagged when no longer in the code")
 
 
 def _users_command(args: argparse.Namespace) -> None:
@@ -124,6 +146,20 @@ def _catalog_command(args: argparse.Namespace) -> None:
         catalog_commands.show_list(settings, sys.stdout)
 
 
+def _settings_command(args: argparse.Namespace) -> None:
+    """Run the `fcon settings` command in `args` against the database the settings name."""
+    settings = load_database_settings(os.environ, Path.cwd())
+    match args.settings_command:
+        case "show":
+            settings_commands.show(settings, args.name, sys.stdout)
+        case "set":
+            settings_commands.set_value(settings, (args.name, args.setting, args.value), args.reason, sys.stdout)
+        case "clear":
+            settings_commands.clear(settings, args.name, args.setting, args.reason, sys.stdout)
+        case _:
+            settings_commands.show_list(settings, sys.stdout)
+
+
 def _database_command(command: str, clock: Clock) -> None:
     """Run `fcon db upgrade`, or `fcon db status` for any other command, against the database the settings name."""
     settings = load_database_settings(os.environ, Path.cwd())
@@ -151,6 +187,9 @@ def main(
             return 0
         if args.command == "catalog":
             _catalog_command(args)
+            return 0
+        if args.command == "settings":
+            _settings_command(args)
             return 0
         settings = load_settings(os.environ, Path.cwd(), host=args.host, port=args.port)
         configure_logging(settings.log_format, sys.stderr)
