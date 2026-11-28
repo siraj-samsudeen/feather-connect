@@ -18,6 +18,7 @@ For `fcon catalog record` now, and the install path later.
 import logging
 from collections import Counter
 from dataclasses import dataclass
+from typing import cast
 from uuid import UUID
 
 from psycopg.types.json import Jsonb
@@ -151,9 +152,15 @@ _FLAGGED = """
 
 
 class _Recording:
-    """One package version's recording inside its transaction: the entries, as they change."""
+    """One package version's recording inside its transaction: the entries, as they change.
 
-    def __init__(self, tx: Transaction, definitions: PackageDefinitions, version_id: object) -> None:
+    `_by_name` starts as every entry of the package, locked; an entry a rename continues leaves it
+    under its old name. `_declared` gathers the entries already there that this version
+    declares. An entry made by this version is in neither, so `retire_the_rest` (every entry left
+    in `_by_name` and not declared) never touches it.
+    """
+
+    def __init__(self, tx: Transaction, definitions: PackageDefinitions, version_id: UUID) -> None:
         self._tx = tx
         self._definitions = definitions
         self._version_id = version_id
@@ -162,8 +169,11 @@ class _Recording:
         self._declared: set[UUID] = set()
         self.renamed: list[Renamed] = []
 
-    def _existing(self, definition: Definition) -> _Entry | None:
-        """The entry this definition continues: by its name, else by the old name of a rename."""
+    def _continued_entry(self, definition: Definition) -> _Entry | None:
+        """The entry this definition continues: by its name, else by the old name of a rename.
+
+        A rename is noted in `renamed`, and its entry leaves `_by_name` under the old name.
+        """
         entry = self._by_name.get(definition.name)
         if entry is not None:
             if entry.kind != definition.kind:
@@ -178,13 +188,13 @@ class _Recording:
         del self._by_name[old.name]
         return old
 
-    def _entry_id(self, definition: Definition) -> object:
-        """The id of the definition's entry, moved to this version under its name, or made."""
-        entry = self._existing(definition)
+    def _move_or_make_entry(self, definition: Definition) -> UUID:
+        """Moves the definition's entry to this version under its name, or makes it; gives its id."""
+        entry = self._continued_entry(definition)
         if entry is None:
             values = {"kind": definition.kind.value, "name": definition.name, "package": self._definitions.package}
             key = self._tx.insert(CATALOG_ENTRY, values | {"package_version_id": self._version_id, "is_in_code": True})
-            return key["id"]
+            return cast(UUID, key["id"])
         values = {"name": definition.name, "package_version_id": self._version_id, "is_in_code": True}
         self._tx.update(CATALOG_ENTRY, {"id": entry.id}, values, entry.row_version)
         self._declared.add(entry.id)
@@ -194,7 +204,7 @@ class _Recording:
         """Records one definition: its entry, then this version's copy of it."""
         copy = {
             "package_version_id": self._version_id,
-            "entry_id": self._entry_id(definition),
+            "entry_id": self._move_or_make_entry(definition),
             "name": definition.name,
             "renamed_from": definition.renamed_from,
             "definition": Jsonb(definition.body),
@@ -225,7 +235,7 @@ def _record(tx: Transaction, definitions: PackageDefinitions) -> Recorded:
         if recorded is None or recorded.checksum != definitions.checksum:
             raise ChangedDefinitionsError(package, version)
         return Recorded(package, version, already=True, counts=dict(counts))
-    recording = _Recording(tx, definitions, key["id"])
+    recording = _Recording(tx, definitions, cast(UUID, key["id"]))
     for definition in definitions.definitions:
         recording.declare(definition)
     recording.retire_the_rest()
