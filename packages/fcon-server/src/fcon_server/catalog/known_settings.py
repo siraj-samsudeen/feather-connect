@@ -182,7 +182,8 @@ class Setting:
 
 _SWITCH = Switch()
 _LENGTH_OF_TIME = Length()
-_RETRIES = Setting("retries", Count(least=0), "3")
+# Every try counts, the first included: 6 over about 30 minutes (#42 point 4).
+_TRIES = Setting("tries", Count(least=1), "6")
 _TIME_LIMIT = Setting("time-limit", _LENGTH_OF_TIME, "1h")
 _BATCH_SIZE = Setting("batch-size", Count(least=1), "5000")
 _PAUSED_UNTIL = Setting("paused-until", Moment(optional=True), NONE)
@@ -194,18 +195,20 @@ SETTINGS: dict[Kind, tuple[Setting, ...]] = {
         Setting("schedule", Schedule(optional=True), NONE),
         Setting("time-zone", TimeZone(), "UTC"),
         _PAUSED_UNTIL,
-        _RETRIES,
+        _TRIES,
         _TIME_LIMIT,
         Setting("parallel-work", Count(least=1), "1"),
-        Setting("overlap", Choice(options=("skip", "wait", "allow")), "skip"),
-        Setting("catch-up", Choice(options=("latest", "all", "none")), "latest"),
+        # R5.8, as #42 point 5 says: the new run waits, is skipped, or cancels the running one.
+        Setting("overlap", Choice(options=("queue", "skip", "cancel")), "skip"),
+        # R5.9, as #42 point 5 says: one run for all missed starts, one each (the engine caps it), or none.
+        Setting("catch-up", Choice(options=("latest", "each", "none")), "latest"),
         _ALERT_AFTER_FAILURES,
     ),
     Kind.DATASET: (
         Setting("look-back", _LENGTH_OF_TIME, "0s"),
         Setting("full-comparison-schedule", Schedule(optional=True), NONE),
         _BATCH_SIZE,
-        _RETRIES,
+        _TRIES,
         _TIME_LIMIT,
         Setting("readiness-interval", _LENGTH_OF_TIME, "5m"),
         Setting("late-data", Choice(options=("run-again", "warn", "ignore")), "warn"),
@@ -214,13 +217,13 @@ SETTINGS: dict[Kind, tuple[Setting, ...]] = {
         Setting("keep-records", _LENGTH_OF_TIME, "14d"),
         Setting("keep-versions", _LENGTH_OF_TIME, "400d"),
         Setting("fetch-batch-size", Count(least=1), "100"),
-        Setting("fetch-retries", Count(least=0), "5"),
+        Setting("fetch-tries", Count(least=1), "6"),
         Setting("fetch-time-limit", _LENGTH_OF_TIME, "30s"),
     ),
     Kind.ROUTE: (
         Setting("on", _SWITCH, "on"),
         _PAUSED_UNTIL,
-        _RETRIES,
+        _TRIES,
         _TIME_LIMIT,
         _BATCH_SIZE,
         Setting("parallel-partitions", Count(least=1), "1"),
