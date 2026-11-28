@@ -14,6 +14,7 @@ dependencies = [
     "psycopg-pool>=3.3.3",
     "argon2-cffi>=25.1.0",
     "markupsafe>=3.0.4",
+    "tzdata>=2026.6",
 ]
 
 [build-system]
@@ -27,7 +28,9 @@ extend_exclude = ["tests"]
 
 [tool.deptry.per_rule_ignores]
 # FastAPI reads form bodies with it; our code never imports it.
-DEP002 = ["python-multipart"]
+# The standard library's zoneinfo reads tzdata's time zones (a setting's time zone,
+# ADR 0019), so they resolve on every platform; our code never imports it.
+DEP002 = ["python-multipart", "tzdata"]
 
 [tool.mutmut]
 # The weekly mutation report (.github/workflows/mutation.yml), run from this
