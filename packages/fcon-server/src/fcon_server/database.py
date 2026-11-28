@@ -7,7 +7,7 @@ Readiness keeps its own connection (storage-foundation, decision 3): each check
 opens a fresh connection, runs its few queries and closes it, so a problem keeps
 its cause. Beyond the connection it reads the database's encoding, whether the
 ICU collation exists, the upgrades recorded against this version's files, and
-the audit log's monthly partitions.
+the audit log's monthly partitions and the record blocks' daily ones.
 """
 
 import re
@@ -21,7 +21,14 @@ import psycopg
 from psycopg import conninfo
 
 from fcon_server.store.clock import Clock, SystemClock
-from fcon_server.store.migrate import MIGRATIONS, MigrationStatus, audit_months, read_migrations, read_status
+from fcon_server.store.migrate import (
+    MIGRATIONS,
+    MigrationStatus,
+    audit_months,
+    read_migrations,
+    read_status,
+    record_days,
+)
 
 TIMEOUT_S = 2
 # Windows reports a refused port on its own machine only after about 2 s of
@@ -48,6 +55,7 @@ class Problem(StrEnum):
     CHANGED = "upgrade changed"
     BEHIND = "behind"
     AUDIT_MONTH_MISSING = "audit month missing"
+    RECORD_DAY_MISSING = "record-block day missing"
 
 
 # What stops a command from reaching the database at all; the others only
@@ -72,8 +80,9 @@ class DatabaseCheck:
     `reason` says why it is unreachable, `version` is the version found,
     `detail` the driver's own first line; `encoding`, `icu` (whether the ICU
     collation exists), `migrations` (the upgrades against this version's files)
-    and `months_ahead` (the audit months made after the current one) once
-    connected: all for the log, never for a reply.
+    `months_ahead` (the audit months made after the current one) and
+    `days_ahead` (the record blocks' days made after today) once connected:
+    all for the log, never for a reply.
     """
 
     address: DatabaseAddress
@@ -85,6 +94,7 @@ class DatabaseCheck:
     icu: bool = True
     migrations: MigrationStatus | None = None
     months_ahead: int = 0
+    days_ahead: int = 0
 
 
 # libpq gives no error code at connection time, only Postgres's English text.
@@ -181,18 +191,18 @@ def _one(connection: psycopg.Connection[tuple[object, ...]], query: str, *params
     return row[0] if row else None
 
 
-def _audit_partitions(connection: psycopg.Connection[tuple[object, ...]]) -> set[str]:
-    """The names of the audit log's partitions, one per month."""
+def _partitions(connection: psycopg.Connection[tuple[object, ...]], table: str) -> set[str]:
+    """The names of the partitions of `table`, such as the audit log's months."""
     rows = connection.execute(
-        "SELECT c.relname FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid"
-        " WHERE i.inhparent = to_regclass('fcon.audit')"
+        "SELECT c.relname FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid WHERE i.inhparent = to_regclass(%s)",
+        [table],
     ).fetchall()
     return {str(row[0]) for row in rows}
 
 
-def _months_ahead(partitions: set[str], clock: Clock) -> tuple[bool, int]:
-    """Whether the current UTC month has its audit partition, and how many months in a row after it do."""
-    current, *ahead = (f"audit_{month:%Y_%m}" for month in audit_months(clock.now()))
+def _ahead(partitions: set[str], names: list[str]) -> tuple[bool, int]:
+    """Whether the first of `names` is among the partitions, and how many in a row after it are."""
+    current, *ahead = names
     count = 0
     for name in ahead:
         if name not in partitions:
@@ -201,8 +211,12 @@ def _months_ahead(partitions: set[str], clock: Clock) -> tuple[bool, int]:
     return current in partitions, count
 
 
-def _readiness_problem(encoding: str, status: MigrationStatus, has_current_month: bool) -> Problem | None:
-    """The first problem that keeps a connected database from being ready, or None."""
+def _readiness_problem(encoding: str, status: MigrationStatus, partitions: tuple[bool, bool]) -> Problem | None:
+    """The first problem that keeps a connected database from being ready, or None.
+
+    `partitions` says whether this month's audit partition and today's record-block one are there.
+    """
+    has_current_month, has_today = partitions
     if encoding != ENCODING:
         return Problem.NOT_UTF8
     if status.changed:
@@ -211,6 +225,8 @@ def _readiness_problem(encoding: str, status: MigrationStatus, has_current_month
         return Problem.BEHIND
     if not has_current_month:
         return Problem.AUDIT_MONTH_MISSING
+    if not has_today:
+        return Problem.RECORD_DAY_MISSING
     return None
 
 
@@ -224,17 +240,21 @@ def check_database(url: str, *, clock: Clock = _SYSTEM_CLOCK, directory: Path = 
             encoding = connection.info.parameter_status("server_encoding") or ""
             icu = _one(connection, "SELECT EXISTS (SELECT 1 FROM pg_collation WHERE collname = %s)", ICU_COLLATION)
             status = read_status(connection, read_migrations(directory))
-            has_current_month, months_ahead = _months_ahead(_audit_partitions(connection), clock)
+            months = [f"audit_{month:%Y_%m}" for month in audit_months(clock.now())]
+            has_current_month, months_ahead = _ahead(_partitions(connection, "fcon.audit"), months)
+            days = [f"record_block_{day:%Y%m%d}" for day in record_days(clock.now())]
+            has_today, days_ahead = _ahead(_partitions(connection, "fcon.record_block"), days)
     except psycopg.Error as err:  # any driver error: not ready, never a 500
         problem, reason = classify(str(err))
         return DatabaseCheck(address=address, problem=problem, reason=reason, detail=first_line(str(err)))
     return replace(
         version,
-        problem=version.problem or _readiness_problem(encoding, status, has_current_month),
+        problem=version.problem or _readiness_problem(encoding, status, (has_current_month, has_today)),
         encoding=encoding,
         icu=bool(icu),
         migrations=status,
         months_ahead=months_ahead,
+        days_ahead=days_ahead,
     )
 
 

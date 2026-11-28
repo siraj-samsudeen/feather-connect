@@ -1,7 +1,7 @@
 """The database check: usable, or which problem, against a real Postgres 18."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import psycopg
 import pytest
@@ -215,14 +215,36 @@ def test_a_database_with_no_audit_month_for_now_is_not_ready(database_url: str):
 
 
 @pytest.mark.database
-def test_a_database_with_few_audit_months_ahead_is_still_usable(database_url: str):
+def test_a_database_with_few_audit_months_ahead_is_not_short_of_audit_months(database_url: str):
     a_month_before_the_last = FixedClock(first_of_month_after(datetime.now(UTC), months=23))
 
     check = check_database(database_url, clock=a_month_before_the_last)
 
-    assert (check.problem, check.months_ahead) == (None, 1)
+    # So far ahead, the record blocks' 90 days have run out first.
+    assert (check.problem, check.months_ahead) == (Problem.RECORD_DAY_MISSING, 1)
 
 
 def first_of_month_after(now: datetime, months: int) -> datetime:
     month = now.month - 1 + months
     return datetime(now.year + month // 12, month % 12 + 1, 1, 12, tzinfo=UTC)
+
+
+@pytest.mark.database
+def test_an_upgraded_database_has_90_record_block_days_ahead(database_url: str):
+    assert check_database(database_url).days_ahead == 90
+
+
+@pytest.mark.database
+def test_a_database_with_no_record_block_day_for_today_is_not_ready(database_url: str):
+    past_the_last_day = FixedClock(datetime.now(UTC) + timedelta(days=91))
+
+    assert check_database(database_url, clock=past_the_last_day).problem is Problem.RECORD_DAY_MISSING
+
+
+@pytest.mark.database
+def test_a_database_with_few_record_block_days_ahead_is_still_usable(database_url: str):
+    a_day_before_the_last = FixedClock(datetime.now(UTC) + timedelta(days=89))
+
+    check = check_database(database_url, clock=a_day_before_the_last)
+
+    assert (check.problem, check.days_ahead) == (None, 1)

@@ -18,6 +18,7 @@ SET_THE_ADDRESS = "Set it to your Postgres 18 address: postgresql://user:passwor
 DEFAULT_PORT = 8080
 RUN_UPGRADE = "Run: fcon db upgrade"
 ENOUGH_MONTHS_AHEAD = 3  # fewer audit months after this one: a warning (design decision 4)
+ENOUGH_DAYS_AHEAD = 30  # fewer record-block days after today: a warning (stored-versions, decision 4)
 _NO_STATUS = MigrationStatus(applied=(), waiting=(), newer=(), changed=())
 
 
@@ -289,6 +290,8 @@ def _not_ready(check: DatabaseCheck) -> tuple[str, tuple[str, ...]]:
             return f"the database is {_upgrades(len(status.waiting))} behind this version.", (RUN_UPGRADE,)
         case database.Problem.AUDIT_MONTH_MISSING:
             return "the audit log has no partition for this month, so no change can be saved.", (RUN_UPGRADE,)
+        case database.Problem.RECORD_DAY_MISSING:
+            return "the record blocks have no partition for today, so no read can be stored.", (RUN_UPGRADE,)
         case _:
             return _unusable(check, "FCON_DATABASE_URL")
 
@@ -332,6 +335,14 @@ def database_notes(check: DatabaseCheck) -> tuple[Problem, ...]:
         months = f"{check.months_ahead} month{'' if check.months_ahead == 1 else 's'}"
         notes.append(
             Problem(Level.WARNING, f"the audit log has partitions for only {months} after this one.", (RUN_UPGRADE,))
+        )
+    if check.days_ahead < ENOUGH_DAYS_AHEAD:
+        notes.append(
+            Problem(
+                Level.WARNING,
+                f"the record blocks have partitions for only {check.days_ahead} days after today.",
+                (RUN_UPGRADE,),
+            )
         )
     return tuple(notes)
 

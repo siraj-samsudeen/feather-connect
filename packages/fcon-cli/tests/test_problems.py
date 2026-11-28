@@ -299,11 +299,13 @@ def test_a_database_with_no_audit_month_for_now():
 
 
 def test_a_usable_database_has_no_notes():
-    assert problems.database_notes(DatabaseCheck(address=LOCAL, migrations=status(), months_ahead=6)) == ()
+    assert (
+        problems.database_notes(DatabaseCheck(address=LOCAL, migrations=status(), months_ahead=6, days_ahead=90)) == ()
+    )
 
 
 def test_a_database_with_an_upgrade_from_a_newer_version_is_noted():
-    check = DatabaseCheck(address=LOCAL, migrations=status(newer=1), months_ahead=6)
+    check = DatabaseCheck(address=LOCAL, migrations=status(newer=1), months_ahead=6, days_ahead=90)
 
     assert [note.text() for note in problems.database_notes(check)] == [
         "info: the database has 1 upgrade newer than this version; expand-only upgrades keep it working."
@@ -311,13 +313,13 @@ def test_a_database_with_an_upgrade_from_a_newer_version_is_noted():
 
 
 def test_two_upgrades_from_a_newer_version_are_counted():
-    check = DatabaseCheck(address=LOCAL, migrations=status(newer=2), months_ahead=6)
+    check = DatabaseCheck(address=LOCAL, migrations=status(newer=2), months_ahead=6, days_ahead=90)
 
     assert problems.database_notes(check)[0].what.startswith("the database has 2 upgrades newer")
 
 
 def test_a_database_without_icu_is_warned_that_lists_sort_by_character_code():
-    check = DatabaseCheck(address=LOCAL, icu=False, migrations=status(), months_ahead=6)
+    check = DatabaseCheck(address=LOCAL, icu=False, migrations=status(), months_ahead=6, days_ahead=90)
 
     assert [note.text() for note in problems.database_notes(check)] == [
         "warning: the database has no ICU collation (und-x-icu), so lists sort by character code."
@@ -325,7 +327,7 @@ def test_a_database_without_icu_is_warned_that_lists_sort_by_character_code():
 
 
 def test_fewer_than_three_audit_months_ahead_is_warned():
-    check = DatabaseCheck(address=LOCAL, migrations=status(), months_ahead=2)
+    check = DatabaseCheck(address=LOCAL, migrations=status(), months_ahead=2, days_ahead=90)
 
     assert [note.text() for note in problems.database_notes(check)] == [
         "warning: the audit log has partitions for only 2 months after this one.\n  Run: fcon db upgrade"
@@ -333,7 +335,7 @@ def test_fewer_than_three_audit_months_ahead_is_warned():
 
 
 def test_three_audit_months_ahead_are_enough():
-    check = DatabaseCheck(address=LOCAL, migrations=status(), months_ahead=3)
+    check = DatabaseCheck(address=LOCAL, migrations=status(), months_ahead=3, days_ahead=90)
 
     assert problems.database_notes(check) == ()
 
@@ -364,3 +366,26 @@ def test_a_forwarded_request_with_no_proxy_trusted_names_the_setting():
     assert problems.untrusted_forwarding().text() == (
         "warning: requests carry X-Forwarded-For, but no proxy is trusted; set FCON_TRUSTED_PROXIES."
     )
+
+
+def test_a_database_with_no_record_block_day_for_today():
+    check = DatabaseCheck(address=LOCAL, problem=Kind.RECORD_DAY_MISSING)
+
+    assert problems.database_problem(check).text() == (
+        "warning: the record blocks have no partition for today, so no read can be stored. Not ready.\n"
+        "  Run: fcon db upgrade"
+    )
+
+
+def test_fewer_than_30_record_block_days_ahead_is_warned():
+    check = DatabaseCheck(address=LOCAL, migrations=status(), months_ahead=6, days_ahead=29)
+
+    assert [note.text() for note in problems.database_notes(check)] == [
+        "warning: the record blocks have partitions for only 29 days after today.\n  Run: fcon db upgrade"
+    ]
+
+
+def test_30_record_block_days_ahead_are_enough():
+    check = DatabaseCheck(address=LOCAL, migrations=status(), months_ahead=6, days_ahead=30)
+
+    assert problems.database_notes(check) == ()

@@ -17,10 +17,10 @@ from fcon_server.store.migrate import MigrationStatus
 
 URL = "postgresql://feather:secret@127.0.0.1:5442/feather_issue_4"
 ADDRESS = DatabaseAddress(host="127.0.0.1", port="5442", dbname="feather_issue_4", user="feather")
-USABLE = DatabaseCheck(address=ADDRESS, months_ahead=6)
+USABLE = DatabaseCheck(address=ADDRESS, months_ahead=6, days_ahead=90)
 NEWER = MigrationStatus(applied=(), waiting=(), newer=("29990101T0000Z_newer.sql",), changed=())
-USABLE_NEWER = DatabaseCheck(address=ADDRESS, migrations=NEWER, months_ahead=6)
-USABLE_NO_ICU = DatabaseCheck(address=ADDRESS, icu=False, months_ahead=6)
+USABLE_NEWER = DatabaseCheck(address=ADDRESS, migrations=NEWER, months_ahead=6, days_ahead=90)
+USABLE_NO_ICU = DatabaseCheck(address=ADDRESS, icu=False, months_ahead=6, days_ahead=90)
 REFUSED = DatabaseCheck(address=ADDRESS, problem=Kind.UNREACHABLE, reason="connection refused")
 MISSING = DatabaseCheck(address=ADDRESS, problem=Kind.DATABASE_MISSING)
 
