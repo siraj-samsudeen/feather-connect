@@ -121,7 +121,7 @@ def test_the_codes_value_is_in_force_without_an_operator_value(clocked: Store, r
 
 
 def test_the_products_default_is_in_force_without_a_value_in_the_code(clocked: Store, recorded: Context):
-    assert in_force(clocked, recorded, "retries") == InForce("retries", "3", Layer.DEFAULT)
+    assert in_force(clocked, recorded, "tries") == InForce("tries", "6", Layer.DEFAULT)
 
 
 def test_the_operators_value_is_in_force_with_who_set_it_and_when(clocked: Store, recorded: Context):
@@ -318,7 +318,7 @@ def test_clearing_keeps_the_row_with_no_value(clocked: Store, recorded: Context,
 def test_clearing_without_an_operator_value_writes_nothing(clocked: Store, recorded: Context, database_url: str):
     before = writes(database_url, recorded)
 
-    cleared = clear_setting(clocked, operator(recorded), ORDERS, "retries", protected=False)
+    cleared = clear_setting(clocked, operator(recorded), ORDERS, "tries", protected=False)
 
     assert (cleared.had_value, cleared.in_force.layer, writes(database_url, recorded)) == (False, Layer.DEFAULT, before)
 
@@ -374,10 +374,10 @@ def test_a_viewer_cannot_clear_a_value(clocked: Store, recorded: Context):
 def test_every_operator_value_is_listed_by_name_then_setting(clocked: Store, recorded: Context):
     set_setting(clocked, operator(recorded), ORDERS, "look-back", "3d", protected=False)
     set_setting(clocked, operator(recorded), ORDERS, "batch-size", "100", protected=False)
-    set_setting(clocked, operator(recorded), "shop-flows.daily", "retries", "5", protected=False)
+    set_setting(clocked, operator(recorded), "shop-flows.daily", "tries", "5", protected=False)
 
     assert list_operator_values(clocked, viewer(recorded)) == [
-        OperatorValue("shop-flows.daily", "retries", "5", is_in_code=True),
+        OperatorValue("shop-flows.daily", "tries", "5", is_in_code=True),
         OperatorValue(ORDERS, "batch-size", "100", is_in_code=True),
         OperatorValue(ORDERS, "look-back", "3d", is_in_code=True),
     ]

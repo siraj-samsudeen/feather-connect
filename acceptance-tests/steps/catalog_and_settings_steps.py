@@ -75,8 +75,8 @@ def step_recorded_look_back(context, package_version, dataset, look_back):
     _recorded(context, package_version, dataset_settings={"look-back": look_back})
 
 
-@given('"{package_version:Quoted}" has been recorded, its code giving the dataset "{dataset:Quoted}" no retries')
-def step_recorded_no_retries(context, package_version, dataset):
+@given('"{package_version:Quoted}" has been recorded, its code giving the dataset "{dataset:Quoted}" no number of tries')
+def step_recorded_no_tries(context, package_version, dataset):
     _recorded(context, package_version)
 
 

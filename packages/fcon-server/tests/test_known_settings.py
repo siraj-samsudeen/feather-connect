@@ -24,7 +24,7 @@ def test_a_datasets_settings_are_listed_in_order():
         "look-back",
         "full-comparison-schedule",
         "batch-size",
-        "retries",
+        "tries",
         "time-limit",
         "readiness-interval",
         "late-data",
@@ -33,7 +33,7 @@ def test_a_datasets_settings_are_listed_in_order():
         "keep-records",
         "keep-versions",
         "fetch-batch-size",
-        "fetch-retries",
+        "fetch-tries",
         "fetch-time-limit",
     ]
 
@@ -44,7 +44,7 @@ def test_a_flows_settings_are_listed_in_order():
         "schedule",
         "time-zone",
         "paused-until",
-        "retries",
+        "tries",
         "time-limit",
         "parallel-work",
         "overlap",
@@ -57,7 +57,7 @@ def test_a_routes_settings_are_listed_in_order():
     assert names(Kind.ROUTE) == [
         "on",
         "paused-until",
-        "retries",
+        "tries",
         "time-limit",
         "batch-size",
         "parallel-partitions",
@@ -75,7 +75,7 @@ def test_a_routes_settings_are_listed_in_order():
     [
         (Kind.FLOW, "on", "off"),
         (Kind.ROUTE, "on", "on"),
-        (Kind.DATASET, "retries", "3"),
+        (Kind.DATASET, "tries", "6"),
         (Kind.DATASET, "look-back", "0s"),
         (Kind.FLOW, "schedule", "none"),
         (Kind.FLOW, "time-zone", "UTC"),
@@ -136,7 +136,7 @@ def test_a_count_below_its_least_or_not_whole_is_refused(typed: str):
 
 
 def test_a_count_may_start_from_nought():
-    assert check(Kind.DATASET, "retries", "0") == "0"
+    assert check(Kind.DATASET, "tries", "1") == "1"
 
 
 def test_a_count_says_its_least_value():
@@ -157,15 +157,20 @@ def test_anything_but_on_or_off_is_refused_for_a_switch(typed: str):
         check(Kind.ROUTE, "supersede-automatically", typed)
 
 
+def test_no_tries_at_all_is_refused():
+    with pytest.raises(BadValueError):
+        check(Kind.DATASET, "tries", "0")
+
+
 def test_a_choice_from_its_set_is_taken():
-    assert check(Kind.FLOW, "overlap", "wait") == "wait"
+    assert check(Kind.FLOW, "overlap", "queue") == "queue"
 
 
 def test_a_choice_outside_its_set_says_the_set():
     with pytest.raises(BadValueError) as refused:
         check(Kind.FLOW, "overlap", "sometimes")
 
-    assert refused.value.expected == "An overlap is one of skip, wait or allow."
+    assert refused.value.expected == "An overlap is one of queue, skip or cancel."
 
 
 @pytest.mark.parametrize(
@@ -173,7 +178,7 @@ def test_a_choice_outside_its_set_says_the_set():
     [
         (Kind.DATASET, "late-data", "A late-data is one of run-again, warn or ignore."),
         (Kind.ROUTE, "approval", "An approval is one of never, always or per-record."),
-        (Kind.FLOW, "catch-up", "A catch-up is one of latest, all or none."),
+        (Kind.FLOW, "catch-up", "A catch-up is one of latest, each or none."),
     ],
 )
 def test_a_choices_set_is_the_designs(kind: Kind, setting: str, expected: str):
@@ -185,7 +190,12 @@ def test_a_choices_set_is_the_designs(kind: Kind, setting: str, expected: str):
 
 @pytest.mark.parametrize(
     ("kind", "setting", "default"),
-    [(Kind.DATASET, "late-data", "warn"), (Kind.ROUTE, "approval", "never"), (Kind.FLOW, "catch-up", "latest")],
+    [
+        (Kind.DATASET, "late-data", "warn"),
+        (Kind.ROUTE, "approval", "never"),
+        (Kind.FLOW, "catch-up", "latest"),
+        (Kind.FLOW, "overlap", "skip"),
+    ],
 )
 def test_a_choices_default_is_the_designs(kind: Kind, setting: str, default: str):
     assert {each.name: each.default for each in settings_of(kind)}[setting] == default

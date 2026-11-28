@@ -176,8 +176,8 @@ def test_a_wrong_code_value_is_refused_saying_what_is_expected(database: str, ca
 
 
 DATASET_SETTINGS = (
-    "  A dataset's settings: look-back, full-comparison-schedule, batch-size, retries, time-limit, readiness-interval,"
-    " late-data, schema-changes, alert-when-stale-after, keep-records, keep-versions, fetch-batch-size, fetch-retries,"
+    "  A dataset's settings: look-back, full-comparison-schedule, batch-size, tries, time-limit, readiness-interval,"
+    " late-data, schema-changes, alert-when-stale-after, keep-records, keep-versions, fetch-batch-size, fetch-tries,"
     " fetch-time-limit\n"
 )
 

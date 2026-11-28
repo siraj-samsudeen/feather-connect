@@ -20,8 +20,8 @@ pytestmark = pytest.mark.database
 
 ORDERS = "shop-flows.orders"
 DATASET_SETTINGS = (
-    "  A dataset's settings: look-back, full-comparison-schedule, batch-size, retries, time-limit, readiness-interval,"
-    " late-data, schema-changes, alert-when-stale-after, keep-records, keep-versions, fetch-batch-size, fetch-retries,"
+    "  A dataset's settings: look-back, full-comparison-schedule, batch-size, tries, time-limit, readiness-interval,"
+    " late-data, schema-changes, alert-when-stale-after, keep-records, keep-versions, fetch-batch-size, fetch-tries,"
     " fetch-time-limit"
 )
 NEEDS_A_REASON = [
@@ -84,7 +84,7 @@ def test_show_gives_every_setting_in_force_by_layer(database: str, capsys: pytes
         "SETTING                   VALUE  SET BY   CHANGED",
         "look-back                 1d     code",
         "batch-size                5000   code",
-        "retries                   3      default",
+        "tries                     6      default",
     )
 
 
@@ -216,11 +216,11 @@ def test_clear_says_the_codes_value_is_in_force(database: str, capsys: pytest.Ca
 
 
 def test_clear_says_the_default_is_in_force(database: str, capsys: pytest.CaptureFixture[str]):
-    run(capsys, "set", ORDERS, "retries", "5")
+    run(capsys, "set", ORDERS, "tries", "5")
 
-    assert run(capsys, "clear", ORDERS, "retries")[:2] == (
+    assert run(capsys, "clear", ORDERS, "tries")[:2] == (
         0,
-        "cleared the retries of shop-flows.orders; the default 3 is in force.\n",
+        "cleared the tries of shop-flows.orders; the default 6 is in force.\n",
     )
 
 
@@ -270,14 +270,14 @@ def test_list_shows_every_operator_value_flagged_when_no_longer_in_the_code(
     database: str, capsys: pytest.CaptureFixture[str]
 ):
     run(capsys, "set", ORDERS, "look-back", "3d")
-    run(capsys, "set", "shop-flows.daily", "retries", "5")
+    run(capsys, "set", "shop-flows.daily", "tries", "5")
     record(shop("2.0", datasets=[]))
 
     assert run(capsys, "list")[:2] == (
         0,
         (
             "NAME               SETTING    VALUE  NOTE\n"
-            "shop-flows.daily   retries    5\n"
+            "shop-flows.daily   tries      5\n"
             "shop-flows.orders  look-back  3d     no longer in the code\n"
         ),
     )

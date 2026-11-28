@@ -36,12 +36,12 @@ PROTECTED_ON = "on"
 REFUSED_EXIT = 2
 
 # The setting a scenario's words name, as the commands name it.
-SETTING_NAMES = {"look-back": "look-back", "batch size": "batch-size", "retries": "retries", "key": "key"}
+SETTING_NAMES = {"look-back": "look-back", "batch size": "batch-size", "number of tries": "tries", "key": "key"}
 # Who a scenario says set a value, as the SET BY column says it.
 SET_BY = {"the operator": "operator", "the code": "code", "the product's default": "default"}
 OPERATOR = "operator"
 # What a dataset's settings line must name at least (the settings list of the design).
-DATASET_SETTINGS_NAMED = ("look-back", "batch-size", "retries")
+DATASET_SETTINGS_NAMED = ("look-back", "batch-size", "tries")
 
 # `fcon catalog list` and `fcon settings show|list`: headings, then one line per
 # row, the columns apart by two spaces or more.
