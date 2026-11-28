@@ -84,6 +84,7 @@ Who decides what, and a developer's change step by step:
 | What the product must do, by milestone | [`docs/requirements.md`](docs/requirements.md) |
 | What it does today | [`openspec/specs/`](openspec/specs/) |
 | Why it is built this way | [`adr/`](adr/) |
+| How systems exchange data, and what the hub can do | [`docs/integration-patterns.md`](docs/integration-patterns.md) |
 | How work moves, and who decides | [`docs/process.md`](docs/process.md) |
 | Setting up, and taking up an issue | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | Rules every agent and person follows | [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md) |
