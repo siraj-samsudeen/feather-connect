@@ -223,7 +223,7 @@ def test_a_set_on_a_name_no_longer_in_the_code_is_refused(clocked: Store, record
         ("shop-flows.nope", "look-back", "3d", "no flow, dataset or route is named shop-flows.nope."),
     ],
 )
-def test_a_refused_set_is_audited(  # noqa: PLR0913  # the fixtures, and one refusal's four facts
+def test_a_refused_set_is_audited(  # the fixtures, and one refusal's four facts
     clocked: Store, recorded: Context, database_url: str, name: str, setting: str, value: str, refused: str
 ):
     with pytest.raises(Exception, match="."):
@@ -232,9 +232,7 @@ def test_a_refused_set_is_audited(  # noqa: PLR0913  # the fixtures, and one ref
     assert audit(database_url, recorded, "refused") == [(f"{name}/{setting}", "system:test", refused, None, None)]
 
 
-def test_a_refused_set_on_a_name_no_longer_in_the_code_is_audited(
-    clocked: Store, recorded: Context, database_url: str
-):
+def test_a_refused_set_on_a_name_no_longer_in_the_code_is_audited(clocked: Store, recorded: Context, database_url: str):
     record(clocked, Caller(recorded, Role.DEVELOPER), shop("2.0", datasets=[]))
 
     with pytest.raises(NotInCodeError):
