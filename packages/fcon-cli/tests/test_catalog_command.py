@@ -34,7 +34,7 @@ def database(empty_database_url: str, monkeypatch: pytest.MonkeyPatch, tmp_path:
     yield empty_database_url
 
 
-def shop(version: str = "1.0", **groups: list[dict[str, Any]]) -> dict[str, Any]:
+def shop(version: str = "1.0", **groups: object) -> dict[str, Any]:
     """The contract's example package version, with `groups` replacing its lists."""
     return {
         "package": "shop-flows",
@@ -96,8 +96,10 @@ def test_the_same_version_with_other_definitions_is_refused(database: str, capsy
     assert record(capsys, shop(datasets=[{"name": ORDERS, "key": ["order_number"]}])) == (
         2,
         "",
-        "error: shop-flows 1.0 is recorded already, with other definitions.\n"
-        "  A recorded version never changes: give the changed code a new version.\n",
+        (
+            "error: shop-flows 1.0 is recorded already, with other definitions.\n"
+            "  A recorded version never changes: give the changed code a new version.\n"
+        ),
     )
 
 
@@ -225,10 +227,12 @@ def test_the_list_shows_every_entry_in_the_code_with_its_package_version(
 
     assert run(capsys, "list")[:2] == (
         0,
-        "NAME                      KIND     PACKAGE VERSION\n"
-        "shop-flows.daily          flow     shop-flows 1.0\n"
-        "shop-flows.orders         dataset  shop-flows 1.0\n"
-        "shop-flows.orders-to-crm  route    shop-flows 1.0\n",
+        (
+            "NAME                      KIND     PACKAGE VERSION\n"
+            "shop-flows.daily          flow     shop-flows 1.0\n"
+            "shop-flows.orders         dataset  shop-flows 1.0\n"
+            "shop-flows.orders-to-crm  route    shop-flows 1.0\n"
+        ),
     )
 
 

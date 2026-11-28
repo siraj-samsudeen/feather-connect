@@ -16,7 +16,14 @@ import re
 from dataclasses import dataclass
 from typing import cast
 
-from fcon_server.catalog.known_settings import Kind, SettingRefusedError, check
+from fcon_server.catalog.known_settings import (
+    BadValueError,
+    DecidedByCodeError,
+    Kind,
+    SettingRefusal,
+    UnknownSettingError,
+    check,
+)
 
 LARGEST = 1_000_000  # bytes in a definitions file
 GROUPS = {"flows": Kind.FLOW, "datasets": Kind.DATASET, "routes": Kind.ROUTE}
@@ -41,7 +48,7 @@ class NotDefinitionsError(Exception):
 class CodeValueError(Exception):
     """The code gives the entry `name` a setting it cannot have, or a value of the wrong type."""
 
-    def __init__(self, name: str, refused: SettingRefusedError) -> None:
+    def __init__(self, name: str, refused: SettingRefusal) -> None:
         super().__init__(f"{name}: {refused}")
         self.name = name
         self.refused = refused
@@ -152,7 +159,7 @@ def _settings(kind: Kind, name: str, item: JsonObject) -> dict[str, str]:
             )
         try:
             canonical[setting] = check(kind, setting, str(value))
-        except SettingRefusedError as err:
+        except (DecidedByCodeError, UnknownSettingError, BadValueError) as err:
             raise CodeValueError(name, err) from None
     return canonical
 

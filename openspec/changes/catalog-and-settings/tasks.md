@@ -46,13 +46,13 @@
 
 ## 3. What no scenario drives — each still arrives with the test or check that needs it
 
-- [ ] 3.1 The migration's four tables in `tables.py`, checked against the database by the existing table test; every index starting with `tenant_id`
-- [ ] 3.2 The definitions reader: names carry the package's name, duplicate names, kinds that change, renames across packages or kinds, a rename whose old name is still declared, an unknown or code-decided setting in the code, a file too large or not JSON: inner tests
-- [ ] 3.3 Each value type's parser (length of time, count, on/off, choice, time zone, schedule, a time with its offset, `none`): inner tests
+- [x] 3.1 The migration's four tables in `tables.py`, checked against the database by the existing table test; every index starting with `tenant_id`
+- [x] 3.2 The definitions reader: names carry the package's name, duplicate names, kinds that change, renames across packages or kinds, a rename whose old name is still declared, an unknown or code-decided setting in the code, a file too large or not JSON: inner tests
+- [x] 3.3 Each value type's parser (length of time, count, on/off, choice, time zone, schedule, a time with its offset, `none`): inner tests
 - [ ] 3.4 The rights: a viewer sees settings and can't change them; an operator can't record the catalog; refusals audited: inner tests
 - [ ] 3.5 Recording the same package version again with the same definitions writes nothing; a name the code no longer has comes back when a later version declares it again; a value can be cleared, not set, on a name no longer in the code: inner tests
 - [ ] 3.6 `FCON_PROTECTED` read and checked; `.env.example` and `deploy/.env.example`; `docs/architecture.md` (the catalog), `docs/runbook.md` (a flagged operator value), `docs/deploy.md` (the setting)
-- [ ] 3.7 `tzdata` as a direct dependency of `fcon-server`, with deptry told why it is never imported
+- [x] 3.7 `tzdata` as a direct dependency of `fcon-server`, with deptry told why it is never imported
 
 ## 4. Completion
 

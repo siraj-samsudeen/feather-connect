@@ -285,6 +285,10 @@ class BadValueError(SettingRefusedError):
         self.expected = expected
 
 
+type SettingRefusal = DecidedByCodeError | UnknownSettingError | BadValueError
+"""Every way `check` refuses a setting or its value."""
+
+
 def settings_of(kind: Kind) -> tuple[Setting, ...]:
     """The settings of `kind`, in the list's order."""
     return SETTINGS[kind]

@@ -11,6 +11,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, NoReturn
 
+from fcon_cli import catalog as catalog_commands
 from fcon_cli import problems
 from fcon_cli import users as user_commands
 from fcon_cli.db import show_status, upgrade_database
@@ -53,7 +54,7 @@ class Parser(argparse.ArgumentParser):
 
 
 def _parser() -> argparse.ArgumentParser:
-    """The command line's parser: `server`, `db upgrade|status` and `users add|list|disable|enable|set-role`."""
+    """The command line's parser: `server`, `db`, `users` and `catalog`, each with its own commands."""
     parser = Parser(prog="fcon", description="Feather Connect's command line.")
     commands = parser.add_subparsers(dest="command", required=True, metavar="command")
     server = commands.add_parser("server", help="start the server")
@@ -83,6 +84,13 @@ def _parser() -> argparse.ArgumentParser:
     set_role = users_commands.add_parser("set-role", help="give a user another role, from their next page")
     set_role.add_argument("name", help="the user's name")
     set_role.add_argument("role", choices=[r.value for r in Role], help="the new role")
+    catalog = commands.add_parser("catalog", help="record what a package version declares, or list the catalog")
+    catalog_commands_parser = catalog.add_subparsers(dest="catalog_command", required=True, metavar="command")
+    record = catalog_commands_parser.add_parser(
+        "record", help="record the flows, datasets and routes a package version's definitions file declares"
+    )
+    record.add_argument("file", help="the definitions file: JSON in UTF-8, at most 1 MB")
+    catalog_commands_parser.add_parser("list", help="list every flow, dataset and route the code declares now")
     return parser
 
 
@@ -101,6 +109,19 @@ def _users_command(args: argparse.Namespace) -> None:
             user_commands.enable(settings, args.name, sys.stdout)
         case _:
             user_commands.change_role(settings, args.name, Role(args.role), sys.stdout)
+
+
+def _catalog_command(args: argparse.Namespace) -> None:
+    """Run the `fcon catalog` command in `args` against the database the settings name.
+
+    The catalog's log lines (one per recording, a warning per flagged value) go to stderr.
+    """
+    settings = load_database_settings(os.environ, Path.cwd())
+    configure_logging("", sys.stderr)
+    if args.catalog_command == "record":
+        catalog_commands.record_file(settings, args.file, sys.stdout)
+    else:
+        catalog_commands.show_list(settings, sys.stdout)
 
 
 def _database_command(command: str, clock: Clock) -> None:
@@ -127,6 +148,9 @@ def main(
             return 0
         if args.command == "users":
             _users_command(args)
+            return 0
+        if args.command == "catalog":
+            _catalog_command(args)
             return 0
         settings = load_settings(os.environ, Path.cwd(), host=args.host, port=args.port)
         configure_logging(settings.log_format, sys.stderr)
