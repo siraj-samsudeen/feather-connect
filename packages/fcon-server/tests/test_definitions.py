@@ -194,7 +194,10 @@ def test_a_rename_from_another_package_is_refused():
 
 def test_a_rename_whose_old_name_is_still_declared_is_refused():
     data = shop(
-        datasets=[{"name": "shop-flows.orders"}, {"name": "shop-flows.sales-orders", "renamed_from": "shop-flows.orders"}]
+        datasets=[
+            {"name": "shop-flows.orders"},
+            {"name": "shop-flows.sales-orders", "renamed_from": "shop-flows.orders"},
+        ]
     )
 
     assert refusal(data).what == (
