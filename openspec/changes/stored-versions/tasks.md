@@ -1,7 +1,7 @@
 ## 1. First-time setup — `acceptance-tests/` exists (issue 4); only what this change adds
 
-- [ ] 1.1 A page object for the developer's terminal runs `fcon data read`, `fcon data versions` and `fcon data record` against the run's database with a JSON-lines file it writes for the scenario, and keeps their output and exit code; the texts the steps rely on live in it
-- [ ] 1.2 A scenario's dataset: the step that gives a dataset puts its catalog entry in the run's database (the one thing the product cannot yet be made to do from outside, until packages are installed), on a stand-in catalog table when issue 34's is not there yet
+- [x] 1.1 A page object for the developer's terminal runs `fcon data read`, `fcon data versions` and `fcon data record` against the run's database with a JSON-lines file it writes for the scenario, and keeps their output and exit code; the texts the steps rely on live in it
+- [x] 1.2 A scenario's dataset: the step that gives a dataset puts its catalog entry in the run's database (the one thing the product cannot yet be made to do from outside, until packages are installed), on a stand-in catalog table when issue 34's is not there yet
 
 ## 2. Step definitions — one task per pending step; each = fails for the right reason → implement → passes → commit
 
