@@ -479,7 +479,8 @@ follow from them.
 ## 12. Not planned
 
 A visual flow designer; turning the whole dashboard into a single-page application; a hosted
-service; an API gateway or developer portal; full business-process management; a marketplace of
+service; an API gateway or developer portal (R3.24's endpoints are declared in flow packages and
+reuse the product's rights and budgets; they are not a general gateway with keys, plans and a portal); full business-process management; a marketplace of
 connectors; column-level lineage; an optional streaming transport; a visual data-mapping assistant;
 finding patterns across many events within a time window (complex event processing): transforms
 filter and route record by record, which covers the simple cases.
