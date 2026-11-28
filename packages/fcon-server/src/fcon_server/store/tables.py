@@ -24,4 +24,18 @@ USER = Table("fcon.user", key=("tenant_id", "id"), changes=True, secret=frozense
 SESSION = Table("fcon.session", key=("tenant_id", "id"), changes=True, secret=frozenset({"id_hash", "form_token"}))
 SIGN_IN_ATTEMPT = Table("fcon.sign_in_attempt", key=("tenant_id", "id"), changes=False)
 
-TABLES = (TENANT, USER, SESSION, SIGN_IN_ATTEMPT)
+PACKAGE_VERSION = Table("fcon.package_version", key=("tenant_id", "id"), changes=False)
+CATALOG_ENTRY = Table("fcon.catalog_entry", key=("tenant_id", "id"), changes=True)
+CATALOG_DEFINITION = Table("fcon.catalog_definition", key=("tenant_id", "id"), changes=False)
+OPERATOR_SETTING = Table("fcon.operator_setting", key=("tenant_id", "id"), changes=True)
+
+TABLES = (
+    TENANT,
+    USER,
+    SESSION,
+    SIGN_IN_ATTEMPT,
+    PACKAGE_VERSION,
+    CATALOG_ENTRY,
+    CATALOG_DEFINITION,
+    OPERATOR_SETTING,
+)
