@@ -7,6 +7,7 @@ import os
 from pages.accessibility import AccessibilityCheck
 from pages.another_site import AnotherSite
 from pages.audit_log import AuditLog
+from pages.catalog_commands import CatalogCommands
 from pages.choose_password_page import ChoosePasswordPage
 from pages.container_host import ContainerHost
 from pages.database_commands import DatabaseCommands
@@ -26,7 +27,7 @@ from support import auth, captions, docker, run_database, stack, world
 
 # Capabilities whose scenarios open no web page: with VIDEO=1 they are shown on
 # a terminal-like page of the test's own (support/screen.py).
-SCREEN_FEATURES = ("Database upgrades", "Logs and health")
+SCREEN_FEATURES = ("Catalog and Settings", "Database upgrades", "Logs and health")
 
 
 def before_all(context):
@@ -73,6 +74,7 @@ def before_scenario(context, scenario):
     context.accessibility = AccessibilityCheck()
     context.terminal = Terminal(context.world)
     context.database_commands = DatabaseCommands(context.world)
+    context.catalog = CatalogCommands(context.world)
     context.server_log = ServerLog(context.world)
     context.container_host = ContainerHost(context.world)
     context.standard_setup = StandardSetup(context.world, context.container_host)
@@ -84,6 +86,9 @@ def after_scenario(context, scenario):
     terminal = getattr(context, "terminal", None)
     if terminal is not None:
         terminal.close()  # the other program lets go of its port
+    catalog = getattr(context, "catalog", None)
+    if catalog is not None:
+        catalog.close()  # the scenario's definitions files
     standard_setup = getattr(context, "standard_setup", None)
     container_host = getattr(context, "container_host", None)
     try:
